@@ -1,0 +1,25 @@
+# Code Owners for sitecat
+
+# Global code owners
+* @netplanmyj
+
+# Flutter/Dart specific files
+*.dart @netplanmyj
+pubspec.yaml @netplanmyj
+analysis_options.yaml @netplanmyj
+
+# Platform specific configurations
+android/ @netplanmyj
+ios/ @netplanmyj
+web/ @netplanmyj
+linux/ @netplanmyj
+windows/ @netplanmyj
+
+# CI/CD and GitHub configurations
+.github/ @netplanmyj
+*.yml @netplanmyj
+*.yaml @netplanmyj
+
+# Documentation
+*.md @netplanmyj
+docs/ @netplanmyj
