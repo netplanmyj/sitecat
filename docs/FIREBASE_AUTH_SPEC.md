@@ -13,6 +13,13 @@ npm install -g firebase-tools
 # ログイン
 firebase login
 
+# 環境別プロジェクト作成
+firebase projects:create sitecat-dev --display-name "SiteCat Development"
+firebase projects:create sitecat-prod --display-name "SiteCat Production"
+
+# 開発環境を使用
+firebase use sitecat-dev
+
 # プロジェクト初期化
 firebase init
 
@@ -23,10 +30,27 @@ firebase init
 # - Hosting
 ```
 
-### 1.2 認証プロバイダー設定
+### 1.2 環境別設定管理
+```bash
+# .firebaserc ファイルでプロジェクト管理
+{
+  "projects": {
+    "default": "sitecat-dev",
+    "dev": "sitecat-dev",
+    "prod": "sitecat-prod"
+  }
+}
+
+# 環境切り替え
+firebase use dev    # 開発環境
+firebase use prod   # 本番環境
+```
+
+### 1.3 認証プロバイダー設定
 - Google Sign-In を有効化
 - 承認済みドメインにアプリのドメインを追加
 - OAuth 2.0 クライアント ID の設定
+- 環境ごとに異なるOAuth設定を使用
 
 ## 2. Flutter依存関係設定
 
@@ -518,25 +542,53 @@ void main() {
 }
 ```
 
-## 7. デプロイメント設定
+## 7. 環境別デプロイメント設定
 
-### 7.1 Firebase設定
+### 7.1 Firebase設定ファイル
 ```json
+// .firebaserc
 {
   "projects": {
-    "default": "sitecat-prod"
+    "default": "sitecat-dev",
+    "dev": "sitecat-dev",
+    "prod": "sitecat-prod"
   }
 }
 ```
 
-### 7.2 CI/CD更新
+### 7.2 Flutter環境設定
+```dart
+// lib/config/firebase_config.dart
+class FirebaseConfig {
+  static const String projectId = String.fromEnvironment(
+    'FIREBASE_PROJECT_ID',
+    defaultValue: 'sitecat-dev',
+  );
+  
+  static bool get isProduction => projectId.contains('prod');
+  static bool get isDevelopment => projectId.contains('dev');
+}
+```
+
+### 7.3 CI/CD更新
 ```yaml
 # .github/workflows/ci.yml に追加
 - name: Setup Firebase CLI
   run: npm install -g firebase-tools
 
-- name: Deploy Firestore rules
-  run: firebase deploy --only firestore:rules
+- name: Deploy to development
+  if: github.ref == 'refs/heads/develop'
+  run: |
+    firebase use dev
+    firebase deploy --only firestore:rules
+  env:
+    FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+
+- name: Deploy to production
+  if: github.ref == 'refs/heads/main'
+  run: |
+    firebase use prod
+    firebase deploy --only firestore:rules
   env:
     FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
 ```

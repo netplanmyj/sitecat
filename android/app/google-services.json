@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "974974534435",
+    "project_id": "sitecat-dev",
+    "storage_bucket": "sitecat-dev.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:974974534435:android:eabcb903fd94486fcdc296",
+        "android_client_info": {
+          "package_name": "com.example.sitecat"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAQXRdyBYssNHByBY4WowJCoebWNN4T3Gc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

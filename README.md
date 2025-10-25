@@ -62,7 +62,16 @@
 
 3. **Firebase設定**
    ```bash
+   # Firebase CLI インストール・ログイン
+   npm install -g firebase-tools
    firebase login
+   
+   # 環境別プロジェクト作成
+   firebase projects:create sitecat-dev --display-name "SiteCat Development"
+   firebase projects:create sitecat-prod --display-name "SiteCat Production"
+   
+   # プロジェクト初期化
+   firebase use sitecat-dev  # 開発時
    firebase init
    ```
 
