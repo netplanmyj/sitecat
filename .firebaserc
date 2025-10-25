@@ -1,0 +1,6 @@
+{
+  "projects": {
+    "default": "sitecat-dev",
+    "dev": "sitecat-dev"
+  }
+}
