@@ -2,17 +2,30 @@ rules_version='2'
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    match /{document=**} {
-      // This rule allows anyone with your database reference to view, edit,
-      // and delete all data in your database. It is useful for getting
-      // started, but it is configured to expire after 30 days because it
-      // leaves your app open to attackers. At that time, all client
-      // requests to your database will be denied.
-      //
-      // Make sure to write security rules for your app before that time, or
-      // else all client requests to your database will be denied until you
-      // update your rules.
-      allow read, write: if request.time < timestamp.date(2025, 11, 24);
+    // ユーザーコレクション - 認証済みユーザーのみ自分のドキュメントにアクセス可能
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+    
+    // サイトコレクション - 認証済みユーザーのみ自分のサイトにアクセス可能
+    match /sites/{siteId} {
+      allow read, write: if request.auth != null 
+        && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null 
+        && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // アラートコレクション - 認証済みユーザーのみ自分のアラートにアクセス可能
+    match /alerts/{alertId} {
+      allow read, write: if request.auth != null 
+        && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null 
+        && request.resource.data.userId == request.auth.uid;
+    }
+    
+    // 統計コレクション - 認証済みユーザーのみ自分の統計にアクセス可能
+    match /statistics/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
     }
   }
 }
