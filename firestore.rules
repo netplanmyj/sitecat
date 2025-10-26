@@ -9,10 +9,55 @@ service cloud.firestore {
     
     // サイトコレクション - 認証済みユーザーのみ自分のサイトにアクセス可能
     match /sites/{siteId} {
-      allow read, write: if request.auth != null 
+      // 読み取り: 認証済みで、サイトの所有者のみ
+      allow read: if request.auth != null 
         && resource.data.userId == request.auth.uid;
+      
+      // 作成: 認証済みで、作成するデータのuserIdが自分のuid
       allow create: if request.auth != null 
-        && request.resource.data.userId == request.auth.uid;
+        && request.resource.data.userId == request.auth.uid
+        && validateSiteData();
+      
+      // 更新: 認証済みで、サイトの所有者のみ、userIdの変更は禁止
+      allow update: if request.auth != null 
+        && resource.data.userId == request.auth.uid
+        && request.resource.data.userId == request.auth.uid
+        && validateSiteData();
+      
+      // 削除: 認証済みで、サイトの所有者のみ
+      allow delete: if request.auth != null 
+        && resource.data.userId == request.auth.uid;
+      
+      // サイトデータのバリデーション関数
+      function validateSiteData() {
+        return request.resource.data.keys().hasAll(['userId', 'url', 'name', 'monitoringEnabled', 'checkInterval', 'createdAt'])
+          && request.resource.data.url is string
+          && request.resource.data.url.size() > 0
+          && request.resource.data.name is string
+          && request.resource.data.name.size() > 0
+          && request.resource.data.monitoringEnabled is bool
+          && request.resource.data.checkInterval is int
+          && request.resource.data.checkInterval >= 5
+          && request.resource.data.checkInterval <= 1440; // 5分〜24時間
+      }
+    }
+    
+    // 監視結果コレクション - サイト所有者のみアクセス可能
+    match /monitoringResults/{resultId} {
+      allow read: if request.auth != null 
+        && get(/databases/$(database)/documents/sites/$(resource.data.siteId)).data.userId == request.auth.uid;
+      allow create: if request.auth != null 
+        && get(/databases/$(database)/documents/sites/$(request.resource.data.siteId)).data.userId == request.auth.uid;
+      allow update, delete: if false; // 監視結果は更新・削除不可
+    }
+    
+    // リンクチェック結果コレクション - サイト所有者のみアクセス可能
+    match /linkChecks/{checkId} {
+      allow read: if request.auth != null 
+        && get(/databases/$(database)/documents/sites/$(resource.data.siteId)).data.userId == request.auth.uid;
+      allow create: if request.auth != null 
+        && get(/databases/$(database)/documents/sites/$(request.resource.data.siteId)).data.userId == request.auth.uid;
+      allow update, delete: if false; // リンクチェック結果は更新・削除不可
     }
     
     // アラートコレクション - 認証済みユーザーのみ自分のアラートにアクセス可能
