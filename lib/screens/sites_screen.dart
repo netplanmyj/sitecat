@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/site_provider.dart';
 import '../models/site.dart';
+import '../constants/app_constants.dart';
 import 'site_form_screen.dart';
 
 class SitesScreen extends StatefulWidget {
@@ -127,14 +128,35 @@ class _SitesScreenState extends State<SitesScreen> {
           );
         },
       ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (context) => const SiteFormScreen()),
+      floatingActionButton: Consumer<SiteProvider>(
+        builder: (context, siteProvider, child) {
+          return FloatingActionButton(
+            onPressed: siteProvider.canAddSite
+                ? () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (context) => const SiteFormScreen(),
+                      ),
+                    );
+                  }
+                : () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(AppConstants.siteLimitReachedMessage),
+                        backgroundColor: Colors.orange,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  },
+            tooltip: siteProvider.canAddSite
+                ? 'Add Site'
+                : AppConstants.siteLimitMessage,
+            backgroundColor: siteProvider.canAddSite
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey,
+            child: const Icon(Icons.add),
           );
         },
-        tooltip: 'Add Site',
-        child: const Icon(Icons.add),
       ),
     );
   }

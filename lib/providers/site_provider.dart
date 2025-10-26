@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/site.dart';
 import '../services/site_service.dart';
+import '../constants/app_constants.dart';
 
 class SiteProvider extends ChangeNotifier {
   final SiteService _siteService = SiteService();
@@ -19,6 +20,9 @@ class SiteProvider extends ChangeNotifier {
   int get siteCount => _sites.length;
   List<Site> get monitoringSites =>
       _sites.where((site) => site.monitoringEnabled).toList();
+
+  /// サイトを追加可能かチェック（無料プランの制限）
+  bool get canAddSite => _sites.length < AppConstants.freePlanSiteLimit;
 
   // Initialize and start listening to sites
   void initialize() {
@@ -60,6 +64,12 @@ class SiteProvider extends ChangeNotifier {
   }) async {
     try {
       _clearError();
+
+      // Check site limit
+      if (!canAddSite) {
+        _setError(AppConstants.siteLimitReachedMessage);
+        return false;
+      }
 
       // Validate URL format
       if (!await _siteService.validateUrl(url)) {
