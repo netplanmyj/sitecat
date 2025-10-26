@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/site_provider.dart';
 import '../models/site.dart';
+import '../constants/app_constants.dart';
 
 class SiteFormScreen extends StatefulWidget {
   final Site? site; // null for create, Site for edit
@@ -68,6 +69,45 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
       ),
       body: Consumer<SiteProvider>(
         builder: (context, siteProvider, child) {
+          // Check site limit for new sites
+          if (!widget.isEdit && !siteProvider.canAddSite) {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.lock_outline,
+                      size: 64,
+                      color: Colors.grey.shade400,
+                    ),
+                    const SizedBox(height: 24),
+                    Text(
+                      AppConstants.siteLimitReachedMessage,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'Current sites: ${siteProvider.siteCount} / ${AppConstants.freePlanSiteLimit}',
+                      style: TextStyle(color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 24),
+                    ElevatedButton.icon(
+                      onPressed: () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.arrow_back),
+                      label: const Text('Back to Sites'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
           return Form(
             key: _formKey,
             child: ListView(
