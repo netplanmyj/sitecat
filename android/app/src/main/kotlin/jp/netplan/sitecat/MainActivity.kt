@@ -1,4 +1,4 @@
-package com.example.sitecat
+package jp.netplan.sitecat
 
 import io.flutter.embedding.android.FlutterActivity
 
