@@ -120,10 +120,31 @@ class MonitoringProvider extends ChangeNotifier {
   /// Get monitoring statistics for a site
   Future<MonitoringStats> getStats(String siteId) async {
     try {
-      final uptime = await getUptime(siteId);
-      final avgResponseTime = await getAverageResponseTime(siteId);
+      // Get basic stats from cached results
       final latestResult = getLatestResult(siteId);
-      final totalChecks = _resultsBySite[siteId]?.length ?? 0;
+      final cachedResults = _resultsBySite[siteId] ?? [];
+      final totalChecks = cachedResults.length;
+
+      // Try to get advanced stats (may fail if index is still building)
+      double uptime = 0;
+      int avgResponseTime = 0;
+
+      try {
+        uptime = await getUptime(siteId);
+        avgResponseTime = await getAverageResponseTime(siteId);
+      } catch (e) {
+        // Fallback to cached data if indexes are not ready
+        if (cachedResults.isNotEmpty) {
+          final upChecks = cachedResults.where((r) => r.isUp).length;
+          uptime = (upChecks / cachedResults.length) * 100;
+
+          final totalResponseTime = cachedResults.fold<int>(
+            0,
+            (total, r) => total + r.responseTime,
+          );
+          avgResponseTime = totalResponseTime ~/ cachedResults.length;
+        }
+      }
 
       return MonitoringStats(
         uptime: uptime,
