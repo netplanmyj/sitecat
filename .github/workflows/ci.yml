@@ -42,6 +42,9 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Create firebase_options.dart for CI
+        run: cp lib/firebase_options.dart.example lib/firebase_options.dart
+
       - name: Verify the Dart SDK version
         run: dart --version
 
@@ -99,6 +102,9 @@ jobs:
       - name: Get dependencies
         run: flutter pub get
 
+      - name: Create firebase_options.dart for CI
+        run: cp lib/firebase_options.dart.example lib/firebase_options.dart
+
       - name: Build Android APK
         run: flutter build apk --debug
 
@@ -143,6 +149,9 @@ jobs:
 
       - name: Get dependencies
         run: flutter pub get
+
+      - name: Create firebase_options.dart for CI
+        run: cp lib/firebase_options.dart.example lib/firebase_options.dart
 
       - name: Build iOS (no codesign)
         run: flutter build ios --debug --no-codesign
