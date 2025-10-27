@@ -173,4 +173,24 @@ void main() {
       expect(result.timestamp.minute, now.minute);
     });
   });
+
+  group('MonitoringProvider Rate Limiting Tests', () {
+    test('should respect minimum check interval', () async {
+      // Note: This test would require mocking MonitoringService
+      // and is included as a placeholder for future implementation
+
+      // Test that canCheckSite returns false within 5 minutes
+      // Test that getTimeUntilNextCheck returns correct duration
+      // Test that checkSite respects the interval
+    });
+
+    test('should cache statistics for 5 minutes', () async {
+      // Note: This test would require mocking MonitoringService
+      // and is included as a placeholder for future implementation
+
+      // Test that stats are cached
+      // Test that cache is invalidated after new check
+      // Test that cache expires after 5 minutes
+    });
+  });
 }

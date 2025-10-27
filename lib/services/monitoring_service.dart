@@ -30,10 +30,10 @@ class MonitoringService {
     String? error;
 
     try {
-      // Perform HTTP request
+      // Perform HTTP request with 10-second timeout to reduce load on target sites
       final response = await http
           .get(Uri.parse(site.url))
-          .timeout(const Duration(seconds: 30));
+          .timeout(const Duration(seconds: 10));
 
       statusCode = response.statusCode;
       isUp = statusCode >= 200 && statusCode < 400;
