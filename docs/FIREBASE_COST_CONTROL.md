@@ -19,7 +19,7 @@ service cloud.firestore {
         && request.auth.uid == userId
         && resource == null
         && get(/databases/$(database)/documents/users/$(userId)).data.plan == 'free'
-        && get(/databases/$(database)/documents/users/$(userId)).data.siteCount < 10;
+        && get(/databases/$(database)/documents/users/$(userId)).data.siteCount < 1;
     }
     
     // サイト設定アクセス制御
@@ -31,7 +31,7 @@ service cloud.firestore {
       allow create: if request.auth != null 
         && request.auth.uid == resource.data.userId
         && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.plan == 'free'
-        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.siteCount < 10;
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.siteCount < 1;
     }
     
     // 監視履歴アクセス制御
@@ -81,7 +81,7 @@ async function checkUsageLimits(userId, action) {
   const limits = {
     free: {
       dailyChecks: 10,
-      maxSites: 10,
+      maxSites: 1,
       historyDays: 30
     },
     personal: {
