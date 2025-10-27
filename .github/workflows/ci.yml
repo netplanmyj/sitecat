@@ -6,6 +6,13 @@ on:
     types: [opened, synchronize, reopened]
   push:
     branches: [ main ]
+  workflow_dispatch:  # 手動トリガーを有効化
+    inputs:
+      build_ios:
+        description: 'Build iOS (consumes 10x minutes)'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   analyze:
@@ -110,7 +117,9 @@ jobs:
     name: Build iOS
     runs-on: macos-latest
     needs: analyze
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # iOS builds disabled to save GitHub Actions minutes (macOS uses 10x multiplier)
+    # Enable manually via workflow_dispatch with build_ios=true
+    if: github.event.inputs.build_ios == 'true'
 
     steps:
       - name: Checkout repository
