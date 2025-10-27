@@ -9,6 +9,7 @@ class Site {
   final int checkInterval; // minutes
   final DateTime createdAt;
   final DateTime? lastChecked;
+  final String? sitemapUrl; // Sitemap URL for link checking (optional)
 
   Site({
     required this.id,
@@ -19,6 +20,7 @@ class Site {
     this.checkInterval = 60, // Default: 60 minutes
     required this.createdAt,
     this.lastChecked,
+    this.sitemapUrl,
   });
 
   // Factory constructor to create Site from Firestore document
@@ -33,6 +35,7 @@ class Site {
       checkInterval: data['checkInterval'] ?? 60,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       lastChecked: (data['lastChecked'] as Timestamp?)?.toDate(),
+      sitemapUrl: data['sitemapUrl'],
     );
   }
 
@@ -48,6 +51,7 @@ class Site {
       'lastChecked': lastChecked != null
           ? Timestamp.fromDate(lastChecked!)
           : null,
+      'sitemapUrl': sitemapUrl,
     };
   }
 
@@ -61,6 +65,7 @@ class Site {
     int? checkInterval,
     DateTime? createdAt,
     DateTime? lastChecked,
+    String? sitemapUrl,
   }) {
     return Site(
       id: id ?? this.id,
@@ -71,6 +76,7 @@ class Site {
       checkInterval: checkInterval ?? this.checkInterval,
       createdAt: createdAt ?? this.createdAt,
       lastChecked: lastChecked ?? this.lastChecked,
+      sitemapUrl: sitemapUrl ?? this.sitemapUrl,
     );
   }
 
