@@ -416,5 +416,4 @@ class _SitesScreenState extends State<SitesScreen> {
       ),
     );
   }
-
 }

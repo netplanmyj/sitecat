@@ -115,7 +115,7 @@ void main() {
 
     test('should handle different status codes', () {
       final codes = [200, 201, 301, 400, 404, 500, 503];
-      
+
       for (final code in codes) {
         final result = MonitoringResult(
           id: 'test-id',
@@ -138,7 +138,7 @@ void main() {
 
     test('should track response times accurately', () {
       final responseTimes = [50, 100, 200, 500, 1000, 2000];
-      
+
       for (final time in responseTimes) {
         final result = MonitoringResult(
           id: 'test-id',

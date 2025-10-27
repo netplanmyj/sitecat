@@ -26,9 +26,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.site.name),
-      ),
+      appBar: AppBar(title: Text(widget.site.name)),
       body: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(16.0),
@@ -84,9 +82,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             ),
           ),
         ),
-        Expanded(
-          child: Text(value),
-        ),
+        Expanded(child: Text(value)),
       ],
     );
   }
@@ -95,7 +91,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     return Consumer<MonitoringProvider>(
       builder: (context, provider, child) {
         final isChecking = provider.isChecking(widget.site.id);
-        
+
         return SizedBox(
           width: double.infinity,
           child: ElevatedButton.icon(
@@ -123,15 +119,12 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   Future<void> _checkSite() async {
     final provider = context.read<MonitoringProvider>();
     await provider.checkSite(widget.site);
-    
+
     if (!mounted) return;
-    
+
     if (provider.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.error!),
-          backgroundColor: Colors.red,
-        ),
+        SnackBar(content: Text(provider.error!), backgroundColor: Colors.red),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -147,18 +140,14 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     return Consumer<MonitoringProvider>(
       builder: (context, provider, child) {
         final latestResult = provider.getLatestResult(widget.site.id);
-        
+
         if (latestResult == null) {
           return Card(
             child: Padding(
               padding: const EdgeInsets.all(16.0),
               child: Column(
                 children: [
-                  const Icon(
-                    Icons.info_outline,
-                    size: 48,
-                    color: Colors.grey,
-                  ),
+                  const Icon(Icons.info_outline, size: 48, color: Colors.grey),
                   const SizedBox(height: 8),
                   Text(
                     'まだチェック結果がありません',
@@ -169,7 +158,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             ),
           );
         }
-        
+
         return Card(
           child: Padding(
             padding: const EdgeInsets.all(16.0),
@@ -183,15 +172,9 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                 const SizedBox(height: 16),
                 _buildStatusBadge(latestResult),
                 const SizedBox(height: 12),
-                _buildResultRow(
-                  'ステータスコード',
-                  latestResult.statusCode.toString(),
-                ),
+                _buildResultRow('ステータスコード', latestResult.statusCode.toString()),
                 const SizedBox(height: 8),
-                _buildResultRow(
-                  'レスポンスタイム',
-                  '${latestResult.responseTime}ms',
-                ),
+                _buildResultRow('レスポンスタイム', '${latestResult.responseTime}ms'),
                 const SizedBox(height: 8),
                 _buildResultRow(
                   'チェック時刻',
@@ -232,7 +215,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     Color color;
     IconData icon;
     String text;
-    
+
     if (result.isUp) {
       color = Colors.green;
       icon = Icons.check_circle;
@@ -242,7 +225,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
       icon = Icons.error;
       text = 'エラー';
     }
-    
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
@@ -257,10 +240,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
           const SizedBox(width: 8),
           Text(
             text,
-            style: TextStyle(
-              color: color,
-              fontWeight: FontWeight.bold,
-            ),
+            style: TextStyle(color: color, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -278,10 +258,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             color: Colors.grey,
           ),
         ),
-        Text(
-          value,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.w500)),
       ],
     );
   }
@@ -300,9 +277,9 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                 ),
               );
             }
-            
+
             final stats = snapshot.data!;
-            
+
             return Card(
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
@@ -311,7 +288,10 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                   children: [
                     const Text(
                       '統計情報',
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                     const SizedBox(height: 16),
                     Row(
@@ -367,7 +347,12 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildStatItem(
+    String label,
+    String value,
+    IconData icon,
+    Color color,
+  ) {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(

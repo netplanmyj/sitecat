@@ -15,7 +15,7 @@ class MonitoringProvider extends ChangeNotifier {
 
   // Getters
   String? get error => _error;
-  
+
   /// Get monitoring results for a specific site
   List<MonitoringResult> getSiteResults(String siteId) {
     return _resultsBySite[siteId] ?? [];
@@ -43,21 +43,21 @@ class MonitoringProvider extends ChangeNotifier {
   /// Start listening to monitoring results for a site
   void listenToSiteResults(String siteId, {int limit = 50}) {
     _subscriptions ??= {};
-    
+
     // Cancel existing subscription if any
     _subscriptions![siteId]?.cancel();
 
     _subscriptions![siteId] = _monitoringService
         .getSiteResults(siteId, limit: limit)
         .listen(
-      (results) {
-        _resultsBySite[siteId] = results;
-        notifyListeners();
-      },
-      onError: (error) {
-        _setError('Failed to load monitoring results: $error');
-      },
-    );
+          (results) {
+            _resultsBySite[siteId] = results;
+            notifyListeners();
+          },
+          onError: (error) {
+            _setError('Failed to load monitoring results: $error');
+          },
+        );
   }
 
   /// Stop listening to monitoring results for a site
@@ -89,7 +89,10 @@ class MonitoringProvider extends ChangeNotifier {
   }
 
   /// Calculate uptime percentage for a site
-  Future<double> getUptime(String siteId, {Duration period = const Duration(days: 7)}) async {
+  Future<double> getUptime(
+    String siteId, {
+    Duration period = const Duration(days: 7),
+  }) async {
     try {
       return await _monitoringService.calculateUptime(siteId, period: period);
     } catch (e) {
@@ -99,9 +102,15 @@ class MonitoringProvider extends ChangeNotifier {
   }
 
   /// Calculate average response time for a site
-  Future<int> getAverageResponseTime(String siteId, {Duration period = const Duration(days: 7)}) async {
+  Future<int> getAverageResponseTime(
+    String siteId, {
+    Duration period = const Duration(days: 7),
+  }) async {
     try {
-      return await _monitoringService.calculateAverageResponseTime(siteId, period: period);
+      return await _monitoringService.calculateAverageResponseTime(
+        siteId,
+        period: period,
+      );
     } catch (e) {
       _setError('Failed to calculate average response time: $e');
       return 0;
@@ -187,7 +196,7 @@ class MonitoringStats {
   });
 
   String get uptimeDisplay => '${uptime.toStringAsFixed(1)}%';
-  
+
   String get averageResponseTimeDisplay {
     if (averageResponseTime < 1000) {
       return '${averageResponseTime}ms';
@@ -196,6 +205,6 @@ class MonitoringStats {
   }
 
   String get statusText => isCurrentlyUp ? 'Online' : 'Offline';
-  
+
   Color get statusColor => isCurrentlyUp ? Colors.green : Colors.red;
 }
