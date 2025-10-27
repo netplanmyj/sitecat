@@ -50,6 +50,12 @@ dependencies:
   
   # State Management
   provider: ^6.1.2
+  
+  # HTTP Client
+  http: ^1.2.2
+  
+  # Charts and Graphs
+  fl_chart: ^0.69.0
 
 dev_dependencies:
   flutter_test:
