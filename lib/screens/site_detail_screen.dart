@@ -91,26 +91,41 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     return Consumer<MonitoringProvider>(
       builder: (context, provider, child) {
         final isChecking = provider.isChecking(widget.site.id);
+        final canCheck = provider.canCheckSite(widget.site.id);
+        final timeUntilNext = provider.getTimeUntilNextCheck(widget.site.id);
 
-        return SizedBox(
-          width: double.infinity,
-          child: ElevatedButton.icon(
-            onPressed: isChecking ? null : () => _checkSite(),
-            icon: isChecking
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      color: Colors.white,
-                    ),
-                  )
-                : const Icon(Icons.refresh),
-            label: Text(isChecking ? 'チェック中...' : 'サイトをチェック'),
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 16),
+        return Column(
+          children: [
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: (isChecking || !canCheck)
+                    ? null
+                    : () => _checkSite(),
+                icon: isChecking
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                    : const Icon(Icons.refresh),
+                label: Text(isChecking ? 'チェック中...' : 'サイトをチェック'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                ),
+              ),
             ),
-          ),
+            if (timeUntilNext != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                '次回チェック可能まで: ${timeUntilNext.inMinutes}:${(timeUntilNext.inSeconds % 60).toString().padLeft(2, '0')}',
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ],
+          ],
         );
       },
     );

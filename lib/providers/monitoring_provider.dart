@@ -7,9 +7,18 @@ import '../services/monitoring_service.dart';
 class MonitoringProvider extends ChangeNotifier {
   final MonitoringService _monitoringService = MonitoringService();
 
+  // Minimum interval between checks (5 minutes) to reduce load on target sites
+  static const Duration minimumCheckInterval = Duration(minutes: 5);
+
+  // Cache duration for statistics (5 minutes)
+  static const Duration statsCacheDuration = Duration(minutes: 5);
+
   // State variables
   final Map<String, List<MonitoringResult>> _resultsBySite = {};
   final Map<String, bool> _isChecking = {};
+  final Map<String, DateTime> _lastCheckTime = {};
+  final Map<String, MonitoringStats> _statsCache = {};
+  final Map<String, DateTime> _statsCacheTime = {};
   String? _error;
   Map<String, StreamSubscription<List<MonitoringResult>>>? _subscriptions;
 
@@ -66,10 +75,44 @@ class MonitoringProvider extends ChangeNotifier {
     _subscriptions?.remove(siteId);
   }
 
+  /// Check if a site can be checked (respects minimum interval)
+  bool canCheckSite(String siteId) {
+    final lastCheck = _lastCheckTime[siteId];
+    if (lastCheck == null) return true;
+
+    final timeSinceLastCheck = DateTime.now().difference(lastCheck);
+    return timeSinceLastCheck >= minimumCheckInterval;
+  }
+
+  /// Get remaining time until next check is allowed
+  Duration? getTimeUntilNextCheck(String siteId) {
+    final lastCheck = _lastCheckTime[siteId];
+    if (lastCheck == null) return null;
+
+    final timeSinceLastCheck = DateTime.now().difference(lastCheck);
+    final remaining = minimumCheckInterval - timeSinceLastCheck;
+
+    return remaining.isNegative ? null : remaining;
+  }
+
   /// Perform a manual check on a site
   Future<bool> checkSite(Site site) async {
     try {
       _clearError();
+
+      // Check if minimum interval has passed
+      if (!canCheckSite(site.id)) {
+        final remaining = getTimeUntilNextCheck(site.id);
+        if (remaining != null) {
+          final minutes = remaining.inMinutes;
+          final seconds = remaining.inSeconds % 60;
+          _setError(
+            'Please wait $minutes:${seconds.toString().padLeft(2, '0')} before checking again',
+          );
+          return false;
+        }
+      }
+
       _setChecking(site.id, true);
 
       final result = await _monitoringService.checkSite(site);
@@ -77,6 +120,11 @@ class MonitoringProvider extends ChangeNotifier {
       // Update local cache
       final existingResults = _resultsBySite[site.id] ?? [];
       _resultsBySite[site.id] = [result, ...existingResults];
+
+      // Record check time and invalidate stats cache
+      _lastCheckTime[site.id] = DateTime.now();
+      _statsCache.remove(site.id);
+      _statsCacheTime.remove(site.id);
 
       _setChecking(site.id, false);
       notifyListeners();
@@ -117,9 +165,19 @@ class MonitoringProvider extends ChangeNotifier {
     }
   }
 
-  /// Get monitoring statistics for a site
+  /// Get monitoring statistics for a site (with caching)
   Future<MonitoringStats> getStats(String siteId) async {
     try {
+      // Check if cached stats are still valid
+      final cacheTime = _statsCacheTime[siteId];
+      if (cacheTime != null) {
+        final age = DateTime.now().difference(cacheTime);
+        if (age < statsCacheDuration) {
+          // Return cached stats if still fresh
+          return _statsCache[siteId]!;
+        }
+      }
+
       // Get basic stats from cached results
       final latestResult = getLatestResult(siteId);
       final cachedResults = _resultsBySite[siteId] ?? [];
@@ -146,13 +204,19 @@ class MonitoringProvider extends ChangeNotifier {
         }
       }
 
-      return MonitoringStats(
+      final stats = MonitoringStats(
         uptime: uptime,
         averageResponseTime: avgResponseTime,
         totalChecks: totalChecks,
         isCurrentlyUp: latestResult?.isUp ?? false,
         lastChecked: latestResult?.timestamp,
       );
+
+      // Cache the stats
+      _statsCache[siteId] = stats;
+      _statsCacheTime[siteId] = DateTime.now();
+
+      return stats;
     } catch (e) {
       _setError('Failed to get statistics: $e');
       return MonitoringStats(
