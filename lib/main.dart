@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/site_provider.dart';
+import 'providers/monitoring_provider.dart';
 import 'screens/sites_screen.dart';
 
 void main() async {
@@ -21,6 +22,7 @@ class SiteCatApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (context) => AuthProvider()),
         ChangeNotifierProvider(create: (context) => SiteProvider()),
+        ChangeNotifierProvider(create: (context) => MonitoringProvider()),
       ],
       child: MaterialApp(
         title: 'SiteCat',

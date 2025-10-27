@@ -4,6 +4,7 @@ import '../providers/site_provider.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
 import 'site_form_screen.dart';
+import 'site_detail_screen.dart';
 
 class SitesScreen extends StatefulWidget {
   const SitesScreen({super.key});
@@ -331,8 +332,12 @@ class _SitesScreenState extends State<SitesScreen> {
           ],
         ),
         onTap: () {
-          // Navigate to site details or monitoring results
-          _showSiteDetails(context, site);
+          // Navigate to site detail screen
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => SiteDetailScreen(site: site),
+            ),
+          );
         },
       ),
     );
@@ -412,79 +417,4 @@ class _SitesScreenState extends State<SitesScreen> {
     );
   }
 
-  void _showSiteDetails(BuildContext context, Site site) {
-    showModalBottomSheet(
-      context: context,
-      builder: (context) => Container(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              site.name,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Icon(Icons.link, size: 16, color: Colors.grey.shade600),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    site.url,
-                    style: TextStyle(color: Colors.blue.shade600),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                _buildDetailItem(
-                  'Status',
-                  site.monitoringEnabled ? 'Monitoring' : 'Paused',
-                  site.monitoringEnabled ? Colors.green : Colors.orange,
-                ),
-                const SizedBox(width: 24),
-                _buildDetailItem(
-                  'Interval',
-                  site.checkIntervalDisplay,
-                  Colors.blue,
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            _buildDetailItem(
-              'Last Checked',
-              site.lastCheckedDisplay,
-              Colors.grey,
-            ),
-            const SizedBox(height: 16),
-            _buildDetailItem(
-              'Added',
-              '${site.createdAt.day}/${site.createdAt.month}/${site.createdAt.year}',
-              Colors.grey,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDetailItem(String label, String value, Color color) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-        ),
-        Text(
-          value,
-          style: TextStyle(fontWeight: FontWeight.w500, color: color),
-        ),
-      ],
-    );
-  }
 }
