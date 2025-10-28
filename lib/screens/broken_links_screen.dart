@@ -26,7 +26,7 @@ class BrokenLinksScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('壊れたリンク'),
+        title: const Text('Broken Links'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Column(
@@ -52,25 +52,25 @@ class BrokenLinksScreen extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         _buildSummaryItem(
-                          '総リンク数',
+                          'Total Links',
                           result!.totalLinks.toString(),
                           Icons.link,
                           Colors.blue,
                         ),
                         _buildSummaryItem(
-                          '内部リンク',
+                          'Internal',
                           result!.internalLinks.toString(),
                           Icons.home,
                           Colors.green,
                         ),
                         _buildSummaryItem(
-                          '外部リンク',
+                          'External',
                           result!.externalLinks.toString(),
                           Icons.public,
                           Colors.orange,
                         ),
                         _buildSummaryItem(
-                          '壊れたリンク',
+                          'Broken',
                           result!.brokenLinks.toString(),
                           Icons.link_off,
                           Colors.red,
@@ -96,7 +96,7 @@ class BrokenLinksScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 16),
                         Text(
-                          '壊れたリンクはありません',
+                          'No broken links found',
                           style: TextStyle(
                             fontSize: 18,
                             color: Colors.grey.shade600,
@@ -111,8 +111,8 @@ class BrokenLinksScreen extends StatelessWidget {
                       children: [
                         TabBar(
                           tabs: [
-                            Tab(text: '内部リンク (${internalLinks.length})'),
-                            Tab(text: '外部リンク (${externalLinks.length})'),
+                            Tab(text: 'Internal (${internalLinks.length})'),
+                            Tab(text: 'External (${externalLinks.length})'),
                           ],
                         ),
                         Expanded(
@@ -164,7 +164,7 @@ class BrokenLinksScreen extends StatelessWidget {
             Icon(Icons.check_circle, size: 64, color: Colors.green.shade300),
             const SizedBox(height: 16),
             Text(
-              'このカテゴリに壊れたリンクはありません',
+              'No broken links in this category',
               style: TextStyle(fontSize: 16, color: Colors.grey.shade600),
             ),
           ],
@@ -198,7 +198,7 @@ class BrokenLinksScreen extends StatelessWidget {
               style: const TextStyle(fontSize: 14),
             ),
             subtitle: Text(
-              '発見場所: ${link.foundOn}',
+              'Found on: ${link.foundOn}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 12),

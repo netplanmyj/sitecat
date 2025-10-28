@@ -59,13 +59,13 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'サイト情報',
+              'Site Information',
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             _buildInfoRow('URL', widget.site.url),
             const SizedBox(height: 8),
-            _buildInfoRow('登録日', _formatDate(widget.site.createdAt)),
+            _buildInfoRow('Registered', _formatDate(widget.site.createdAt)),
           ],
         ),
       ),
@@ -116,7 +116,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                         ),
                       )
                     : const Icon(Icons.refresh),
-                label: Text(isChecking ? 'チェック中...' : 'サイトをチェック'),
+                label: Text(isChecking ? 'Checking...' : 'Check Site'),
                 style: ElevatedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 16),
                 ),
@@ -125,7 +125,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             if (timeUntilNext != null) ...[
               const SizedBox(height: 8),
               Text(
-                '次回チェック可能まで: ${timeUntilNext.inMinutes}:${(timeUntilNext.inSeconds % 60).toString().padLeft(2, '0')}',
+                'Next check available in: ${timeUntilNext.inMinutes}:${(timeUntilNext.inSeconds % 60).toString().padLeft(2, '0')}',
                 style: const TextStyle(fontSize: 12, color: Colors.grey),
               ),
             ],
@@ -148,7 +148,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('チェックが完了しました'),
+          content: Text('Check completed'),
           backgroundColor: Colors.green,
         ),
       );
@@ -169,7 +169,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                   const Icon(Icons.info_outline, size: 48, color: Colors.grey),
                   const SizedBox(height: 8),
                   Text(
-                    'まだチェック結果がありません',
+                    'No check results yet',
                     style: TextStyle(color: Colors.grey[600]),
                   ),
                 ],
@@ -185,18 +185,24 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  '最新のチェック結果',
+                  'Latest Check Result',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 16),
                 _buildStatusBadge(latestResult),
                 const SizedBox(height: 12),
-                _buildResultRow('ステータスコード', latestResult.statusCode.toString()),
-                const SizedBox(height: 8),
-                _buildResultRow('レスポンスタイム', '${latestResult.responseTime}ms'),
+                _buildResultRow(
+                  'Status Code',
+                  latestResult.statusCode.toString(),
+                ),
                 const SizedBox(height: 8),
                 _buildResultRow(
-                  'チェック時刻',
+                  'Response Time',
+                  '${latestResult.responseTime}ms',
+                ),
+                const SizedBox(height: 8),
+                _buildResultRow(
+                  'Checked At',
                   _formatDateTime(latestResult.timestamp),
                 ),
                 if (latestResult.error != null) ...[
@@ -306,7 +312,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      '統計情報',
+                      'Statistics',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -317,7 +323,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                       children: [
                         Expanded(
                           child: _buildStatItem(
-                            '稼働率',
+                            'Uptime',
                             stats.uptimeDisplay,
                             Icons.show_chart,
                             Colors.blue,
@@ -326,7 +332,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: _buildStatItem(
-                            '平均応答',
+                            'Avg Response',
                             stats.averageResponseTimeDisplay,
                             Icons.timer,
                             Colors.green,
@@ -339,8 +345,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                       children: [
                         Expanded(
                           child: _buildStatItem(
-                            'チェック数',
-                            '${stats.totalChecks}回',
+                            'Checks',
+                            '${stats.totalChecks}',
                             Icons.history,
                             Colors.purple,
                           ),
@@ -348,7 +354,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                         const SizedBox(width: 16),
                         Expanded(
                           child: _buildStatItem(
-                            '状態',
+                            'Status',
                             stats.statusText,
                             Icons.circle,
                             stats.statusColor,
@@ -385,7 +391,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                     const Icon(Icons.link_off, size: 24),
                     const SizedBox(width: 8),
                     const Text(
-                      'リンクチェック',
+                      'Link Check',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -423,8 +429,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                         : const Icon(Icons.search),
                     label: Text(
                       state == LinkCheckState.checking
-                          ? 'チェック中...'
-                          : 'リンクをチェック',
+                          ? 'Checking...'
+                          : 'Check Links',
                     ),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -450,7 +456,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                     children: [
                       Expanded(
                         child: _buildLinkStatCard(
-                          '総リンク数',
+                          'Total Links',
                           result.totalLinks.toString(),
                           Icons.link,
                           Colors.blue,
@@ -459,7 +465,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                       const SizedBox(width: 8),
                       Expanded(
                         child: _buildLinkStatCard(
-                          '壊れたリンク',
+                          'Broken',
                           result.brokenLinks.toString(),
                           Icons.link_off,
                           result.brokenLinks > 0 ? Colors.red : Colors.green,
@@ -481,7 +487,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                         ),
                       ),
                       icon: const Icon(Icons.list),
-                      label: const Text('壊れたリンクを表示'),
+                      label: const Text('View Broken Links'),
                     ),
                   ],
                 ],
@@ -561,7 +567,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('リンクチェックが完了しました'),
+          content: Text('Link check completed'),
           backgroundColor: Colors.green,
         ),
       );
@@ -569,7 +575,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('エラー: $e'), backgroundColor: Colors.red),
+        SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
   }
