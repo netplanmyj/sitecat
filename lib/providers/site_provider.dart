@@ -59,6 +59,7 @@ class SiteProvider extends ChangeNotifier {
   Future<bool> createSite({
     required String url,
     required String name,
+    String? sitemapUrl,
     bool monitoringEnabled = true,
     int checkInterval = 60,
   }) async {
@@ -89,6 +90,7 @@ class SiteProvider extends ChangeNotifier {
         userId: '', // Will be set by SiteService
         url: url,
         name: name,
+        sitemapUrl: sitemapUrl,
         monitoringEnabled: monitoringEnabled,
         checkInterval: checkInterval,
         createdAt: DateTime.now(),

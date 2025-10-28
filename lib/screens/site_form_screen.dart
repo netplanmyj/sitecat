@@ -19,6 +19,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
   final _urlController = TextEditingController();
+  final _sitemapUrlController = TextEditingController();
   final _intervalController = TextEditingController();
 
   bool _monitoringEnabled = true;
@@ -32,6 +33,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
       // Populate form with existing site data
       _nameController.text = widget.site!.name;
       _urlController.text = widget.site!.url;
+      _sitemapUrlController.text = widget.site!.sitemapUrl ?? '';
       _intervalController.text = widget.site!.checkInterval.toString();
       _monitoringEnabled = widget.site!.monitoringEnabled;
     } else {
@@ -44,6 +46,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
   void dispose() {
     _nameController.dispose();
     _urlController.dispose();
+    _sitemapUrlController.dispose();
     _intervalController.dispose();
     super.dispose();
   }
@@ -211,6 +214,55 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
                             value,
                             excludeSiteId: widget.site?.id,
                           ),
+                          keyboardType: TextInputType.url,
+                          textInputAction: TextInputAction.next,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 16),
+
+                // Sitemap URL Field
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Sitemap URL (Optional)',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        TextFormField(
+                          controller: _sitemapUrlController,
+                          decoration: const InputDecoration(
+                            hintText: 'https://example.com/sitemap.xml',
+                            prefixIcon: Icon(Icons.map_outlined),
+                            border: OutlineInputBorder(),
+                            helperText:
+                                'Used for comprehensive link checking across all pages',
+                            helperMaxLines: 2,
+                          ),
+                          validator: (value) {
+                            // Optional field - only validate if not empty
+                            if (value == null || value.trim().isEmpty) {
+                              return null;
+                            }
+                            // Basic URL validation
+                            final uri = Uri.tryParse(value);
+                            if (uri == null ||
+                                !uri.hasScheme ||
+                                (!uri.scheme.startsWith('http'))) {
+                              return 'Please enter a valid URL';
+                            }
+                            return null;
+                          },
                           keyboardType: TextInputType.url,
                           textInputAction: TextInputAction.next,
                         ),
@@ -424,6 +476,9 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
         final updatedSite = widget.site!.copyWith(
           name: _nameController.text.trim(),
           url: _urlController.text.trim(),
+          sitemapUrl: _sitemapUrlController.text.trim().isEmpty
+              ? null
+              : _sitemapUrlController.text.trim(),
           monitoringEnabled: _monitoringEnabled,
           checkInterval: int.parse(_intervalController.text),
         );
@@ -433,6 +488,9 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
         success = await siteProvider.createSite(
           name: _nameController.text.trim(),
           url: _urlController.text.trim(),
+          sitemapUrl: _sitemapUrlController.text.trim().isEmpty
+              ? null
+              : _sitemapUrlController.text.trim(),
           monitoringEnabled: _monitoringEnabled,
           checkInterval: int.parse(_intervalController.text),
         );

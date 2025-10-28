@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
+import 'package:xml/xml.dart' as xml;
 import '../models/broken_link.dart';
 import '../models/site.dart';
 
@@ -35,20 +36,43 @@ class LinkCheckerService {
     final startTime = DateTime.now();
     final baseUrl = Uri.parse(site.url);
 
-    // Step 1: Fetch HTML content
-    final htmlContent = await _fetchHtmlContent(site.url);
-    if (htmlContent == null) {
-      throw Exception('Failed to fetch site content');
+    // Step 1: Get URLs to check
+    List<Uri> urlsToCheck = [];
+
+    // If sitemap URL is provided, try to fetch URLs from sitemap
+    if (site.sitemapUrl != null && site.sitemapUrl!.isNotEmpty) {
+      try {
+        urlsToCheck = await _fetchSitemapUrls(site.sitemapUrl!);
+      } catch (e) {
+        // Sitemap fetch failed, fall back to checking only the top page
+        urlsToCheck = [baseUrl];
+      }
+    } else {
+      // No sitemap provided, check only the top page
+      urlsToCheck = [baseUrl];
     }
 
-    // Step 2: Extract links
-    final links = _extractLinks(htmlContent, baseUrl);
+    // Limit to 100 URLs
+    if (urlsToCheck.length > 100) {
+      urlsToCheck = urlsToCheck.take(100).toList();
+    }
+
+    // Step 2: Fetch HTML content and extract links from all URLs
+    final allLinks = <Uri>{};
+
+    for (final url in urlsToCheck) {
+      final htmlContent = await _fetchHtmlContent(url.toString());
+      if (htmlContent != null) {
+        final links = _extractLinks(htmlContent, baseUrl);
+        allLinks.addAll(links);
+      }
+    }
 
     // Step 3: Categorize links
     final internalLinks = <Uri>[];
     final externalLinks = <Uri>[];
 
-    for (final link in links) {
+    for (final link in allLinks) {
       if (_isSameDomain(link, baseUrl)) {
         internalLinks.add(link);
       } else {
@@ -96,7 +120,7 @@ class LinkCheckerService {
     final result = LinkCheckResult(
       siteId: site.id,
       timestamp: DateTime.now(),
-      totalLinks: links.length,
+      totalLinks: allLinks.length,
       brokenLinks: brokenLinks.length,
       internalLinks: internalLinks.length,
       externalLinks: externalLinks.length,
@@ -121,6 +145,44 @@ class LinkCheckerService {
       return null;
     } catch (e) {
       return null;
+    }
+  }
+
+  /// Fetch URLs from sitemap.xml
+  Future<List<Uri>> _fetchSitemapUrls(String sitemapUrl) async {
+    try {
+      final response = await http
+          .get(Uri.parse(sitemapUrl))
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to fetch sitemap: ${response.statusCode}');
+      }
+
+      // Parse XML
+      final document = xml.XmlDocument.parse(response.body);
+
+      // Find all <loc> elements
+      final urlElements = document.findAllElements('loc');
+
+      final urls = <Uri>[];
+      for (final element in urlElements) {
+        final urlString = element.innerText.trim();
+        if (urlString.isNotEmpty) {
+          try {
+            final uri = Uri.parse(urlString);
+            if (uri.scheme == 'http' || uri.scheme == 'https') {
+              urls.add(uri);
+            }
+          } catch (e) {
+            // Invalid URL, skip
+          }
+        }
+      }
+
+      return urls;
+    } catch (e) {
+      throw Exception('Error parsing sitemap: $e');
     }
   }
 
@@ -189,7 +251,7 @@ class LinkCheckerService {
     await batch.commit();
   }
 
-  /// Get broken links for a site
+  /// Get broken links for a site (Stream)
   Stream<List<BrokenLink>> getSiteBrokenLinks(
     String siteId, {
     int limit = 100,
@@ -211,6 +273,25 @@ class LinkCheckerService {
         });
   }
 
+  /// Get broken links for a site (Future)
+  Future<List<BrokenLink>> getBrokenLinks(
+    String siteId, {
+    int limit = 100,
+  }) async {
+    if (_currentUserId == null) {
+      return [];
+    }
+
+    final snapshot = await _brokenLinksCollection
+        .where('siteId', isEqualTo: siteId)
+        .where('userId', isEqualTo: _currentUserId)
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .get();
+
+    return snapshot.docs.map((doc) => BrokenLink.fromFirestore(doc)).toList();
+  }
+
   /// Delete all broken links for a site
   Future<void> deleteSiteBrokenLinks(String siteId) async {
     if (_currentUserId == null) return;
@@ -226,6 +307,11 @@ class LinkCheckerService {
     }
 
     await batch.commit();
+  }
+
+  /// Clear broken links for a site (alias for deleteSiteBrokenLinks)
+  Future<void> clearBrokenLinks(String siteId) async {
+    return deleteSiteBrokenLinks(siteId);
   }
 
   /// Get latest check result for a site

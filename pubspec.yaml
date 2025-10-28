@@ -57,6 +57,9 @@ dependencies:
   # HTML Parsing for link checking
   html: ^0.15.5
   
+  # XML Parsing for sitemap
+  xml: ^6.5.0
+  
   # Charts and Graphs
   fl_chart: ^0.69.0
 
