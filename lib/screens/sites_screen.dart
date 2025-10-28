@@ -173,7 +173,6 @@ class _SitesScreenState extends State<SitesScreen> {
           children: [
             _buildStatItem('Total', stats['total']!, Colors.blue),
             _buildStatItem('Monitoring', stats['monitoring']!, Colors.green),
-            _buildStatItem('Paused', stats['paused']!, Colors.orange),
           ],
         ),
       ),
@@ -251,15 +250,8 @@ class _SitesScreenState extends State<SitesScreen> {
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: site.monitoringEnabled
-              ? Colors.green.shade100
-              : Colors.grey.shade100,
-          child: Icon(
-            site.monitoringEnabled ? Icons.monitor_heart : Icons.pause_circle,
-            color: site.monitoringEnabled
-                ? Colors.green.shade700
-                : Colors.grey.shade600,
-          ),
+          backgroundColor: Colors.blue.shade100,
+          child: Icon(Icons.language, color: Colors.blue.shade700),
         ),
         title: Text(
           site.name,
@@ -296,19 +288,6 @@ class _SitesScreenState extends State<SitesScreen> {
           onSelected: (value) =>
               _handleMenuAction(context, value, site, siteProvider),
           itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'toggle',
-              child: Row(
-                children: [
-                  Icon(
-                    site.monitoringEnabled ? Icons.pause : Icons.play_arrow,
-                    size: 20,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(site.monitoringEnabled ? 'Pause' : 'Resume'),
-                ],
-              ),
-            ),
             const PopupMenuItem(
               value: 'edit',
               child: Row(
@@ -350,24 +329,6 @@ class _SitesScreenState extends State<SitesScreen> {
     SiteProvider siteProvider,
   ) async {
     switch (action) {
-      case 'toggle':
-        final success = await siteProvider.toggleMonitoring(
-          site.id,
-          !site.monitoringEnabled,
-        );
-        if (success && mounted) {
-          ScaffoldMessenger.of(this.context).showSnackBar(
-            SnackBar(
-              content: Text(
-                site.monitoringEnabled
-                    ? 'Monitoring paused for ${site.name}'
-                    : 'Monitoring resumed for ${site.name}',
-              ),
-            ),
-          );
-        }
-        break;
-
       case 'edit':
         if (mounted) {
           Navigator.of(context).push(

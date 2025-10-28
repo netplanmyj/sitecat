@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/site_provider.dart';
+import '../providers/link_checker_provider.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
 
@@ -20,9 +21,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
   final _nameController = TextEditingController();
   final _urlController = TextEditingController();
   final _sitemapUrlController = TextEditingController();
-  final _intervalController = TextEditingController();
 
-  bool _monitoringEnabled = true;
   bool _isLoading = false;
 
   @override
@@ -34,11 +33,6 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
       _nameController.text = widget.site!.name;
       _urlController.text = widget.site!.url;
       _sitemapUrlController.text = widget.site!.sitemapUrl ?? '';
-      _intervalController.text = widget.site!.checkInterval.toString();
-      _monitoringEnabled = widget.site!.monitoringEnabled;
-    } else {
-      // Default values for new site
-      _intervalController.text = '60'; // Default 60 minutes
     }
   }
 
@@ -47,7 +41,6 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
     _nameController.dispose();
     _urlController.dispose();
     _sitemapUrlController.dispose();
-    _intervalController.dispose();
     super.dispose();
   }
 
@@ -271,78 +264,6 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 16),
-
-                // Monitoring Settings Card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Monitoring Settings',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Monitoring enabled switch
-                        SwitchListTile(
-                          title: const Text('Enable Monitoring'),
-                          subtitle: Text(
-                            _monitoringEnabled
-                                ? 'Site monitoring is active'
-                                : 'Site monitoring is paused',
-                          ),
-                          value: _monitoringEnabled,
-                          onChanged: (value) {
-                            setState(() {
-                              _monitoringEnabled = value;
-                            });
-                          },
-                          contentPadding: EdgeInsets.zero,
-                        ),
-
-                        const SizedBox(height: 16),
-
-                        // Check interval field
-                        const Text(
-                          'Check Interval (minutes)',
-                          style: TextStyle(
-                            fontSize: 14,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _intervalController,
-                          decoration: const InputDecoration(
-                            hintText: '60',
-                            suffixText: 'minutes',
-                            prefixIcon: Icon(Icons.schedule),
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) =>
-                              siteProvider.validateCheckInterval(value),
-                          keyboardType: TextInputType.number,
-                          textInputAction: TextInputAction.done,
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Recommended: 60 minutes or more to avoid rate limiting',
-                          style: TextStyle(
-                            fontSize: 12,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
                 const SizedBox(height: 24),
 
                 // Action buttons
@@ -383,9 +304,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
                           style: ElevatedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                           ),
-                          child: Text(
-                            widget.isEdit ? 'Update Site' : 'Add Site',
-                          ),
+                          child: Text(widget.isEdit ? 'Update' : 'Add Site'),
                         ),
                       ),
                     ],
@@ -441,8 +360,8 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
                         Text(
                           '• Use HTTPS URLs when possible for better security\n'
                           '• Choose meaningful names to easily identify your sites\n'
-                          '• Set appropriate check intervals to avoid overloading servers\n'
-                          '• You can pause monitoring anytime without losing your settings',
+                          '• Add sitemap URL to enable comprehensive link checking\n'
+                          '• You can manually check site status and links anytime',
                           style: TextStyle(
                             fontSize: 13,
                             color: Colors.blue.shade700,
@@ -468,10 +387,17 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
     });
 
     final siteProvider = Provider.of<SiteProvider>(context, listen: false);
+    final linkCheckerProvider = Provider.of<LinkCheckerProvider>(
+      context,
+      listen: false,
+    );
     bool success;
 
     try {
       if (widget.isEdit) {
+        // Check if URL changed
+        final urlChanged = widget.site!.url != _urlController.text.trim();
+
         // Update existing site
         final updatedSite = widget.site!.copyWith(
           name: _nameController.text.trim(),
@@ -479,10 +405,13 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
           sitemapUrl: _sitemapUrlController.text.trim().isEmpty
               ? null
               : _sitemapUrlController.text.trim(),
-          monitoringEnabled: _monitoringEnabled,
-          checkInterval: int.parse(_intervalController.text),
         );
         success = await siteProvider.updateSite(updatedSite);
+
+        // Clear broken links cache if URL changed
+        if (success && urlChanged) {
+          await linkCheckerProvider.clearBrokenLinks(widget.site!.id);
+        }
       } else {
         // Create new site
         success = await siteProvider.createSite(
@@ -491,8 +420,6 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
           sitemapUrl: _sitemapUrlController.text.trim().isEmpty
               ? null
               : _sitemapUrlController.text.trim(),
-          monitoringEnabled: _monitoringEnabled,
-          checkInterval: int.parse(_intervalController.text),
         );
       }
 
