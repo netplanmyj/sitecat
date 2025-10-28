@@ -5,6 +5,7 @@ import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/site_provider.dart';
 import 'providers/monitoring_provider.dart';
+import 'providers/link_checker_provider.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/sites_screen.dart';
 import 'screens/profile_screen.dart';
@@ -26,6 +27,7 @@ class SiteCatApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => AuthProvider()),
         ChangeNotifierProvider(create: (context) => SiteProvider()),
         ChangeNotifierProvider(create: (context) => MonitoringProvider()),
+        ChangeNotifierProvider(create: (context) => LinkCheckerProvider()),
       ],
       child: MaterialApp(
         title: 'SiteCat',

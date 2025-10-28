@@ -251,7 +251,7 @@ class LinkCheckerService {
     await batch.commit();
   }
 
-  /// Get broken links for a site
+  /// Get broken links for a site (Stream)
   Stream<List<BrokenLink>> getSiteBrokenLinks(
     String siteId, {
     int limit = 100,
@@ -273,6 +273,25 @@ class LinkCheckerService {
         });
   }
 
+  /// Get broken links for a site (Future)
+  Future<List<BrokenLink>> getBrokenLinks(
+    String siteId, {
+    int limit = 100,
+  }) async {
+    if (_currentUserId == null) {
+      return [];
+    }
+
+    final snapshot = await _brokenLinksCollection
+        .where('siteId', isEqualTo: siteId)
+        .where('userId', isEqualTo: _currentUserId)
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .get();
+
+    return snapshot.docs.map((doc) => BrokenLink.fromFirestore(doc)).toList();
+  }
+
   /// Delete all broken links for a site
   Future<void> deleteSiteBrokenLinks(String siteId) async {
     if (_currentUserId == null) return;
@@ -288,6 +307,11 @@ class LinkCheckerService {
     }
 
     await batch.commit();
+  }
+
+  /// Clear broken links for a site (alias for deleteSiteBrokenLinks)
+  Future<void> clearBrokenLinks(String siteId) async {
+    return deleteSiteBrokenLinks(siteId);
   }
 
   /// Get latest check result for a site
