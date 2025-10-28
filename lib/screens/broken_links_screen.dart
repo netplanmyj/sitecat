@@ -211,19 +211,24 @@ class BrokenLinksScreen extends StatelessWidget {
                   children: [
                     _buildDetailRow('URL', link.url),
                     const SizedBox(height: 8),
-                    _buildDetailRow('発見場所', link.foundOn),
+                    _buildDetailRow('Found On', link.foundOn),
                     const SizedBox(height: 8),
-                    _buildDetailRow('ステータスコード', link.statusCode.toString()),
+                    _buildDetailRow('Status Code', link.statusCode.toString()),
                     if (link.error != null) ...[
                       const SizedBox(height: 8),
-                      _buildDetailRow('エラー', link.error!),
+                      _buildDetailRow('Error', link.error!),
                     ],
                     const SizedBox(height: 8),
-                    _buildDetailRow('チェック時刻', _formatDateTime(link.timestamp)),
+                    _buildDetailRow(
+                      'Checked At',
+                      _formatDateTime(link.timestamp),
+                    ),
                     const SizedBox(height: 8),
                     _buildDetailRow(
-                      'タイプ',
-                      link.linkType == LinkType.internal ? '内部' : '外部',
+                      'Type',
+                      link.linkType == LinkType.internal
+                          ? 'Internal'
+                          : 'External',
                     ),
                   ],
                 ),

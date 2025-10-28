@@ -244,11 +244,11 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     if (result.isUp) {
       color = Colors.green;
       icon = Icons.check_circle;
-      text = '正常';
+      text = 'OK';
     } else {
       color = Colors.red;
       icon = Icons.error;
-      text = 'エラー';
+      text = 'Error';
     }
 
     return Container(
@@ -508,7 +508,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                         Expanded(
                           child: Text(
                             linkChecker.getError(widget.site.id) ??
-                                'エラーが発生しました',
+                                'An error occurred',
                             style: TextStyle(color: Colors.red.shade700),
                           ),
                         ),
