@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../models/broken_link.dart';
 import '../models/site.dart';
 import '../services/link_checker_service.dart';
+import '../services/site_service.dart';
 
 /// State for link checking operation
 enum LinkCheckState { idle, checking, completed, error }
@@ -9,9 +10,10 @@ enum LinkCheckState { idle, checking, completed, error }
 /// Provider for managing link checking operations
 class LinkCheckerProvider extends ChangeNotifier {
   final LinkCheckerService _linkCheckerService = LinkCheckerService();
+  final SiteService _siteService = SiteService();
 
-  // Minimum interval between checks (10 minutes) to reduce server load
-  static const Duration minimumCheckInterval = Duration(minutes: 10);
+  // Minimum interval between checks (5 minutes) to reduce server load
+  static const Duration minimumCheckInterval = Duration(minutes: 5);
 
   // State variables
   final Map<String, LinkCheckState> _checkStates = {};
@@ -78,6 +80,7 @@ class LinkCheckerProvider extends ChangeNotifier {
   Future<void> checkSiteLinks(
     Site site, {
     bool checkExternalLinks = false,
+    bool continueFromLastScan = false,
   }) async {
     final siteId = site.id;
 
@@ -86,8 +89,8 @@ class LinkCheckerProvider extends ChangeNotifier {
       return;
     }
 
-    // Check if minimum interval has passed
-    if (!canCheckSite(siteId)) {
+    // Check if minimum interval has passed (skip for continue scan)
+    if (!continueFromLastScan && !canCheckSite(siteId)) {
       final remaining = getTimeUntilNextCheck(siteId);
       if (remaining != null) {
         final minutes = remaining.inMinutes;
@@ -101,8 +104,14 @@ class LinkCheckerProvider extends ChangeNotifier {
     // Reset state
     _checkStates[siteId] = LinkCheckState.checking;
     _errors.remove(siteId);
-    _checkedCounts[siteId] = 0;
-    _totalCounts[siteId] = 0;
+
+    // Only reset progress counters for new scans, not for continue scan
+    if (!continueFromLastScan) {
+      _checkedCounts[siteId] = 0;
+      _totalCounts[siteId] = 0;
+    }
+    // For continue scan, keep the previous progress values until new progress arrives
+
     notifyListeners();
 
     try {
@@ -110,6 +119,7 @@ class LinkCheckerProvider extends ChangeNotifier {
       final result = await _linkCheckerService.checkSiteLinks(
         site,
         checkExternalLinks: checkExternalLinks,
+        continueFromLastScan: continueFromLastScan,
         onProgress: (checked, total) {
           _checkedCounts[siteId] = checked;
           _totalCounts[siteId] = total;
@@ -123,6 +133,11 @@ class LinkCheckerProvider extends ChangeNotifier {
       // Fetch broken links
       final brokenLinks = await _linkCheckerService.getBrokenLinks(siteId);
       _brokenLinksCache[siteId] = brokenLinks;
+
+      // Update site's lastScannedPageIndex
+      await _siteService.updateSite(
+        site.copyWith(lastScannedPageIndex: result.newLastScannedPageIndex),
+      );
 
       // Record check time
       _lastCheckTime[siteId] = DateTime.now();

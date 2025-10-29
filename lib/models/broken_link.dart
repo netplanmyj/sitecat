@@ -112,9 +112,10 @@ class LinkCheckResult {
   final int internalLinks;
   final int externalLinks;
   final Duration scanDuration;
-  final int pagesScanned; // Number of pages actually scanned
+  final int pagesScanned; // Total number of pages scanned so far
   final int totalPagesInSitemap; // Total pages found in sitemap
   final bool scanCompleted; // Whether all pages were scanned
+  final int newLastScannedPageIndex; // Index to continue from next time
 
   LinkCheckResult({
     required this.siteId,
@@ -127,6 +128,7 @@ class LinkCheckResult {
     required this.pagesScanned,
     required this.totalPagesInSitemap,
     required this.scanCompleted,
+    required this.newLastScannedPageIndex,
   });
 
   /// Create LinkCheckResult from Firestore document
@@ -143,6 +145,7 @@ class LinkCheckResult {
       pagesScanned: (data['pagesScanned'] as int?) ?? 0,
       totalPagesInSitemap: (data['totalPagesInSitemap'] as int?) ?? 0,
       scanCompleted: (data['scanCompleted'] as bool?) ?? false,
+      newLastScannedPageIndex: (data['newLastScannedPageIndex'] as int?) ?? 0,
     );
   }
 
@@ -159,6 +162,7 @@ class LinkCheckResult {
       'pagesScanned': pagesScanned,
       'totalPagesInSitemap': totalPagesInSitemap,
       'scanCompleted': scanCompleted,
+      'newLastScannedPageIndex': newLastScannedPageIndex,
     };
   }
 }
