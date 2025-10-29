@@ -10,6 +10,9 @@ enum LinkCheckState { idle, checking, completed, error }
 class LinkCheckerProvider extends ChangeNotifier {
   final LinkCheckerService _linkCheckerService = LinkCheckerService();
 
+  // Minimum interval between checks (10 minutes) to reduce server load
+  static const Duration minimumCheckInterval = Duration(minutes: 10);
+
   // State variables
   final Map<String, LinkCheckState> _checkStates = {};
   final Map<String, LinkCheckResult?> _resultCache = {};
@@ -17,6 +20,7 @@ class LinkCheckerProvider extends ChangeNotifier {
   final Map<String, String> _errors = {};
   final Map<String, int> _checkedCounts = {};
   final Map<String, int> _totalCounts = {};
+  final Map<String, DateTime> _lastCheckTime = {};
 
   // Getters
 
@@ -50,6 +54,26 @@ class LinkCheckerProvider extends ChangeNotifier {
     return _checkStates[siteId] == LinkCheckState.checking;
   }
 
+  /// Check if a site can be checked (respects minimum interval)
+  bool canCheckSite(String siteId) {
+    final lastCheck = _lastCheckTime[siteId];
+    if (lastCheck == null) return true;
+
+    final timeSinceLastCheck = DateTime.now().difference(lastCheck);
+    return timeSinceLastCheck >= minimumCheckInterval;
+  }
+
+  /// Get remaining time until next check is allowed
+  Duration? getTimeUntilNextCheck(String siteId) {
+    final lastCheck = _lastCheckTime[siteId];
+    if (lastCheck == null) return null;
+
+    final timeSinceLastCheck = DateTime.now().difference(lastCheck);
+    final remaining = minimumCheckInterval - timeSinceLastCheck;
+
+    return remaining.isNegative ? null : remaining;
+  }
+
   /// Check links on a site
   Future<void> checkSiteLinks(
     Site site, {
@@ -60,6 +84,18 @@ class LinkCheckerProvider extends ChangeNotifier {
     // Don't start a new check if already checking
     if (isChecking(siteId)) {
       return;
+    }
+
+    // Check if minimum interval has passed
+    if (!canCheckSite(siteId)) {
+      final remaining = getTimeUntilNextCheck(siteId);
+      if (remaining != null) {
+        final minutes = remaining.inMinutes;
+        final seconds = remaining.inSeconds % 60;
+        throw Exception(
+          'Please wait $minutes:${seconds.toString().padLeft(2, '0')} before checking again',
+        );
+      }
     }
 
     // Reset state
@@ -87,6 +123,9 @@ class LinkCheckerProvider extends ChangeNotifier {
       // Fetch broken links
       final brokenLinks = await _linkCheckerService.getBrokenLinks(siteId);
       _brokenLinksCache[siteId] = brokenLinks;
+
+      // Record check time
+      _lastCheckTime[siteId] = DateTime.now();
 
       // Update state to completed
       _checkStates[siteId] = LinkCheckState.completed;

@@ -32,6 +32,8 @@ class LinkCheckSection extends StatelessWidget {
         final result = linkChecker.getCachedResult(site.id);
         final (checked, total) = linkChecker.getProgress(site.id);
         final brokenLinks = linkChecker.getCachedBrokenLinks(site.id);
+        final canCheck = linkChecker.canCheckSite(site.id);
+        final timeUntilNext = linkChecker.getTimeUntilNextCheck(site.id);
 
         return Card(
           child: Padding(
@@ -67,7 +69,7 @@ class LinkCheckSection extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: state == LinkCheckState.checking
+                    onPressed: (state == LinkCheckState.checking || !canCheck)
                         ? null
                         : () => _checkLinks(context),
                     icon: state == LinkCheckState.checking
@@ -92,6 +94,15 @@ class LinkCheckSection extends StatelessWidget {
                     ),
                   ),
                 ),
+
+                // Cooldown timer
+                if (timeUntilNext != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Next check available in: ${timeUntilNext.inMinutes}:${(timeUntilNext.inSeconds % 60).toString().padLeft(2, '0')}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
 
                 // Progress indicator
                 if (state == LinkCheckState.checking) ...[

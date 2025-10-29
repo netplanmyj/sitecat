@@ -35,11 +35,13 @@ class LinkCheckerService {
 
     // Step 1: Get URLs to check
     List<Uri> urlsToCheck = [];
+    bool usingSitemap = false;
 
     // If sitemap URL is provided, try to fetch URLs from sitemap
     if (site.sitemapUrl != null && site.sitemapUrl!.isNotEmpty) {
       try {
         urlsToCheck = await _fetchSitemapUrls(site.sitemapUrl!);
+        usingSitemap = true;
       } catch (e) {
         // Sitemap fetch failed, fall back to checking only the top page
         urlsToCheck = [baseUrl];
@@ -54,15 +56,23 @@ class LinkCheckerService {
       urlsToCheck = urlsToCheck.take(100).toList();
     }
 
-    // Step 2: Fetch HTML content and extract links from all URLs
-    final allLinks = <Uri>{};
+    // Step 2: Determine which links to check
+    final List<Uri> allLinks;
 
-    for (final url in urlsToCheck) {
-      final htmlContent = await _fetchHtmlContent(url.toString());
-      if (htmlContent != null) {
-        final links = _extractLinks(htmlContent, baseUrl);
-        allLinks.addAll(links);
+    if (usingSitemap) {
+      // When using sitemap, the URLs from sitemap ARE the links to check
+      allLinks = urlsToCheck;
+    } else {
+      // When not using sitemap, extract links from HTML content
+      final extractedLinks = <Uri>{};
+      for (final url in urlsToCheck) {
+        final htmlContent = await _fetchHtmlContent(url.toString());
+        if (htmlContent != null) {
+          final links = _extractLinks(htmlContent, baseUrl);
+          extractedLinks.addAll(links);
+        }
       }
+      allLinks = extractedLinks.toList();
     }
 
     // Step 3: Categorize links
