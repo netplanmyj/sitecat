@@ -39,15 +39,16 @@ service cloud.firestore {
       // 監視結果サブコレクション - ユーザー配下に存在
       match /monitoringResults/{resultId} {
         // 自分のユーザーID配下の監視結果のみアクセス可能
-        allow read, create: if request.auth != null && request.auth.uid == userId;
-        allow update, delete: if false; // 監視結果は更新・削除不可
+        allow read, write: if request.auth != null && request.auth.uid == userId;
       }
       
       // リンクチェック結果サブコレクション - ユーザー配下に存在
       match /linkCheckResults/{resultId} {
         // 自分のユーザーID配下のリンクチェック結果のみアクセス可能
-        allow read, create: if request.auth != null && request.auth.uid == userId;
-        allow update, delete: if false; // リンクチェック結果は更新・削除不可
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
       }
       
       // 壊れたリンクサブコレクション - ユーザー配下に存在
