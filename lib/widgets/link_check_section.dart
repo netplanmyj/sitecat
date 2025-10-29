@@ -117,6 +117,35 @@ class LinkCheckSection extends StatelessWidget {
                   const SizedBox(height: 16),
                   const Divider(),
                   const SizedBox(height: 12),
+
+                  // Scan completion status
+                  if (!result.scanCompleted) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.orange.shade700,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Partial scan: ${result.pagesScanned}/${result.totalPagesInSitemap} pages scanned',
+                              style: TextStyle(color: Colors.orange.shade900),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
                   Row(
                     children: [
                       Expanded(
@@ -134,6 +163,28 @@ class LinkCheckSection extends StatelessWidget {
                           result.brokenLinks.toString(),
                           Icons.link_off,
                           result.brokenLinks > 0 ? Colors.red : Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildLinkStatCard(
+                          'Pages',
+                          '${result.pagesScanned}/${result.totalPagesInSitemap}',
+                          Icons.description,
+                          result.scanCompleted ? Colors.green : Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildLinkStatCard(
+                          'External',
+                          result.externalLinks.toString(),
+                          Icons.open_in_new,
+                          Colors.purple,
                         ),
                       ),
                     ],
