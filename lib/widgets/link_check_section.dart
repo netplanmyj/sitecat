@@ -88,6 +88,7 @@ class LinkCheckSection extends StatelessWidget {
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
                       backgroundColor: Colors.orange,
+                      foregroundColor: Colors.white,
                     ),
                   ),
                 ),

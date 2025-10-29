@@ -110,32 +110,13 @@ class _StatsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Expanded(
-          child: _StatCard(
-            title: 'Total Sites',
-            value: stats['total'].toString(),
-            icon: Icons.web,
-            color: Colors.blue,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _StatCard(
-            title: 'Monitoring',
-            value: stats['monitoring'].toString(),
-            icon: Icons.monitor_heart,
-            color: Colors.green,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _StatCard(
-            title: 'Paused',
-            value: stats['paused'].toString(),
-            icon: Icons.pause_circle,
-            color: Colors.orange,
-          ),
+        _StatCard(
+          title: 'Total Sites',
+          value: stats['total'].toString(),
+          icon: Icons.web,
+          color: Colors.blue,
         ),
       ],
     );

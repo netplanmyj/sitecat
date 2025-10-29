@@ -127,7 +127,6 @@ class MonitoringProvider extends ChangeNotifier {
       _statsCacheTime.remove(site.id);
 
       _setChecking(site.id, false);
-      notifyListeners();
       return true;
     } catch (e) {
       _setError('Failed to check site: $e');
@@ -280,16 +279,26 @@ class MonitoringStats {
     this.lastChecked,
   });
 
-  String get uptimeDisplay => '${uptime.toStringAsFixed(1)}%';
+  String get uptimeDisplay {
+    if (totalChecks == 0) return '-';
+    return '${uptime.toStringAsFixed(1)}%';
+  }
 
   String get averageResponseTimeDisplay {
+    if (totalChecks == 0) return '-';
     if (averageResponseTime < 1000) {
       return '${averageResponseTime}ms';
     }
     return '${(averageResponseTime / 1000).toStringAsFixed(2)}s';
   }
 
-  String get statusText => isCurrentlyUp ? 'Online' : 'Offline';
+  String get statusText {
+    if (totalChecks == 0) return 'Unknown';
+    return isCurrentlyUp ? 'Online' : 'Offline';
+  }
 
-  Color get statusColor => isCurrentlyUp ? Colors.green : Colors.red;
+  Color get statusColor {
+    if (totalChecks == 0) return Colors.grey;
+    return isCurrentlyUp ? Colors.green : Colors.red;
+  }
 }

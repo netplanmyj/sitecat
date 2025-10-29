@@ -84,46 +84,70 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   }
 
   Widget _buildCheckButton() {
-    return Consumer<MonitoringProvider>(
-      builder: (context, provider, child) {
-        final isChecking = provider.isChecking(widget.site.id);
-        final canCheck = provider.canCheckSite(widget.site.id);
-        final timeUntilNext = provider.getTimeUntilNextCheck(widget.site.id);
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Consumer<MonitoringProvider>(
+          builder: (context, provider, child) {
+            final isChecking = provider.isChecking(widget.site.id);
+            final canCheck = provider.canCheckSite(widget.site.id);
+            final timeUntilNext = provider.getTimeUntilNextCheck(
+              widget.site.id,
+            );
 
-        return Column(
-          children: [
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                onPressed: (isChecking || !canCheck)
-                    ? null
-                    : () => _checkSite(),
-                icon: isChecking
-                    ? const SizedBox(
-                        width: 20,
-                        height: 20,
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2,
-                          color: Colors.white,
-                        ),
-                      )
-                    : const Icon(Icons.refresh),
-                label: Text(isChecking ? 'Checking...' : 'Check Site'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 16),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.monitor_heart, size: 24),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Site Monitoring',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-              ),
-            ),
-            if (timeUntilNext != null) ...[
-              const SizedBox(height: 8),
-              Text(
-                'Next check available in: ${timeUntilNext.inMinutes}:${(timeUntilNext.inSeconds % 60).toString().padLeft(2, '0')}',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-              ),
-            ],
-          ],
-        );
-      },
+                const SizedBox(height: 16),
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: (isChecking || !canCheck)
+                        ? null
+                        : () => _checkSite(),
+                    icon: isChecking
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.refresh),
+                    label: Text(isChecking ? 'Checking...' : 'Check Site'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
+                    ),
+                  ),
+                ),
+                if (timeUntilNext != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Next check available in: ${timeUntilNext.inMinutes}:${(timeUntilNext.inSeconds % 60).toString().padLeft(2, '0')}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 

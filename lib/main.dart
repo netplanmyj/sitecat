@@ -32,18 +32,20 @@ class SiteCatApp extends StatelessWidget {
       child: MaterialApp(
         title: 'SiteCat',
         theme: ThemeData(
-          // This is the theme of your application.
-          //
-          // TRY THIS: Try running your application with "flutter run". You'll see
-          // the application has a purple toolbar. Then, without quitting the app,
-          // try changing the seedColor in the colorScheme below to Colors.green
-          // and then invoke "hot reload" (save your changes or press the "hot
-          // reload" button in a Flutter-supported IDE, or press "r" if you used
           colorScheme: ColorScheme.fromSeed(
             seedColor: Colors.blue,
             brightness: Brightness.light,
           ),
           useMaterial3: true,
+          // フォントサイズを1段階大きく（デフォルト14px → 16px）
+          textTheme: ThemeData.light().textTheme.copyWith(
+            bodyLarge: const TextStyle(fontSize: 18), // 16 → 18
+            bodyMedium: const TextStyle(fontSize: 16), // 14 → 16
+            bodySmall: const TextStyle(fontSize: 14), // 12 → 14
+            labelLarge: const TextStyle(fontSize: 16), // 14 → 16 (ボタン)
+            labelMedium: const TextStyle(fontSize: 14), // 12 → 14
+            labelSmall: const TextStyle(fontSize: 12), // 11 → 12
+          ),
         ),
         home: Consumer<AuthProvider>(
           builder: (context, authProvider, child) {

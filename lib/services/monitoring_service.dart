@@ -1,22 +1,25 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
+import 'package:logger/logger.dart';
 import '../models/monitoring_result.dart';
 import '../models/site.dart';
 
 /// Service for monitoring website health
 class MonitoringService {
-  static const String _collectionName = 'monitoringResults';
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final Logger _logger = Logger();
 
   // Get current user ID
   String? get _currentUserId => _auth.currentUser?.uid;
 
-  // Collection reference for monitoring results
-  CollectionReference get _resultsCollection =>
-      _firestore.collection(_collectionName);
+  // Collection reference for monitoring results (hierarchical structure)
+  CollectionReference _resultsCollection(String userId) => _firestore
+      .collection('users')
+      .doc(userId)
+      .collection('monitoringResults');
 
   /// Perform a health check on a site
   Future<MonitoringResult> checkSite(Site site) async {
@@ -60,13 +63,25 @@ class MonitoringService {
       error: error,
     );
 
-    // Save to Firestore
-    final docRef = await _resultsCollection.add(result.toFirestore());
+    // Generate document reference with auto-generated ID
+    final docRef = _resultsCollection(_currentUserId!).doc();
 
-    // Update site's lastChecked timestamp
-    await _firestore.collection('sites').doc(site.id).update({
-      'lastChecked': Timestamp.now(),
+    // Save to Firestore asynchronously without waiting
+    // Firestore handles offline persistence automatically
+    docRef.set(result.toFirestore()).catchError((error) {
+      _logger.e('Firestore set() failed', error: error);
     });
+
+    // Update site's lastChecked timestamp asynchronously
+    _firestore
+        .collection('users')
+        .doc(_currentUserId!)
+        .collection('sites')
+        .doc(site.id)
+        .update({'lastChecked': Timestamp.now()})
+        .catchError((error) {
+          _logger.e('Firestore update() failed', error: error);
+        });
 
     return result.copyWith(id: docRef.id);
   }
@@ -80,9 +95,8 @@ class MonitoringService {
       return Stream.value([]);
     }
 
-    return _resultsCollection
+    return _resultsCollection(_currentUserId!)
         .where('siteId', isEqualTo: siteId)
-        .where('userId', isEqualTo: _currentUserId)
         .orderBy('timestamp', descending: true)
         .limit(limit)
         .snapshots()
@@ -99,9 +113,8 @@ class MonitoringService {
       return null;
     }
 
-    final querySnapshot = await _resultsCollection
+    final querySnapshot = await _resultsCollection(_currentUserId!)
         .where('siteId', isEqualTo: siteId)
-        .where('userId', isEqualTo: _currentUserId)
         .orderBy('timestamp', descending: true)
         .limit(1)
         .get();
@@ -124,9 +137,8 @@ class MonitoringService {
 
     final startDate = DateTime.now().subtract(period);
 
-    final querySnapshot = await _resultsCollection
+    final querySnapshot = await _resultsCollection(_currentUserId!)
         .where('siteId', isEqualTo: siteId)
-        .where('userId', isEqualTo: _currentUserId)
         .where('timestamp', isGreaterThan: Timestamp.fromDate(startDate))
         .get();
 
@@ -153,9 +165,8 @@ class MonitoringService {
 
     final startDate = DateTime.now().subtract(period);
 
-    final querySnapshot = await _resultsCollection
+    final querySnapshot = await _resultsCollection(_currentUserId!)
         .where('siteId', isEqualTo: siteId)
-        .where('userId', isEqualTo: _currentUserId)
         .where('timestamp', isGreaterThan: Timestamp.fromDate(startDate))
         .get();
 
@@ -179,10 +190,9 @@ class MonitoringService {
       throw Exception('User must be authenticated');
     }
 
-    final querySnapshot = await _resultsCollection
-        .where('siteId', isEqualTo: siteId)
-        .where('userId', isEqualTo: _currentUserId)
-        .get();
+    final querySnapshot = await _resultsCollection(
+      _currentUserId!,
+    ).where('siteId', isEqualTo: siteId).get();
 
     final batch = _firestore.batch();
     for (final doc in querySnapshot.docs) {

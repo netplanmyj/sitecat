@@ -1,76 +1,73 @@
-rules_version='2'
+rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // ユーザーコレクション - 認証済みユーザーのみ自分のドキュメントにアクセス可能
+    // ユーザーコレクション - 階層構造のルートレベル
     match /users/{userId} {
+      // ユーザープロフィールへのアクセス（自分のみ）
       allow read, write: if request.auth != null && request.auth.uid == userId;
-    }
-    
-    // サイトコレクション - 認証済みユーザーのみ自分のサイトにアクセス可能
-    match /sites/{siteId} {
-      // 読み取り: 認証済みで、サイトの所有者のみ
-      allow read: if request.auth != null 
-        && resource.data.userId == request.auth.uid;
       
-      // 作成: 認証済みで、作成するデータのuserIdが自分のuid
-      allow create: if request.auth != null 
-        && request.resource.data.userId == request.auth.uid
-        && validateSiteData();
-      
-      // 更新: 認証済みで、サイトの所有者のみ、userIdの変更は禁止
-      allow update: if request.auth != null 
-        && resource.data.userId == request.auth.uid
-        && request.resource.data.userId == request.auth.uid
-        && validateSiteData();
-      
-      // 削除: 認証済みで、サイトの所有者のみ
-      allow delete: if request.auth != null 
-        && resource.data.userId == request.auth.uid;
-      
-      // サイトデータのバリデーション関数
-      function validateSiteData() {
-        return request.resource.data.keys().hasAll(['userId', 'url', 'name', 'monitoringEnabled', 'checkInterval', 'createdAt'])
-          && request.resource.data.url is string
-          && request.resource.data.url.size() > 0
-          && request.resource.data.name is string
-          && request.resource.data.name.size() > 0
-          && request.resource.data.monitoringEnabled is bool
-          && request.resource.data.checkInterval is int
-          && request.resource.data.checkInterval >= 5
-          && request.resource.data.checkInterval <= 1440; // 5分〜24時間
+      // サイトサブコレクション - ユーザー配下に存在
+      match /sites/{siteId} {
+        // 自分のユーザーID配下のサイトのみアクセス可能
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+        
+        // サイト作成時のバリデーション
+        allow create: if request.auth != null 
+          && request.auth.uid == userId
+          && validateSiteData();
+        
+        // サイト更新時のバリデーション
+        allow update: if request.auth != null 
+          && request.auth.uid == userId
+          && validateSiteData();
+        
+        // サイトデータのバリデーション関数
+        function validateSiteData() {
+          return request.resource.data.keys().hasAll(['userId', 'url', 'name', 'monitoringEnabled', 'checkInterval', 'createdAt'])
+            && request.resource.data.url is string
+            && request.resource.data.url.size() > 0
+            && request.resource.data.name is string
+            && request.resource.data.name.size() > 0
+            && request.resource.data.monitoringEnabled is bool
+            && request.resource.data.checkInterval is int
+            && request.resource.data.checkInterval >= 5
+            && request.resource.data.checkInterval <= 1440; // 5分〜24時間
+        }
       }
-    }
-    
-    // 監視結果コレクション - サイト所有者のみアクセス可能
-    match /monitoringResults/{resultId} {
-      allow read: if request.auth != null 
-        && get(/databases/$(database)/documents/sites/$(resource.data.siteId)).data.userId == request.auth.uid;
-      allow create: if request.auth != null 
-        && get(/databases/$(database)/documents/sites/$(request.resource.data.siteId)).data.userId == request.auth.uid;
-      allow update, delete: if false; // 監視結果は更新・削除不可
-    }
-    
-    // リンクチェック結果コレクション - サイト所有者のみアクセス可能
-    match /linkChecks/{checkId} {
-      allow read: if request.auth != null 
-        && get(/databases/$(database)/documents/sites/$(resource.data.siteId)).data.userId == request.auth.uid;
-      allow create: if request.auth != null 
-        && get(/databases/$(database)/documents/sites/$(request.resource.data.siteId)).data.userId == request.auth.uid;
-      allow update, delete: if false; // リンクチェック結果は更新・削除不可
-    }
-    
-    // アラートコレクション - 認証済みユーザーのみ自分のアラートにアクセス可能
-    match /alerts/{alertId} {
-      allow read, write: if request.auth != null 
-        && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null 
-        && request.resource.data.userId == request.auth.uid;
-    }
-    
-    // 統計コレクション - 認証済みユーザーのみ自分の統計にアクセス可能
-    match /statistics/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      
+      // 監視結果サブコレクション - ユーザー配下に存在
+      match /monitoringResults/{resultId} {
+        // 自分のユーザーID配下の監視結果のみアクセス可能
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // リンクチェック結果サブコレクション - ユーザー配下に存在
+      match /linkCheckResults/{resultId} {
+        // 自分のユーザーID配下のリンクチェック結果のみアクセス可能
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId;
+        allow delete: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // 壊れたリンクサブコレクション - ユーザー配下に存在
+      match /brokenLinks/{linkId} {
+        // 自分のユーザーID配下の壊れたリンクのみアクセス可能
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // アラートサブコレクション - ユーザー配下に存在
+      match /alerts/{alertId} {
+        // 自分のユーザーID配下のアラートのみアクセス可能
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+      
+      // 統計サブコレクション - ユーザー配下に存在
+      match /statistics/{statId} {
+        // 自分のユーザーID配下の統計のみアクセス可能
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
   }
 }

@@ -169,11 +169,8 @@ class _SitesScreenState extends State<SitesScreen> {
       child: Padding(
         padding: const EdgeInsets.all(16),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceAround,
-          children: [
-            _buildStatItem('Total', stats['total']!, Colors.blue),
-            _buildStatItem('Monitoring', stats['monitoring']!, Colors.green),
-          ],
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [_buildStatItem('Total', stats['total']!, Colors.blue)],
         ),
       ),
     );
