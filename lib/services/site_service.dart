@@ -3,17 +3,15 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../models/site.dart';
 
 class SiteService {
-  static const String _collectionName = 'sites';
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Get current user ID
   String? get _currentUserId => _auth.currentUser?.uid;
 
-  // Collection reference for sites
-  CollectionReference get _sitesCollection =>
-      _firestore.collection(_collectionName);
+  // Collection reference for sites (hierarchical structure)
+  CollectionReference _sitesCollection(String userId) =>
+      _firestore.collection('users').doc(userId).collection('sites');
 
   // Create a new site
   Future<String> createSite(Site site) async {
@@ -25,7 +23,9 @@ class SiteService {
     final siteData = site.copyWith(userId: _currentUserId!);
 
     try {
-      final docRef = await _sitesCollection.add(siteData.toFirestore());
+      final docRef = await _sitesCollection(
+        _currentUserId!,
+      ).add(siteData.toFirestore());
       return docRef.id;
     } catch (e) {
       throw Exception('Failed to create site: $e');
@@ -38,25 +38,23 @@ class SiteService {
       return Stream.value([]);
     }
 
-    return _sitesCollection
-        .where('userId', isEqualTo: _currentUserId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) {
-          return snapshot.docs.map((doc) => Site.fromFirestore(doc)).toList();
-        });
+    return _sitesCollection(
+      _currentUserId!,
+    ).orderBy('createdAt', descending: true).snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => Site.fromFirestore(doc)).toList();
+    });
   }
 
   // Get a specific site by ID
   Future<Site?> getSite(String siteId) async {
+    if (_currentUserId == null) {
+      return null;
+    }
+
     try {
-      final doc = await _sitesCollection.doc(siteId).get();
+      final doc = await _sitesCollection(_currentUserId!).doc(siteId).get();
       if (doc.exists) {
-        final site = Site.fromFirestore(doc);
-        // Verify ownership
-        if (site.userId == _currentUserId) {
-          return site;
-        }
+        return Site.fromFirestore(doc);
       }
       return null;
     } catch (e) {
@@ -78,7 +76,9 @@ class SiteService {
     }
 
     try {
-      await _sitesCollection.doc(site.id).update(site.toFirestore());
+      await _sitesCollection(
+        _currentUserId!,
+      ).doc(site.id).update(site.toFirestore());
     } catch (e) {
       throw Exception('Failed to update site: $e');
     }
@@ -91,13 +91,7 @@ class SiteService {
     }
 
     try {
-      // First verify ownership
-      final site = await getSite(siteId);
-      if (site == null || site.userId != _currentUserId) {
-        throw Exception('Unauthorized: Cannot delete site');
-      }
-
-      await _sitesCollection.doc(siteId).delete();
+      await _sitesCollection(_currentUserId!).doc(siteId).delete();
     } catch (e) {
       throw Exception('Failed to delete site: $e');
     }
@@ -131,13 +125,11 @@ class SiteService {
       return Stream.value([]);
     }
 
-    return _sitesCollection
-        .where('userId', isEqualTo: _currentUserId)
-        .where('monitoringEnabled', isEqualTo: true)
-        .snapshots()
-        .map((snapshot) {
-          return snapshot.docs.map((doc) => Site.fromFirestore(doc)).toList();
-        });
+    return _sitesCollection(
+      _currentUserId!,
+    ).where('monitoringEnabled', isEqualTo: true).snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) => Site.fromFirestore(doc)).toList();
+    });
   }
 
   // Check if URL already exists for current user
@@ -145,10 +137,9 @@ class SiteService {
     if (_currentUserId == null) return false;
 
     try {
-      final query = await _sitesCollection
-          .where('userId', isEqualTo: _currentUserId)
-          .where('url', isEqualTo: url)
-          .get();
+      final query = await _sitesCollection(
+        _currentUserId!,
+      ).where('url', isEqualTo: url).get();
 
       if (excludeSiteId != null) {
         return query.docs.any((doc) => doc.id != excludeSiteId);
@@ -182,9 +173,7 @@ class SiteService {
     if (_currentUserId == null) return 0;
 
     try {
-      final query = await _sitesCollection
-          .where('userId', isEqualTo: _currentUserId)
-          .get();
+      final query = await _sitesCollection(_currentUserId!).get();
       return query.docs.length;
     } catch (e) {
       return 0;

@@ -6,17 +6,17 @@ import '../models/site.dart';
 
 /// Service for monitoring website health
 class MonitoringService {
-  static const String _collectionName = 'monitoringResults';
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Get current user ID
   String? get _currentUserId => _auth.currentUser?.uid;
 
-  // Collection reference for monitoring results
-  CollectionReference get _resultsCollection =>
-      _firestore.collection(_collectionName);
+  // Collection reference for monitoring results (hierarchical structure)
+  CollectionReference _resultsCollection(String userId) => _firestore
+      .collection('users')
+      .doc(userId)
+      .collection('monitoringResults');
 
   /// Perform a health check on a site
   Future<MonitoringResult> checkSite(Site site) async {
@@ -61,12 +61,17 @@ class MonitoringService {
     );
 
     // Save to Firestore
-    final docRef = await _resultsCollection.add(result.toFirestore());
+    final docRef = await _resultsCollection(
+      _currentUserId!,
+    ).add(result.toFirestore());
 
     // Update site's lastChecked timestamp
-    await _firestore.collection('sites').doc(site.id).update({
-      'lastChecked': Timestamp.now(),
-    });
+    await _firestore
+        .collection('users')
+        .doc(_currentUserId!)
+        .collection('sites')
+        .doc(site.id)
+        .update({'lastChecked': Timestamp.now()});
 
     return result.copyWith(id: docRef.id);
   }
@@ -80,9 +85,8 @@ class MonitoringService {
       return Stream.value([]);
     }
 
-    return _resultsCollection
+    return _resultsCollection(_currentUserId!)
         .where('siteId', isEqualTo: siteId)
-        .where('userId', isEqualTo: _currentUserId)
         .orderBy('timestamp', descending: true)
         .limit(limit)
         .snapshots()
@@ -99,9 +103,8 @@ class MonitoringService {
       return null;
     }
 
-    final querySnapshot = await _resultsCollection
+    final querySnapshot = await _resultsCollection(_currentUserId!)
         .where('siteId', isEqualTo: siteId)
-        .where('userId', isEqualTo: _currentUserId)
         .orderBy('timestamp', descending: true)
         .limit(1)
         .get();
@@ -124,9 +127,8 @@ class MonitoringService {
 
     final startDate = DateTime.now().subtract(period);
 
-    final querySnapshot = await _resultsCollection
+    final querySnapshot = await _resultsCollection(_currentUserId!)
         .where('siteId', isEqualTo: siteId)
-        .where('userId', isEqualTo: _currentUserId)
         .where('timestamp', isGreaterThan: Timestamp.fromDate(startDate))
         .get();
 
@@ -153,9 +155,8 @@ class MonitoringService {
 
     final startDate = DateTime.now().subtract(period);
 
-    final querySnapshot = await _resultsCollection
+    final querySnapshot = await _resultsCollection(_currentUserId!)
         .where('siteId', isEqualTo: siteId)
-        .where('userId', isEqualTo: _currentUserId)
         .where('timestamp', isGreaterThan: Timestamp.fromDate(startDate))
         .get();
 
@@ -179,10 +180,9 @@ class MonitoringService {
       throw Exception('User must be authenticated');
     }
 
-    final querySnapshot = await _resultsCollection
-        .where('siteId', isEqualTo: siteId)
-        .where('userId', isEqualTo: _currentUserId)
-        .get();
+    final querySnapshot = await _resultsCollection(
+      _currentUserId!,
+    ).where('siteId', isEqualTo: siteId).get();
 
     final batch = _firestore.batch();
     for (final doc in querySnapshot.docs) {

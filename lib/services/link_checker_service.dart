@@ -8,20 +8,17 @@ import '../models/site.dart';
 
 /// Service for checking broken links on websites
 class LinkCheckerService {
-  static const String _collectionName = 'brokenLinks';
-  static const String _resultsCollectionName = 'linkCheckResults';
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   // Get current user ID
   String? get _currentUserId => _auth.currentUser?.uid;
 
-  // Collection references
-  CollectionReference get _brokenLinksCollection =>
-      _firestore.collection(_collectionName);
-  CollectionReference get _resultsCollection =>
-      _firestore.collection(_resultsCollectionName);
+  // Collection references (hierarchical structure)
+  CollectionReference _brokenLinksCollection(String userId) =>
+      _firestore.collection('users').doc(userId).collection('brokenLinks');
+  CollectionReference _resultsCollection(String userId) =>
+      _firestore.collection('users').doc(userId).collection('linkCheckResults');
 
   /// Check all links on a site
   Future<LinkCheckResult> checkSiteLinks(
@@ -127,7 +124,7 @@ class LinkCheckerService {
       scanDuration: endTime.difference(startTime),
     );
 
-    await _resultsCollection.add(result.toFirestore());
+    await _resultsCollection(_currentUserId!).add(result.toFirestore());
 
     return result;
   }
@@ -240,11 +237,11 @@ class LinkCheckerService {
 
   /// Save broken links to Firestore
   Future<void> _saveBrokenLinks(List<BrokenLink> brokenLinks) async {
-    if (brokenLinks.isEmpty) return;
+    if (brokenLinks.isEmpty || _currentUserId == null) return;
 
     final batch = _firestore.batch();
     for (final link in brokenLinks) {
-      final docRef = _brokenLinksCollection.doc();
+      final docRef = _brokenLinksCollection(_currentUserId!).doc();
       batch.set(docRef, link.toFirestore());
     }
 
@@ -260,9 +257,8 @@ class LinkCheckerService {
       return Stream.value([]);
     }
 
-    return _brokenLinksCollection
+    return _brokenLinksCollection(_currentUserId!)
         .where('siteId', isEqualTo: siteId)
-        .where('userId', isEqualTo: _currentUserId)
         .orderBy('timestamp', descending: true)
         .limit(limit)
         .snapshots()
@@ -282,9 +278,8 @@ class LinkCheckerService {
       return [];
     }
 
-    final snapshot = await _brokenLinksCollection
+    final snapshot = await _brokenLinksCollection(_currentUserId!)
         .where('siteId', isEqualTo: siteId)
-        .where('userId', isEqualTo: _currentUserId)
         .orderBy('timestamp', descending: true)
         .limit(limit)
         .get();
@@ -296,10 +291,9 @@ class LinkCheckerService {
   Future<void> deleteSiteBrokenLinks(String siteId) async {
     if (_currentUserId == null) return;
 
-    final snapshot = await _brokenLinksCollection
-        .where('siteId', isEqualTo: siteId)
-        .where('userId', isEqualTo: _currentUserId)
-        .get();
+    final snapshot = await _brokenLinksCollection(
+      _currentUserId!,
+    ).where('siteId', isEqualTo: siteId).get();
 
     final batch = _firestore.batch();
     for (final doc in snapshot.docs) {
@@ -316,7 +310,9 @@ class LinkCheckerService {
 
   /// Get latest check result for a site
   Future<LinkCheckResult?> getLatestCheckResult(String siteId) async {
-    final snapshot = await _resultsCollection
+    if (_currentUserId == null) return null;
+
+    final snapshot = await _resultsCollection(_currentUserId!)
         .where('siteId', isEqualTo: siteId)
         .orderBy('timestamp', descending: true)
         .limit(1)
