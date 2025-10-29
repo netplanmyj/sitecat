@@ -32,6 +32,8 @@ class LinkCheckSection extends StatelessWidget {
         final result = linkChecker.getCachedResult(site.id);
         final (checked, total) = linkChecker.getProgress(site.id);
         final brokenLinks = linkChecker.getCachedBrokenLinks(site.id);
+        final canCheck = linkChecker.canCheckSite(site.id);
+        final timeUntilNext = linkChecker.getTimeUntilNextCheck(site.id);
 
         return Card(
           child: Padding(
@@ -67,7 +69,7 @@ class LinkCheckSection extends StatelessWidget {
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: state == LinkCheckState.checking
+                    onPressed: (state == LinkCheckState.checking || !canCheck)
                         ? null
                         : () => _checkLinks(context),
                     icon: state == LinkCheckState.checking
@@ -93,6 +95,15 @@ class LinkCheckSection extends StatelessWidget {
                   ),
                 ),
 
+                // Cooldown timer
+                if (timeUntilNext != null) ...[
+                  const SizedBox(height: 8),
+                  Text(
+                    'Next check available in: ${timeUntilNext.inMinutes}:${(timeUntilNext.inSeconds % 60).toString().padLeft(2, '0')}',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+
                 // Progress indicator
                 if (state == LinkCheckState.checking) ...[
                   const SizedBox(height: 12),
@@ -106,6 +117,35 @@ class LinkCheckSection extends StatelessWidget {
                   const SizedBox(height: 16),
                   const Divider(),
                   const SizedBox(height: 12),
+
+                  // Scan completion status
+                  if (!result.scanCompleted) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.orange.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.orange.shade200),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.info_outline,
+                            color: Colors.orange.shade700,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Partial scan: ${result.pagesScanned}/${result.totalPagesInSitemap} pages scanned',
+                              style: TextStyle(color: Colors.orange.shade900),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
+
                   Row(
                     children: [
                       Expanded(
@@ -123,6 +163,28 @@ class LinkCheckSection extends StatelessWidget {
                           result.brokenLinks.toString(),
                           Icons.link_off,
                           result.brokenLinks > 0 ? Colors.red : Colors.green,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: _buildLinkStatCard(
+                          'Pages',
+                          '${result.pagesScanned}/${result.totalPagesInSitemap}',
+                          Icons.description,
+                          result.scanCompleted ? Colors.green : Colors.orange,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: _buildLinkStatCard(
+                          'External',
+                          result.externalLinks.toString(),
+                          Icons.open_in_new,
+                          Colors.purple,
                         ),
                       ),
                     ],

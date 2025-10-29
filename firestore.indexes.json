@@ -17,21 +17,19 @@
       ]
     },
     {
-      "collectionGroup": "monitoringResults",
+      "collectionGroup": "brokenLinks",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "siteId", "order": "ASCENDING" },
-        { "fieldPath": "userId", "order": "ASCENDING" },
         { "fieldPath": "timestamp", "order": "DESCENDING" }
       ]
     },
     {
-      "collectionGroup": "monitoringResults",
+      "collectionGroup": "linkCheckResults",
       "queryScope": "COLLECTION",
       "fields": [
         { "fieldPath": "siteId", "order": "ASCENDING" },
-        { "fieldPath": "userId", "order": "ASCENDING" },
-        { "fieldPath": "timestamp", "order": "ASCENDING" }
+        { "fieldPath": "timestamp", "order": "DESCENDING" }
       ]
     }
   ],

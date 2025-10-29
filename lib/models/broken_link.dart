@@ -112,6 +112,9 @@ class LinkCheckResult {
   final int internalLinks;
   final int externalLinks;
   final Duration scanDuration;
+  final int pagesScanned; // Number of pages actually scanned
+  final int totalPagesInSitemap; // Total pages found in sitemap
+  final bool scanCompleted; // Whether all pages were scanned
 
   LinkCheckResult({
     required this.siteId,
@@ -121,6 +124,9 @@ class LinkCheckResult {
     required this.internalLinks,
     required this.externalLinks,
     required this.scanDuration,
+    required this.pagesScanned,
+    required this.totalPagesInSitemap,
+    required this.scanCompleted,
   });
 
   /// Create LinkCheckResult from Firestore document
@@ -134,6 +140,9 @@ class LinkCheckResult {
       internalLinks: data['internalLinks'] ?? 0,
       externalLinks: data['externalLinks'] ?? 0,
       scanDuration: Duration(milliseconds: data['scanDuration'] ?? 0),
+      pagesScanned: (data['pagesScanned'] as int?) ?? 0,
+      totalPagesInSitemap: (data['totalPagesInSitemap'] as int?) ?? 0,
+      scanCompleted: (data['scanCompleted'] as bool?) ?? false,
     );
   }
 
@@ -147,6 +156,9 @@ class LinkCheckResult {
       'internalLinks': internalLinks,
       'externalLinks': externalLinks,
       'scanDuration': scanDuration.inMilliseconds,
+      'pagesScanned': pagesScanned,
+      'totalPagesInSitemap': totalPagesInSitemap,
+      'scanCompleted': scanCompleted,
     };
   }
 }

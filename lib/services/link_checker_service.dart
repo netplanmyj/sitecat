@@ -23,7 +23,7 @@ class LinkCheckerService {
   /// Check all links on a site
   Future<LinkCheckResult> checkSiteLinks(
     Site site, {
-    bool checkExternalLinks = false,
+    bool checkExternalLinks = true,
     void Function(int checked, int total)? onProgress,
   }) async {
     if (_currentUserId == null) {
@@ -33,95 +33,137 @@ class LinkCheckerService {
     final startTime = DateTime.now();
     final baseUrl = Uri.parse(site.url);
 
-    // Step 1: Get URLs to check
-    List<Uri> urlsToCheck = [];
+    // Step 1: Get internal pages from sitemap (these are our pages to scan)
+    List<Uri> allInternalPages = [];
 
-    // If sitemap URL is provided, try to fetch URLs from sitemap
     if (site.sitemapUrl != null && site.sitemapUrl!.isNotEmpty) {
       try {
-        urlsToCheck = await _fetchSitemapUrls(site.sitemapUrl!);
+        allInternalPages = await _fetchSitemapUrls(site.sitemapUrl!);
       } catch (e) {
         // Sitemap fetch failed, fall back to checking only the top page
-        urlsToCheck = [baseUrl];
+        allInternalPages = [baseUrl];
       }
     } else {
       // No sitemap provided, check only the top page
-      urlsToCheck = [baseUrl];
+      allInternalPages = [baseUrl];
     }
 
-    // Limit to 100 URLs
-    if (urlsToCheck.length > 100) {
-      urlsToCheck = urlsToCheck.take(100).toList();
-    }
+    final totalPagesInSitemap = allInternalPages.length;
 
-    // Step 2: Fetch HTML content and extract links from all URLs
-    final allLinks = <Uri>{};
+    // Limit internal pages to scan (to avoid excessive processing)
+    const maxPagesToScan = 50;
+    final pagesToScan = allInternalPages.length > maxPagesToScan
+        ? allInternalPages.take(maxPagesToScan).toList()
+        : allInternalPages;
+    final scanCompleted = pagesToScan.length == allInternalPages.length;
 
-    for (final url in urlsToCheck) {
-      final htmlContent = await _fetchHtmlContent(url.toString());
-      if (htmlContent != null) {
-        final links = _extractLinks(htmlContent, baseUrl);
-        allLinks.addAll(links);
+    // Step 2: Extract links from each internal page
+    final allFoundLinks = <Uri>{};
+    final externalLinks = <Uri>{};
+    final linkSourceMap = <String, String>{}; // link -> foundOn
+    final visitedPages = <String>{};
+
+    int pagesScanned = 0;
+    for (final page in pagesToScan) {
+      final pageUrl = page.toString();
+
+      // Skip if already visited
+      if (visitedPages.contains(pageUrl)) continue;
+      visitedPages.add(pageUrl);
+
+      // Report progress
+      pagesScanned++;
+      onProgress?.call(pagesScanned, pagesToScan.length * 2);
+
+      // Add delay to avoid server overload and firewall detection
+      if (pagesScanned > 1) {
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+
+      // Fetch and parse HTML
+      final htmlContent = await _fetchHtmlContent(pageUrl);
+      if (htmlContent == null) continue;
+
+      // Extract all links from this page
+      final links = _extractLinks(htmlContent, page);
+
+      for (final link in links) {
+        final linkUrl = link.toString();
+        allFoundLinks.add(link);
+
+        // Record where this link was found
+        if (!linkSourceMap.containsKey(linkUrl)) {
+          linkSourceMap[linkUrl] = pageUrl;
+        }
+
+        // Categorize: internal or external
+        if (_isSameDomain(link, baseUrl)) {
+          // Internal link (no need to check, assume OK if in sitemap)
+        } else {
+          // External link - mark for checking
+          externalLinks.add(link);
+        }
       }
     }
 
-    // Step 3: Categorize links
-    final internalLinks = <Uri>[];
-    final externalLinks = <Uri>[];
-
-    for (final link in allLinks) {
-      if (_isSameDomain(link, baseUrl)) {
-        internalLinks.add(link);
-      } else {
-        externalLinks.add(link);
-      }
-    }
-
-    // Step 4: Check links
+    // Step 3: Check external links only (HEAD request)
     final brokenLinks = <BrokenLink>[];
-    final linksToCheck = [
-      ...internalLinks,
-      if (checkExternalLinks) ...externalLinks,
-    ];
 
-    int checked = 0;
-    for (final link in linksToCheck) {
-      final isBroken = await _checkLink(link);
-      if (isBroken != null) {
-        brokenLinks.add(
-          BrokenLink(
-            id: '', // Will be set by Firestore
-            siteId: site.id,
-            userId: _currentUserId!,
-            timestamp: DateTime.now(),
-            url: link.toString(),
-            foundOn: site.url,
-            statusCode: isBroken.statusCode,
-            error: isBroken.error,
-            linkType: _isSameDomain(link, baseUrl)
-                ? LinkType.internal
-                : LinkType.external,
-          ),
+    if (checkExternalLinks) {
+      final externalLinksList = externalLinks.toList();
+      int checkedExternal = 0;
+
+      for (final link in externalLinksList) {
+        final linkUrl = link.toString();
+
+        // Report progress
+        checkedExternal++;
+        onProgress?.call(
+          pagesScanned + checkedExternal,
+          pagesToScan.length + externalLinksList.length,
         );
-      }
 
-      checked++;
-      onProgress?.call(checked, linksToCheck.length);
+        // Add delay to avoid server overload
+        if (checkedExternal > 1) {
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
+
+        final isBroken = await _checkLink(link);
+
+        if (isBroken != null) {
+          brokenLinks.add(
+            BrokenLink(
+              id: '', // Will be set by Firestore
+              siteId: site.id,
+              userId: _currentUserId!,
+              timestamp: DateTime.now(),
+              url: linkUrl,
+              foundOn: linkSourceMap[linkUrl] ?? site.url,
+              statusCode: isBroken.statusCode,
+              error: isBroken.error,
+              linkType: LinkType.external,
+            ),
+          );
+        }
+      }
     }
 
-    // Step 5: Save broken links to Firestore
+    // Step 4: Save broken links to Firestore
     await _saveBrokenLinks(brokenLinks);
 
-    // Step 6: Create and save result
+    // Step 5: Create and save result
     final endTime = DateTime.now();
     final result = LinkCheckResult(
       siteId: site.id,
       timestamp: DateTime.now(),
-      totalLinks: allLinks.length,
+      totalLinks: allFoundLinks.length,
       brokenLinks: brokenLinks.length,
-      internalLinks: internalLinks.length,
+      internalLinks: pagesToScan.length,
       externalLinks: externalLinks.length,
       scanDuration: endTime.difference(startTime),
+      pagesScanned: pagesScanned,
+      totalPagesInSitemap: totalPagesInSitemap,
+      scanCompleted: scanCompleted,
     );
 
     await _resultsCollection(_currentUserId!).add(result.toFirestore());
@@ -145,7 +187,7 @@ class LinkCheckerService {
     }
   }
 
-  /// Fetch URLs from sitemap.xml
+  /// Fetch URLs from sitemap.xml (supports up to 2 levels of sitemap index)
   Future<List<Uri>> _fetchSitemapUrls(String sitemapUrl) async {
     try {
       final response = await http
@@ -159,20 +201,80 @@ class LinkCheckerService {
       // Parse XML
       final document = xml.XmlDocument.parse(response.body);
 
-      // Find all <loc> elements
-      final urlElements = document.findAllElements('loc');
+      // Check if this is a sitemap index (contains <sitemap> elements)
+      final sitemapElements = document.findAllElements('sitemap');
+
+      if (sitemapElements.isNotEmpty) {
+        // This is a sitemap index - fetch URLs from child sitemaps
+        final allUrls = <Uri>[];
+
+        for (final sitemapElement in sitemapElements) {
+          final locElement = sitemapElement.findElements('loc').firstOrNull;
+          if (locElement != null) {
+            final childSitemapUrl = locElement.innerText.trim();
+            if (childSitemapUrl.isNotEmpty) {
+              try {
+                // Recursively fetch URLs from child sitemap
+                final childUrls = await _fetchSitemapUrlsFromSingleSitemap(
+                  childSitemapUrl,
+                );
+                allUrls.addAll(childUrls);
+
+                // Limit total URLs to avoid excessive processing
+                if (allUrls.length >= 100) {
+                  break;
+                }
+              } catch (e) {
+                // Skip this child sitemap if it fails
+                continue;
+              }
+            }
+          }
+        }
+
+        return allUrls;
+      } else {
+        // This is a regular sitemap - extract URLs directly
+        return _fetchSitemapUrlsFromSingleSitemap(sitemapUrl);
+      }
+    } catch (e) {
+      throw Exception('Error parsing sitemap: $e');
+    }
+  }
+
+  /// Fetch URLs from a single sitemap (non-index)
+  Future<List<Uri>> _fetchSitemapUrlsFromSingleSitemap(
+    String sitemapUrl,
+  ) async {
+    try {
+      final response = await http
+          .get(Uri.parse(sitemapUrl))
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode != 200) {
+        throw Exception('Failed to fetch sitemap: ${response.statusCode}');
+      }
+
+      // Parse XML
+      final document = xml.XmlDocument.parse(response.body);
+
+      // Find all <loc> elements under <url> (not <sitemap>)
+      final urlElements = document.findAllElements('url');
 
       final urls = <Uri>[];
-      for (final element in urlElements) {
-        final urlString = element.innerText.trim();
-        if (urlString.isNotEmpty) {
-          try {
-            final uri = Uri.parse(urlString);
-            if (uri.scheme == 'http' || uri.scheme == 'https') {
-              urls.add(uri);
+      for (final urlElement in urlElements) {
+        final locElement = urlElement.findElements('loc').firstOrNull;
+        if (locElement != null) {
+          final urlString = locElement.innerText.trim();
+          if (urlString.isNotEmpty) {
+            try {
+              final uri = Uri.parse(urlString);
+              if (uri.scheme == 'http' || uri.scheme == 'https') {
+                urls.add(uri);
+              }
+            } catch (e) {
+              // Invalid URL, skip
             }
-          } catch (e) {
-            // Invalid URL, skip
           }
         }
       }
@@ -321,5 +423,21 @@ class LinkCheckerService {
     if (snapshot.docs.isEmpty) return null;
 
     return LinkCheckResult.fromFirestore(snapshot.docs.first);
+  }
+
+  /// Delete all check results for a site (useful for cleanup)
+  Future<void> deleteAllCheckResults(String siteId) async {
+    if (_currentUserId == null) return;
+
+    final snapshot = await _resultsCollection(
+      _currentUserId!,
+    ).where('siteId', isEqualTo: siteId).get();
+
+    final batch = _firestore.batch();
+    for (final doc in snapshot.docs) {
+      batch.delete(doc.reference);
+    }
+
+    await batch.commit();
   }
 }
