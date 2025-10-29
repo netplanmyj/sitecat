@@ -10,6 +10,8 @@ class Site {
   final DateTime createdAt;
   final DateTime? lastChecked;
   final String? sitemapUrl; // Sitemap URL for link checking (optional)
+  final int
+  lastScannedPageIndex; // Last scanned page index for progressive scanning
 
   Site({
     required this.id,
@@ -21,6 +23,7 @@ class Site {
     required this.createdAt,
     this.lastChecked,
     this.sitemapUrl,
+    this.lastScannedPageIndex = 0, // Default: 0 (start from beginning)
   });
 
   // Factory constructor to create Site from Firestore document
@@ -36,6 +39,7 @@ class Site {
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       lastChecked: (data['lastChecked'] as Timestamp?)?.toDate(),
       sitemapUrl: data['sitemapUrl'],
+      lastScannedPageIndex: (data['lastScannedPageIndex'] as int?) ?? 0,
     );
   }
 
@@ -52,6 +56,7 @@ class Site {
           ? Timestamp.fromDate(lastChecked!)
           : null,
       'sitemapUrl': sitemapUrl,
+      'lastScannedPageIndex': lastScannedPageIndex,
     };
   }
 
@@ -66,6 +71,7 @@ class Site {
     DateTime? createdAt,
     DateTime? lastChecked,
     String? sitemapUrl,
+    int? lastScannedPageIndex,
   }) {
     return Site(
       id: id ?? this.id,
@@ -77,6 +83,7 @@ class Site {
       createdAt: createdAt ?? this.createdAt,
       lastChecked: lastChecked ?? this.lastChecked,
       sitemapUrl: sitemapUrl ?? this.sitemapUrl,
+      lastScannedPageIndex: lastScannedPageIndex ?? this.lastScannedPageIndex,
     );
   }
 

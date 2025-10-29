@@ -24,6 +24,7 @@ class LinkCheckerService {
   Future<LinkCheckResult> checkSiteLinks(
     Site site, {
     bool checkExternalLinks = true,
+    bool continueFromLastScan = false, // Continue from last scanned index
     void Function(int checked, int total)? onProgress,
   }) async {
     if (_currentUserId == null) {
@@ -50,12 +51,27 @@ class LinkCheckerService {
 
     final totalPagesInSitemap = allInternalPages.length;
 
+    // Determine start index (for progressive scanning)
+    final startIndex = continueFromLastScan ? site.lastScannedPageIndex : 0;
+
+    // Get previous scan data if continuing
+    LinkCheckResult? previousResult;
+    List<BrokenLink> previousBrokenLinks = [];
+    if (continueFromLastScan && startIndex > 0) {
+      previousResult = await getLatestCheckResult(site.id);
+      if (previousResult != null) {
+        previousBrokenLinks = await getBrokenLinks(site.id);
+      }
+    }
+
     // Limit internal pages to scan (to avoid excessive processing)
     const maxPagesToScan = 50;
-    final pagesToScan = allInternalPages.length > maxPagesToScan
-        ? allInternalPages.take(maxPagesToScan).toList()
-        : allInternalPages;
-    final scanCompleted = pagesToScan.length == allInternalPages.length;
+    final endIndex = (startIndex + maxPagesToScan).clamp(
+      0,
+      allInternalPages.length,
+    );
+    final pagesToScan = allInternalPages.sublist(startIndex, endIndex);
+    final scanCompleted = endIndex >= allInternalPages.length;
 
     // Step 2: Extract links from each internal page
     final allFoundLinks = <Uri>{};
@@ -71,9 +87,10 @@ class LinkCheckerService {
       if (visitedPages.contains(pageUrl)) continue;
       visitedPages.add(pageUrl);
 
-      // Report progress
+      // Report progress (cumulative)
       pagesScanned++;
-      onProgress?.call(pagesScanned, pagesToScan.length * 2);
+      final cumulativePagesScanned = startIndex + pagesScanned;
+      onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
 
       // Add delay to avoid server overload and firewall detection
       if (pagesScanned > 1) {
@@ -116,15 +133,8 @@ class LinkCheckerService {
       for (final link in externalLinksList) {
         final linkUrl = link.toString();
 
-        // Report progress
-        checkedExternal++;
-        onProgress?.call(
-          pagesScanned + checkedExternal,
-          pagesToScan.length + externalLinksList.length,
-        );
-
         // Add delay to avoid server overload
-        if (checkedExternal > 1) {
+        if (checkedExternal > 0) {
           await Future.delayed(const Duration(milliseconds: 100));
         }
 
@@ -145,25 +155,54 @@ class LinkCheckerService {
             ),
           );
         }
+
+        checkedExternal++;
       }
     }
 
     // Step 4: Save broken links to Firestore
-    await _saveBrokenLinks(brokenLinks);
+    // If continuing, keep previous broken links and add new ones
+    final allBrokenLinks =
+        continueFromLastScan && previousBrokenLinks.isNotEmpty
+        ? [...previousBrokenLinks, ...brokenLinks]
+        : brokenLinks;
+
+    // Clear old broken links before saving new ones (for continue scan)
+    if (continueFromLastScan && startIndex > 0) {
+      await deleteSiteBrokenLinks(site.id);
+    }
+
+    await _saveBrokenLinks(allBrokenLinks);
 
     // Step 5: Create and save result
     final endTime = DateTime.now();
+    final newLastScannedPageIndex = scanCompleted
+        ? 0
+        : endIndex; // Reset to 0 if completed
+
+    // Calculate cumulative statistics
+    final previousTotalLinks = previousResult?.totalLinks ?? 0;
+    final previousExternalLinks = previousResult?.externalLinks ?? 0;
+    final cumulativeTotalLinks = continueFromLastScan && previousResult != null
+        ? previousTotalLinks + allFoundLinks.length
+        : allFoundLinks.length;
+    final cumulativeExternalLinks =
+        continueFromLastScan && previousResult != null
+        ? previousExternalLinks + externalLinks.length
+        : externalLinks.length;
+
     final result = LinkCheckResult(
       siteId: site.id,
       timestamp: DateTime.now(),
-      totalLinks: allFoundLinks.length,
-      brokenLinks: brokenLinks.length,
-      internalLinks: pagesToScan.length,
-      externalLinks: externalLinks.length,
+      totalLinks: cumulativeTotalLinks,
+      brokenLinks: allBrokenLinks.length,
+      internalLinks: endIndex, // Total pages scanned (cumulative)
+      externalLinks: cumulativeExternalLinks,
       scanDuration: endTime.difference(startTime),
-      pagesScanned: pagesScanned,
+      pagesScanned: endIndex, // Total pages scanned so far
       totalPagesInSitemap: totalPagesInSitemap,
       scanCompleted: scanCompleted,
+      newLastScannedPageIndex: newLastScannedPageIndex,
     );
 
     await _resultsCollection(_currentUserId!).add(result.toFirestore());

@@ -1,11 +1,13 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/site.dart';
 import '../models/broken_link.dart';
 import '../providers/link_checker_provider.dart';
+import '../providers/site_provider.dart';
 
 /// Widget for link checking section
-class LinkCheckSection extends StatelessWidget {
+class LinkCheckSection extends StatefulWidget {
   final Site site;
   final VoidCallback onCheckComplete;
   final Function(String error) onCheckError;
@@ -25,15 +27,48 @@ class LinkCheckSection extends StatelessWidget {
   });
 
   @override
+  State<LinkCheckSection> createState() => _LinkCheckSectionState();
+}
+
+class _LinkCheckSectionState extends State<LinkCheckSection> {
+  Timer? _countdownTimer;
+
+  @override
+  void dispose() {
+    _countdownTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startCountdownTimer() {
+    _countdownTimer?.cancel();
+    _countdownTimer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      if (mounted) {
+        setState(() {});
+      }
+    });
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Consumer<LinkCheckerProvider>(
       builder: (context, linkChecker, child) {
-        final state = linkChecker.getCheckState(site.id);
-        final result = linkChecker.getCachedResult(site.id);
-        final (checked, total) = linkChecker.getProgress(site.id);
-        final brokenLinks = linkChecker.getCachedBrokenLinks(site.id);
-        final canCheck = linkChecker.canCheckSite(site.id);
-        final timeUntilNext = linkChecker.getTimeUntilNextCheck(site.id);
+        final state = linkChecker.getCheckState(widget.site.id);
+        final result = linkChecker.getCachedResult(widget.site.id);
+        final (checked, total) = linkChecker.getProgress(widget.site.id);
+        final brokenLinks = linkChecker.getCachedBrokenLinks(widget.site.id);
+        final canCheck = linkChecker.canCheckSite(widget.site.id);
+        final timeUntilNext = linkChecker.getTimeUntilNextCheck(widget.site.id);
+
+        // Determine if we should show Continue Scan button
+        final showContinueScan = result != null && !result.scanCompleted;
+
+        // Start countdown timer if needed
+        if (timeUntilNext != null && _countdownTimer == null) {
+          _startCountdownTimer();
+        } else if (timeUntilNext == null) {
+          _countdownTimer?.cancel();
+          _countdownTimer = null;
+        }
 
         return Card(
           child: Padding(
@@ -60,18 +95,33 @@ class LinkCheckSection extends StatelessWidget {
                           fontSize: 14,
                           color: Colors.grey,
                         ),
+                      )
+                    else if (result != null)
+                      Text(
+                        '${result.pagesScanned} / ${result.totalPagesInSitemap}',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: result.scanCompleted
+                              ? Colors.green
+                              : Colors.orange,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                   ],
                 ),
                 const SizedBox(height: 16),
 
-                // Check button
+                // Check/Continue button
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
-                    onPressed: (state == LinkCheckState.checking || !canCheck)
+                    onPressed:
+                        state == LinkCheckState.checking ||
+                            (!canCheck && !showContinueScan)
                         ? null
-                        : () => _checkLinks(context),
+                        : () => showContinueScan
+                              ? _continueScan(context)
+                              : _checkLinks(context),
                     icon: state == LinkCheckState.checking
                         ? const SizedBox(
                             width: 20,
@@ -81,22 +131,28 @@ class LinkCheckSection extends StatelessWidget {
                               color: Colors.white,
                             ),
                           )
-                        : const Icon(Icons.search),
+                        : Icon(
+                            showContinueScan ? Icons.play_arrow : Icons.search,
+                          ),
                     label: Text(
                       state == LinkCheckState.checking
                           ? 'Checking...'
+                          : showContinueScan
+                          ? 'Continue Scan'
                           : 'Check Links',
                     ),
                     style: ElevatedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      backgroundColor: Colors.orange,
+                      backgroundColor: showContinueScan
+                          ? Colors.green
+                          : Colors.orange,
                       foregroundColor: Colors.white,
                     ),
                   ),
                 ),
 
-                // Cooldown timer
-                if (timeUntilNext != null) ...[
+                // Cooldown timer (only show for new scans, not for continue)
+                if (timeUntilNext != null && !showContinueScan) ...[
                   const SizedBox(height: 8),
                   Text(
                     'Next check available in: ${timeUntilNext.inMinutes}:${(timeUntilNext.inSeconds % 60).toString().padLeft(2, '0')}',
@@ -118,7 +174,7 @@ class LinkCheckSection extends StatelessWidget {
                   const Divider(),
                   const SizedBox(height: 12),
 
-                  // Scan completion status
+                  // Scan completion status (info only, no button)
                   if (!result.scanCompleted) ...[
                     Container(
                       padding: const EdgeInsets.all(12),
@@ -192,8 +248,11 @@ class LinkCheckSection extends StatelessWidget {
                   if (brokenLinks.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     OutlinedButton.icon(
-                      onPressed: () =>
-                          onViewBrokenLinks(site, brokenLinks, result),
+                      onPressed: () => widget.onViewBrokenLinks(
+                        widget.site,
+                        brokenLinks,
+                        result,
+                      ),
                       icon: const Icon(Icons.list),
                       label: const Text('View Broken Links'),
                     ),
@@ -215,7 +274,7 @@ class LinkCheckSection extends StatelessWidget {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            linkChecker.getError(site.id) ??
+                            linkChecker.getError(widget.site.id) ??
                                 'An error occurred',
                             style: TextStyle(color: Colors.red.shade700),
                           ),
@@ -269,10 +328,28 @@ class LinkCheckSection extends StatelessWidget {
     final linkChecker = context.read<LinkCheckerProvider>();
 
     try {
-      await linkChecker.checkSiteLinks(site);
-      onCheckComplete();
+      await linkChecker.checkSiteLinks(widget.site);
+      widget.onCheckComplete();
     } catch (e) {
-      onCheckError(e.toString());
+      widget.onCheckError(e.toString());
+    }
+  }
+
+  Future<void> _continueScan(BuildContext context) async {
+    final linkChecker = context.read<LinkCheckerProvider>();
+    final siteProvider = context.read<SiteProvider>();
+
+    try {
+      // Get the latest site data to ensure we have the updated lastScannedPageIndex
+      final latestSite = siteProvider.getSite(widget.site.id);
+      if (latestSite == null) {
+        throw Exception('Site not found');
+      }
+
+      await linkChecker.checkSiteLinks(latestSite, continueFromLastScan: true);
+      widget.onCheckComplete();
+    } catch (e) {
+      widget.onCheckError(e.toString());
     }
   }
 }
