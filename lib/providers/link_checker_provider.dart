@@ -3,6 +3,7 @@ import '../models/broken_link.dart';
 import '../models/site.dart';
 import '../services/link_checker_service.dart';
 import '../services/site_service.dart';
+import '../utils/url_utils.dart';
 
 /// State for link checking operation
 enum LinkCheckState { idle, checking, completed, error }
@@ -74,6 +75,12 @@ class LinkCheckerProvider extends ChangeNotifier {
     final remaining = minimumCheckInterval - timeSinceLastCheck;
 
     return remaining.isNegative ? null : remaining;
+  }
+
+  /// Check if a link check result has a URL mismatch
+  /// Returns true if the checked URL differs from the current site URL
+  bool hasUrlMismatch(LinkCheckResult result, Site site) {
+    return UrlUtils.hasUrlMismatch(result.checkedUrl, site.url);
   }
 
   /// Check links on a site
@@ -187,6 +194,28 @@ class LinkCheckerProvider extends ChangeNotifier {
       notifyListeners();
     } catch (e) {
       _errors[siteId] = 'Failed to clear broken links: $e';
+      notifyListeners();
+      rethrow;
+    }
+  }
+
+  /// Delete a specific link check result
+  Future<void> deleteLinkCheckResult(String siteId, String resultId) async {
+    try {
+      await _linkCheckerService.deleteLinkCheckResult(resultId);
+
+      // If this was the cached result, clear it and reload
+      final cachedResult = _resultCache[siteId];
+      if (cachedResult?.id == resultId) {
+        _resultCache.remove(siteId);
+        _brokenLinksCache.remove(siteId);
+        // Try to load the next most recent result
+        await loadLatestResult(siteId);
+      }
+
+      notifyListeners();
+    } catch (e) {
+      _errors[siteId] = 'Failed to delete result: $e';
       notifyListeners();
       rethrow;
     }

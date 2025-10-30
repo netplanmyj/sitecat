@@ -193,6 +193,7 @@ class LinkCheckerService {
 
     final result = LinkCheckResult(
       siteId: site.id,
+      checkedUrl: site.url, // Record the URL that was checked
       timestamp: DateTime.now(),
       totalLinks: cumulativeTotalLinks,
       brokenLinks: allBrokenLinks.length,
@@ -541,5 +542,12 @@ class LinkCheckerService {
     }
 
     await batch.commit();
+  }
+
+  /// Delete a specific link check result by document ID
+  Future<void> deleteLinkCheckResult(String resultId) async {
+    if (_currentUserId == null) return;
+
+    await _resultsCollection(_currentUserId!).doc(resultId).delete();
   }
 }
