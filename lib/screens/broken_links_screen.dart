@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/broken_link.dart';
 import '../models/site.dart';
+import '../utils/url_utils.dart';
 
 /// Screen to display detailed broken links results
 class BrokenLinksScreen extends StatelessWidget {
@@ -48,6 +49,47 @@ class BrokenLinksScreen extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(height: 12),
+
+                    // URL mismatch warning
+                    if (result != null &&
+                        UrlUtils.hasUrlMismatch(
+                          result!.checkedUrl,
+                          site.url,
+                        )) ...[
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.amber.shade50,
+                          borderRadius: BorderRadius.circular(6),
+                          border: Border.all(color: Colors.amber.shade300),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.warning_amber_rounded,
+                              color: Colors.amber.shade700,
+                              size: 16,
+                            ),
+                            const SizedBox(width: 6),
+                            Expanded(
+                              child: Text(
+                                'Checked URL: ${result!.checkedUrl}',
+                                style: TextStyle(
+                                  color: Colors.amber.shade900,
+                                  fontSize: 11,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [

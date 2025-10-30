@@ -543,4 +543,11 @@ class LinkCheckerService {
 
     await batch.commit();
   }
+
+  /// Delete a specific link check result by document ID
+  Future<void> deleteLinkCheckResult(String resultId) async {
+    if (_currentUserId == null) return;
+
+    await _resultsCollection(_currentUserId!).doc(resultId).delete();
+  }
 }

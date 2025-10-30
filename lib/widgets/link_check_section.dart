@@ -5,6 +5,7 @@ import '../models/site.dart';
 import '../models/broken_link.dart';
 import '../providers/link_checker_provider.dart';
 import '../providers/site_provider.dart';
+import '../utils/url_utils.dart';
 
 /// Widget for link checking section
 class LinkCheckSection extends StatefulWidget {
@@ -96,7 +97,7 @@ class _LinkCheckSectionState extends State<LinkCheckSection> {
                           color: Colors.grey,
                         ),
                       )
-                    else if (result != null)
+                    else if (result != null) ...[
                       Text(
                         '${result.pagesScanned} / ${result.totalPagesInSitemap}',
                         style: TextStyle(
@@ -107,6 +108,22 @@ class _LinkCheckSectionState extends State<LinkCheckSection> {
                           fontWeight: FontWeight.w600,
                         ),
                       ),
+                      const SizedBox(width: 8),
+                      // Delete result button
+                      if (result.id != null)
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline, size: 20),
+                          tooltip: 'Delete this result',
+                          onPressed: () => _confirmDeleteResult(
+                            context,
+                            linkChecker,
+                            widget.site.id,
+                            result.id!,
+                          ),
+                          padding: EdgeInsets.zero,
+                          constraints: const BoxConstraints(),
+                        ),
+                    ],
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -173,6 +190,72 @@ class _LinkCheckSectionState extends State<LinkCheckSection> {
                   const SizedBox(height: 16),
                   const Divider(),
                   const SizedBox(height: 12),
+
+                  // URL mismatch warning
+                  if (UrlUtils.hasUrlMismatch(
+                    result.checkedUrl,
+                    widget.site.url,
+                  )) ...[
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.amber.shade300),
+                      ),
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.warning_amber_rounded,
+                            color: Colors.amber.shade700,
+                            size: 20,
+                          ),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'URL Mismatch Detected',
+                                  style: TextStyle(
+                                    color: Colors.amber.shade900,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 13,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                Text(
+                                  'This result was checked for a different URL:',
+                                  style: TextStyle(
+                                    color: Colors.amber.shade800,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  'Checked: ${result.checkedUrl}',
+                                  style: TextStyle(
+                                    color: Colors.amber.shade700,
+                                    fontSize: 11,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                                Text(
+                                  'Current: ${widget.site.url}',
+                                  style: TextStyle(
+                                    color: Colors.amber.shade700,
+                                    fontSize: 11,
+                                    fontFamily: 'monospace',
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                  ],
 
                   // Scan completion status (info only, no button)
                   if (!result.scanCompleted) ...[
@@ -350,6 +433,51 @@ class _LinkCheckSectionState extends State<LinkCheckSection> {
       widget.onCheckComplete();
     } catch (e) {
       widget.onCheckError(e.toString());
+    }
+  }
+
+  Future<void> _confirmDeleteResult(
+    BuildContext context,
+    LinkCheckerProvider linkChecker,
+    String siteId,
+    String resultId,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Result'),
+        content: const Text(
+          'Are you sure you want to delete this link check result? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        await linkChecker.deleteLinkCheckResult(siteId, resultId);
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Result deleted successfully')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete result: $e')),
+          );
+        }
+      }
     }
   }
 }
