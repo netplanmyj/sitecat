@@ -193,6 +193,7 @@ class LinkCheckerService {
 
     final result = LinkCheckResult(
       siteId: site.id,
+      checkedUrl: site.url, // Record the URL that was checked
       timestamp: DateTime.now(),
       totalLinks: cumulativeTotalLinks,
       brokenLinks: allBrokenLinks.length,

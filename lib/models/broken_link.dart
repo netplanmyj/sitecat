@@ -106,6 +106,7 @@ enum LinkType {
 /// Link check scan result
 class LinkCheckResult {
   final String siteId;
+  final String checkedUrl; // URL that was checked (to detect mismatches)
   final DateTime timestamp;
   final int totalLinks;
   final int brokenLinks;
@@ -119,6 +120,7 @@ class LinkCheckResult {
 
   LinkCheckResult({
     required this.siteId,
+    required this.checkedUrl,
     required this.timestamp,
     required this.totalLinks,
     required this.brokenLinks,
@@ -136,6 +138,7 @@ class LinkCheckResult {
     final data = doc.data() as Map<String, dynamic>;
     return LinkCheckResult(
       siteId: data['siteId'] ?? '',
+      checkedUrl: data['checkedUrl'] ?? '', // URL that was checked
       timestamp: (data['timestamp'] as Timestamp).toDate(),
       totalLinks: data['totalLinks'] ?? 0,
       brokenLinks: data['brokenLinks'] ?? 0,
@@ -153,6 +156,7 @@ class LinkCheckResult {
   Map<String, dynamic> toFirestore() {
     return {
       'siteId': siteId,
+      'checkedUrl': checkedUrl,
       'timestamp': Timestamp.fromDate(timestamp),
       'totalLinks': totalLinks,
       'brokenLinks': brokenLinks,

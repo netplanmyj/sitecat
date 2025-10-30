@@ -58,6 +58,7 @@ void main() {
     test('creates complete scan result', () {
       final result = LinkCheckResult(
         siteId: 'site_1',
+        checkedUrl: 'https://example.com',
         timestamp: DateTime(2025, 10, 29, 12, 0),
         totalLinks: 753,
         brokenLinks: 2,
@@ -71,6 +72,7 @@ void main() {
       );
 
       expect(result.siteId, equals('site_1'));
+      expect(result.checkedUrl, equals('https://example.com'));
       expect(result.totalLinks, equals(753));
       expect(result.brokenLinks, equals(2));
       expect(result.pagesScanned, equals(236));
@@ -82,6 +84,7 @@ void main() {
     test('creates partial scan result', () {
       final result = LinkCheckResult(
         siteId: 'site_1',
+        checkedUrl: 'https://example.com',
         timestamp: DateTime.now(),
         totalLinks: 150,
         brokenLinks: 1,
@@ -103,6 +106,7 @@ void main() {
     test('completed scan resets lastScannedPageIndex to 0', () {
       final result = LinkCheckResult(
         siteId: 'site_1',
+        checkedUrl: 'https://example.com',
         timestamp: DateTime.now(),
         totalLinks: 753,
         brokenLinks: 2,
@@ -122,6 +126,7 @@ void main() {
     test('partial scan keeps non-zero lastScannedPageIndex', () {
       final result = LinkCheckResult(
         siteId: 'site_1',
+        checkedUrl: 'https://example.com',
         timestamp: DateTime.now(),
         totalLinks: 300,
         brokenLinks: 1,
@@ -141,6 +146,7 @@ void main() {
     test('converts LinkCheckResult to Firestore format', () {
       final result = LinkCheckResult(
         siteId: 'site_1',
+        checkedUrl: 'https://example.com',
         timestamp: DateTime(2025, 10, 29, 12, 0),
         totalLinks: 753,
         brokenLinks: 2,
@@ -156,6 +162,7 @@ void main() {
       final firestore = result.toFirestore();
 
       expect(firestore['siteId'], equals('site_1'));
+      expect(firestore['checkedUrl'], equals('https://example.com'));
       expect(firestore['totalLinks'], equals(753));
       expect(firestore['brokenLinks'], equals(2));
       expect(firestore['scanCompleted'], isTrue);
