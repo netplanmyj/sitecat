@@ -210,9 +210,40 @@ class LinkCheckerService {
     return result;
   }
 
-  /// Fetch HTML content from URL
+  /// Check URL with HEAD request before fetching content
+  Future<({int statusCode, String? contentType})> _checkUrlHead(
+    String url,
+  ) async {
+    try {
+      final response = await http
+          .head(Uri.parse(url))
+          .timeout(const Duration(seconds: 5));
+
+      final contentType = response.headers['content-type']?.toLowerCase();
+      return (statusCode: response.statusCode, contentType: contentType);
+    } catch (e) {
+      return (statusCode: 0, contentType: null);
+    }
+  }
+
+  /// Fetch HTML content from a URL (with HEAD pre-check)
   Future<String?> _fetchHtmlContent(String url) async {
     try {
+      // Step 1: HEAD request to check status and content type
+      final headCheck = await _checkUrlHead(url);
+
+      // Skip if not OK status
+      if (headCheck.statusCode != 200) {
+        return null;
+      }
+
+      // Skip if not HTML content
+      final contentType = headCheck.contentType;
+      if (contentType != null && !contentType.contains('text/html')) {
+        return null;
+      }
+
+      // Step 2: GET request to fetch content
       final response = await http
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 10));
@@ -229,6 +260,22 @@ class LinkCheckerService {
   /// Fetch URLs from sitemap.xml (supports up to 2 levels of sitemap index)
   Future<List<Uri>> _fetchSitemapUrls(String sitemapUrl) async {
     try {
+      // Step 1: HEAD request to check status and content type
+      final headCheck = await _checkUrlHead(sitemapUrl);
+
+      if (headCheck.statusCode != 200) {
+        throw Exception('Sitemap not accessible: ${headCheck.statusCode}');
+      }
+
+      // Verify it's XML content
+      final contentType = headCheck.contentType;
+      if (contentType != null &&
+          !contentType.contains('xml') &&
+          !contentType.contains('text/plain')) {
+        throw Exception('Invalid sitemap content type: $contentType');
+      }
+
+      // Step 2: GET request to fetch sitemap content
       final response = await http
           .get(Uri.parse(sitemapUrl))
           .timeout(const Duration(seconds: 10));
@@ -286,6 +333,22 @@ class LinkCheckerService {
     String sitemapUrl,
   ) async {
     try {
+      // Step 1: HEAD request to check status and content type
+      final headCheck = await _checkUrlHead(sitemapUrl);
+
+      if (headCheck.statusCode != 200) {
+        throw Exception('Sitemap not accessible: ${headCheck.statusCode}');
+      }
+
+      // Verify it's XML content
+      final contentType = headCheck.contentType;
+      if (contentType != null &&
+          !contentType.contains('xml') &&
+          !contentType.contains('text/plain')) {
+        throw Exception('Invalid sitemap content type: $contentType');
+      }
+
+      // Step 2: GET request to fetch sitemap content
       final response = await http
           .get(Uri.parse(sitemapUrl))
           .timeout(const Duration(seconds: 10));
