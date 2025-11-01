@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/site_provider.dart';
-import 'sites_screen.dart';
 
 /// ダッシュボード画面
 class DashboardScreen extends StatelessWidget {
-  const DashboardScreen({super.key});
+  final VoidCallback? onNavigateToSites;
+
+  const DashboardScreen({super.key, this.onNavigateToSites});
 
   @override
   Widget build(BuildContext context) {
@@ -33,22 +34,24 @@ class DashboardScreen extends StatelessWidget {
                 _StatsRow(stats: stats),
                 const SizedBox(height: 24),
 
-                // Quick Actions
-                Text(
-                  'Quick Actions',
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 16),
-                const _QuickActionsRow(),
+                // My Sites Section
+                const _MySitesSection(),
                 const SizedBox(height: 24),
 
                 // Recent Activity placeholder
-                Text(
-                  'Recent Activity',
-                  style: Theme.of(context).textTheme.titleLarge,
+                Center(
+                  child: Text(
+                    'Recent Activity',
+                    style: Theme.of(context).textTheme.titleLarge,
+                  ),
                 ),
                 const SizedBox(height: 16),
-                const _RecentActivityCard(),
+                Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 300),
+                    child: const _RecentActivityCard(),
+                  ),
+                ),
               ],
             ),
           );
@@ -165,38 +168,32 @@ class _StatCard extends StatelessWidget {
   }
 }
 
-class _QuickActionsRow extends StatelessWidget {
-  const _QuickActionsRow();
+class _MySitesSection extends StatelessWidget {
+  const _MySitesSection();
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    // Find the parent DashboardScreen to get the callback
+    final dashboardScreen = context
+        .findAncestorWidgetOfExactType<DashboardScreen>();
+
+    return Column(
       children: [
-        Expanded(
-          child: _ActionCard(
-            title: 'Add Site',
-            subtitle: 'Monitor a new website',
-            icon: Icons.add,
-            color: Colors.blue,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const SitesScreen()),
-              );
-            },
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: _ActionCard(
-            title: 'View Sites',
-            subtitle: 'Manage your websites',
-            icon: Icons.list,
-            color: Colors.green,
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (context) => const SitesScreen()),
-              );
-            },
+        Text('My Sites', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 16),
+        Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 300),
+            child: _ActionCard(
+              title: 'My Sites',
+              subtitle: 'Manage your websites',
+              icon: Icons.web_asset,
+              color: Colors.blue,
+              onTap: () {
+                // Use callback if available, otherwise do nothing
+                dashboardScreen?.onNavigateToSites?.call();
+              },
+            ),
           ),
         ),
       ],
