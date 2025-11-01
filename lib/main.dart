@@ -74,11 +74,23 @@ class AuthenticatedHome extends StatefulWidget {
 class _AuthenticatedHomeState extends State<AuthenticatedHome> {
   int _currentIndex = 0;
 
-  final List<Widget> _screens = [
-    const DashboardScreen(),
-    const SitesScreen(),
-    const ProfileScreen(),
-  ];
+  late final List<Widget> _screens;
+
+  @override
+  void initState() {
+    super.initState();
+    _screens = [
+      DashboardScreen(
+        onNavigateToSites: () {
+          setState(() {
+            _currentIndex = 1; // Switch to Sites tab
+          });
+        },
+      ),
+      const SitesScreen(),
+      const ProfileScreen(),
+    ];
+  }
 
   @override
   Widget build(BuildContext context) {
