@@ -235,11 +235,12 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
                         TextFormField(
                           controller: _sitemapUrlController,
                           decoration: const InputDecoration(
-                            hintText: 'https://example.com/sitemap.xml',
+                            hintText:
+                                'sitemap.xml or https://example.com/sitemap.xml',
                             prefixIcon: Icon(Icons.map_outlined),
                             border: OutlineInputBorder(),
                             helperText:
-                                'Used for comprehensive link checking across all pages',
+                                'Full URL or relative path (e.g., sitemap.xml)',
                             helperMaxLines: 2,
                           ),
                           validator: (value) {
@@ -247,7 +248,14 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
                             if (value == null || value.trim().isEmpty) {
                               return null;
                             }
-                            // Basic URL validation
+
+                            // Allow relative paths (e.g., "sitemap.xml" or "/sitemap.xml")
+                            if (!value.startsWith('http://') &&
+                                !value.startsWith('https://')) {
+                              return null; // Relative path is valid
+                            }
+
+                            // For full URLs, validate scheme
                             final uri = Uri.tryParse(value);
                             if (uri == null ||
                                 !uri.hasScheme ||
