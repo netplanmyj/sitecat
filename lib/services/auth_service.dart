@@ -6,7 +6,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 /// Google Sign-In を使用したユーザー認証を管理する
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    // iOSのクライアントIDを明示的に指定
+    clientId:
+        '974974534435-acs3q36ciqdm67u3ba5ea2ruk2ov9mo3.apps.googleusercontent.com',
+  );
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   /// 現在のユーザー取得

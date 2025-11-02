@@ -48,11 +48,11 @@
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
-			<key>CFBundleURLName</key>
-			<string>REVERSED_CLIENT_ID</string>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>com.googleusercontent.apps.974974534435-40rpalc4j723c0118bb3e3mdckqdt94k</string>
+				<string>com.googleusercontent.apps.974974534435-acs3q36ciqdm67u3ba5ea2ruk2ov9mo3</string>
 			</array>
 		</dict>
 	</array>
