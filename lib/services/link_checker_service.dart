@@ -10,6 +10,7 @@ import '../models/site.dart';
 class LinkCheckerService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final http.Client _httpClient = http.Client();
 
   // Get current user ID
   String? get _currentUserId => _auth.currentUser?.uid;
@@ -39,7 +40,9 @@ class LinkCheckerService {
 
     if (site.sitemapUrl != null && site.sitemapUrl!.isNotEmpty) {
       try {
-        allInternalPages = await _fetchSitemapUrls(site.sitemapUrl!);
+        // Build full sitemap URL (combine with base URL if relative path)
+        final fullSitemapUrl = _buildFullUrl(baseUrl, site.sitemapUrl!);
+        allInternalPages = await _fetchSitemapUrls(fullSitemapUrl);
       } catch (e) {
         // Sitemap fetch failed, fall back to checking only the top page
         allInternalPages = [baseUrl];
@@ -76,6 +79,7 @@ class LinkCheckerService {
     // Step 2: Extract links from each internal page
     final allFoundLinks = <Uri>{};
     final externalLinks = <Uri>{};
+    final internalLinks = <Uri>{};
     final linkSourceMap = <String, String>{}; // link -> foundOn
     final visitedPages = <String>{};
 
@@ -115,7 +119,8 @@ class LinkCheckerService {
 
         // Categorize: internal or external
         if (_isSameDomain(link, baseUrl)) {
-          // Internal link (no need to check, assume OK if in sitemap)
+          // Internal link - mark for checking
+          internalLinks.add(link);
         } else {
           // External link - mark for checking
           externalLinks.add(link);
@@ -123,9 +128,41 @@ class LinkCheckerService {
       }
     }
 
-    // Step 3: Check external links only (HEAD request)
+    // Step 3: Check internal links for broken pages
     final brokenLinks = <BrokenLink>[];
+    final internalLinksList = internalLinks.toList();
+    int checkedInternal = 0;
 
+    for (final link in internalLinksList) {
+      final linkUrl = link.toString();
+
+      // Add delay to avoid server overload
+      if (checkedInternal > 0) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+
+      final isBroken = await _checkLink(link);
+
+      if (isBroken != null) {
+        brokenLinks.add(
+          BrokenLink(
+            id: '', // Will be set by Firestore
+            siteId: site.id,
+            userId: _currentUserId!,
+            timestamp: DateTime.now(),
+            url: linkUrl,
+            foundOn: linkSourceMap[linkUrl] ?? site.url,
+            statusCode: isBroken.statusCode,
+            error: isBroken.error,
+            linkType: LinkType.internal,
+          ),
+        );
+      }
+
+      checkedInternal++;
+    }
+
+    // Step 4: Check external links only if requested
     if (checkExternalLinks) {
       final externalLinksList = externalLinks.toList();
       int checkedExternal = 0;
@@ -160,7 +197,7 @@ class LinkCheckerService {
       }
     }
 
-    // Step 4: Save broken links to Firestore
+    // Step 5: Save broken links to Firestore
     // If continuing, keep previous broken links and add new ones
     final allBrokenLinks =
         continueFromLastScan && previousBrokenLinks.isNotEmpty
@@ -174,7 +211,7 @@ class LinkCheckerService {
 
     await _saveBrokenLinks(allBrokenLinks);
 
-    // Step 5: Create and save result
+    // Step 6: Create and save result
     final endTime = DateTime.now();
     final newLastScannedPageIndex = scanCompleted
         ? 0
@@ -216,7 +253,7 @@ class LinkCheckerService {
     String url,
   ) async {
     try {
-      final response = await http
+      final response = await _httpClient
           .head(Uri.parse(url))
           .timeout(const Duration(seconds: 5));
 
@@ -245,7 +282,7 @@ class LinkCheckerService {
       }
 
       // Step 2: GET request to fetch content
-      final response = await http
+      final response = await _httpClient
           .get(Uri.parse(url))
           .timeout(const Duration(seconds: 10));
 
@@ -277,7 +314,7 @@ class LinkCheckerService {
       }
 
       // Step 2: GET request to fetch sitemap content
-      final response = await http
+      final response = await _httpClient
           .get(Uri.parse(sitemapUrl))
           .timeout(const Duration(seconds: 10));
 
@@ -350,7 +387,7 @@ class LinkCheckerService {
       }
 
       // Step 2: GET request to fetch sitemap content
-      final response = await http
+      final response = await _httpClient
           .get(Uri.parse(sitemapUrl))
           .timeout(const Duration(seconds: 10));
 
@@ -420,7 +457,9 @@ class LinkCheckerService {
   Future<({int statusCode, String? error})?> _checkLink(Uri url) async {
     try {
       // Use HEAD request for efficiency
-      final response = await http.head(url).timeout(const Duration(seconds: 5));
+      final response = await _httpClient
+          .head(url)
+          .timeout(const Duration(seconds: 5));
 
       // Consider 404 and 5xx as broken
       if (response.statusCode == 404 || response.statusCode >= 500) {
@@ -437,7 +476,33 @@ class LinkCheckerService {
 
   /// Check if two URLs are from the same domain
   bool _isSameDomain(Uri url1, Uri url2) {
-    return url1.host == url2.host;
+    // Android emulator special case: treat localhost and 10.0.2.2 as the same domain
+    final host1 = _normalizeEmulatorHost(url1.host);
+    final host2 = _normalizeEmulatorHost(url2.host);
+    return host1 == host2;
+  }
+
+  /// Normalize Android emulator special addresses
+  String _normalizeEmulatorHost(String host) {
+    // Treat 10.0.2.2 (Android emulator's host machine) as localhost
+    if (host == '10.0.2.2') return 'localhost';
+    return host;
+  }
+
+  /// Build full URL from base URL and path
+  /// If path is already a full URL, return it as-is
+  /// Otherwise, combine base URL with the path
+  String _buildFullUrl(Uri baseUrl, String path) {
+    // Check if path is already a full URL
+    if (path.startsWith('http://') || path.startsWith('https://')) {
+      return path;
+    }
+
+    // Combine base URL with path
+    // Remove trailing slash from base, and leading slash from path if present
+    final baseStr = baseUrl.toString().replaceAll(RegExp(r'/$'), '');
+    final pathStr = path.startsWith('/') ? path : '/$path';
+    return '$baseStr$pathStr';
   }
 
   /// Save broken links to Firestore

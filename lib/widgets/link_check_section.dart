@@ -34,6 +34,7 @@ class LinkCheckSection extends StatefulWidget {
 
 class _LinkCheckSectionState extends State<LinkCheckSection> {
   Timer? _countdownTimer;
+  bool _checkExternalLinks = false;
 
   @override
   void dispose() {
@@ -128,6 +129,25 @@ class _LinkCheckSectionState extends State<LinkCheckSection> {
                   ],
                 ),
                 const SizedBox(height: 16),
+
+                // External links checkbox
+                CheckboxListTile(
+                  value: _checkExternalLinks,
+                  onChanged: state == LinkCheckState.checking
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _checkExternalLinks = value ?? false;
+                          });
+                        },
+                  title: const Text('Check external links'),
+                  subtitle: const Text(
+                    'Also check links to other domains (may take longer)',
+                  ),
+                  dense: true,
+                  contentPadding: EdgeInsets.zero,
+                ),
+                const SizedBox(height: 8),
 
                 // Check/Continue button
                 SizedBox(
@@ -409,7 +429,10 @@ class _LinkCheckSectionState extends State<LinkCheckSection> {
     final linkChecker = context.read<LinkCheckerProvider>();
 
     try {
-      await linkChecker.checkSiteLinks(widget.site);
+      await linkChecker.checkSiteLinks(
+        widget.site,
+        checkExternalLinks: _checkExternalLinks,
+      );
       widget.onCheckComplete();
     } catch (e) {
       widget.onCheckError(e.toString());
@@ -427,7 +450,11 @@ class _LinkCheckSectionState extends State<LinkCheckSection> {
         throw Exception('Site not found');
       }
 
-      await linkChecker.checkSiteLinks(latestSite, continueFromLastScan: true);
+      await linkChecker.checkSiteLinks(
+        latestSite,
+        checkExternalLinks: _checkExternalLinks,
+        continueFromLastScan: true,
+      );
       widget.onCheckComplete();
     } catch (e) {
       widget.onCheckError(e.toString());

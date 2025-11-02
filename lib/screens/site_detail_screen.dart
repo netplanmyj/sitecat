@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../models/site.dart';
 import '../providers/monitoring_provider.dart';
 import '../widgets/site_info_card.dart';
-import '../widgets/site_stats_card.dart';
 import '../widgets/link_check_section.dart';
 import '../widgets/monitoring_result_card.dart';
 import '../widgets/countdown_timer.dart';
@@ -42,6 +41,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               const SizedBox(height: 16),
               _buildCheckButton(),
               const SizedBox(height: 16),
+              MonitoringResultCard(siteId: widget.site.id),
+              const SizedBox(height: 16),
               LinkCheckSection(
                 site: widget.site,
                 onCheckComplete: () {
@@ -73,10 +74,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                   );
                 },
               ),
-              const SizedBox(height: 16),
-              MonitoringResultCard(siteId: widget.site.id),
-              const SizedBox(height: 16),
-              SiteStatsCard(siteId: widget.site.id),
             ],
           ),
         ),
@@ -104,7 +101,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                     const Icon(Icons.monitor_heart, size: 24),
                     const SizedBox(width: 8),
                     const Text(
-                      'Site Monitoring',
+                      'Site Check',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -139,7 +136,15 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                 ),
                 if (timeUntilNext != null) ...[
                   const SizedBox(height: 8),
-                  CountdownTimer(initialDuration: timeUntilNext),
+                  CountdownTimer(
+                    initialDuration: timeUntilNext,
+                    onComplete: () {
+                      // Force rebuild when countdown completes to update button state
+                      if (mounted) {
+                        setState(() {});
+                      }
+                    },
+                  ),
                 ],
               ],
             );
