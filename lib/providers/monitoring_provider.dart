@@ -10,15 +10,10 @@ class MonitoringProvider extends ChangeNotifier {
   // Minimum interval between checks (5 minutes) to reduce load on target sites
   static const Duration minimumCheckInterval = Duration(minutes: 5);
 
-  // Cache duration for statistics (5 minutes)
-  static const Duration statsCacheDuration = Duration(minutes: 5);
-
   // State variables
   final Map<String, List<MonitoringResult>> _resultsBySite = {};
   final Map<String, bool> _isChecking = {};
   final Map<String, DateTime> _lastCheckTime = {};
-  final Map<String, MonitoringStats> _statsCache = {};
-  final Map<String, DateTime> _statsCacheTime = {};
   String? _error;
   Map<String, StreamSubscription<List<MonitoringResult>>>? _subscriptions;
 
@@ -121,10 +116,8 @@ class MonitoringProvider extends ChangeNotifier {
       final existingResults = _resultsBySite[site.id] ?? [];
       _resultsBySite[site.id] = [result, ...existingResults];
 
-      // Record check time and invalidate stats cache
+      // Record check time
       _lastCheckTime[site.id] = DateTime.now();
-      _statsCache.remove(site.id);
-      _statsCacheTime.remove(site.id);
 
       _setChecking(site.id, false);
       return true;
@@ -132,98 +125,6 @@ class MonitoringProvider extends ChangeNotifier {
       _setError('Failed to check site: $e');
       _setChecking(site.id, false);
       return false;
-    }
-  }
-
-  /// Calculate uptime percentage for a site
-  Future<double> getUptime(
-    String siteId, {
-    Duration period = const Duration(days: 7),
-  }) async {
-    try {
-      return await _monitoringService.calculateUptime(siteId, period: period);
-    } catch (e) {
-      _setError('Failed to calculate uptime: $e');
-      return 0.0;
-    }
-  }
-
-  /// Calculate average response time for a site
-  Future<int> getAverageResponseTime(
-    String siteId, {
-    Duration period = const Duration(days: 7),
-  }) async {
-    try {
-      return await _monitoringService.calculateAverageResponseTime(
-        siteId,
-        period: period,
-      );
-    } catch (e) {
-      _setError('Failed to calculate average response time: $e');
-      return 0;
-    }
-  }
-
-  /// Get monitoring statistics for a site (with caching)
-  Future<MonitoringStats> getStats(String siteId) async {
-    try {
-      // Check if cached stats are still valid
-      final cacheTime = _statsCacheTime[siteId];
-      if (cacheTime != null) {
-        final age = DateTime.now().difference(cacheTime);
-        if (age < statsCacheDuration) {
-          // Return cached stats if still fresh
-          return _statsCache[siteId]!;
-        }
-      }
-
-      // Get basic stats from cached results
-      final latestResult = getLatestResult(siteId);
-      final cachedResults = _resultsBySite[siteId] ?? [];
-      final totalChecks = cachedResults.length;
-
-      // Try to get advanced stats (may fail if index is still building)
-      double uptime = 0;
-      int avgResponseTime = 0;
-
-      try {
-        uptime = await getUptime(siteId);
-        avgResponseTime = await getAverageResponseTime(siteId);
-      } catch (e) {
-        // Fallback to cached data if indexes are not ready
-        if (cachedResults.isNotEmpty) {
-          final upChecks = cachedResults.where((r) => r.isUp).length;
-          uptime = (upChecks / cachedResults.length) * 100;
-
-          final totalResponseTime = cachedResults.fold<int>(
-            0,
-            (total, r) => total + r.responseTime,
-          );
-          avgResponseTime = totalResponseTime ~/ cachedResults.length;
-        }
-      }
-
-      final stats = MonitoringStats(
-        uptime: uptime,
-        averageResponseTime: avgResponseTime,
-        totalChecks: totalChecks,
-        isCurrentlyUp: latestResult?.isUp ?? false,
-        lastChecked: latestResult?.timestamp,
-      );
-
-      // Cache the stats
-      _statsCache[siteId] = stats;
-      _statsCacheTime[siteId] = DateTime.now();
-
-      return stats;
-    } catch (e) {
-      _setError('Failed to get statistics: $e');
-      return MonitoringStats(
-        uptime: 0,
-        averageResponseTime: 0,
-        totalChecks: 0,
-        isCurrentlyUp: false,
-      );
     }
   }
 
@@ -260,45 +161,5 @@ class MonitoringProvider extends ChangeNotifier {
   /// Clear error after displaying
   void clearError() {
     _clearError();
-  }
-}
-
-/// Monitoring statistics model
-class MonitoringStats {
-  final double uptime;
-  final int averageResponseTime;
-  final int totalChecks;
-  final bool isCurrentlyUp;
-  final DateTime? lastChecked;
-
-  MonitoringStats({
-    required this.uptime,
-    required this.averageResponseTime,
-    required this.totalChecks,
-    required this.isCurrentlyUp,
-    this.lastChecked,
-  });
-
-  String get uptimeDisplay {
-    if (totalChecks == 0) return '-';
-    return '${uptime.toStringAsFixed(1)}%';
-  }
-
-  String get averageResponseTimeDisplay {
-    if (totalChecks == 0) return '-';
-    if (averageResponseTime < 1000) {
-      return '${averageResponseTime}ms';
-    }
-    return '${(averageResponseTime / 1000).toStringAsFixed(2)}s';
-  }
-
-  String get statusText {
-    if (totalChecks == 0) return 'Unknown';
-    return isCurrentlyUp ? 'Online' : 'Offline';
-  }
-
-  Color get statusColor {
-    if (totalChecks == 0) return Colors.grey;
-    return isCurrentlyUp ? Colors.green : Colors.red;
   }
 }
