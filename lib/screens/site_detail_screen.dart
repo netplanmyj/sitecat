@@ -6,6 +6,7 @@ import '../widgets/site_info_card.dart';
 import '../widgets/site_stats_card.dart';
 import '../widgets/link_check_section.dart';
 import '../widgets/monitoring_result_card.dart';
+import '../widgets/countdown_timer.dart';
 import 'broken_links_screen.dart';
 
 class SiteDetailScreen extends StatefulWidget {
@@ -138,10 +139,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                 ),
                 if (timeUntilNext != null) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    'Next check available in: ${timeUntilNext.inMinutes}:${(timeUntilNext.inSeconds % 60).toString().padLeft(2, '0')}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
+                  CountdownTimer(initialDuration: timeUntilNext),
                 ],
               ],
             );

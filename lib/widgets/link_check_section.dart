@@ -6,6 +6,7 @@ import '../models/broken_link.dart';
 import '../providers/link_checker_provider.dart';
 import '../providers/site_provider.dart';
 import '../utils/url_utils.dart';
+import 'countdown_timer.dart';
 
 /// Widget for link checking section
 class LinkCheckSection extends StatefulWidget {
@@ -171,10 +172,7 @@ class _LinkCheckSectionState extends State<LinkCheckSection> {
                 // Cooldown timer (only show for new scans, not for continue)
                 if (timeUntilNext != null && !showContinueScan) ...[
                   const SizedBox(height: 8),
-                  Text(
-                    'Next check available in: ${timeUntilNext.inMinutes}:${(timeUntilNext.inSeconds % 60).toString().padLeft(2, '0')}',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
-                  ),
+                  CountdownTimer(initialDuration: timeUntilNext),
                 ],
 
                 // Progress indicator
