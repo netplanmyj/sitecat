@@ -16,10 +16,9 @@ class DashboardScreen extends StatelessWidget {
         title: const Text('Dashboard'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: Consumer2<AuthProvider, SiteProvider>(
-        builder: (context, authProvider, siteProvider, child) {
+      body: Consumer<AuthProvider>(
+        builder: (context, authProvider, child) {
           final user = authProvider.user;
-          final stats = siteProvider.getSiteStatistics();
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
@@ -28,10 +27,6 @@ class DashboardScreen extends StatelessWidget {
               children: [
                 // Welcome Card
                 _WelcomeCard(user: user),
-                const SizedBox(height: 16),
-
-                // Stats Cards
-                _StatsRow(stats: stats),
                 const SizedBox(height: 24),
 
                 // My Sites Section
@@ -105,69 +100,6 @@ class _WelcomeCard extends StatelessWidget {
   }
 }
 
-class _StatsRow extends StatelessWidget {
-  final Map<String, int> stats;
-
-  const _StatsRow({required this.stats});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        _StatCard(
-          title: 'Total Sites',
-          value: stats['total'].toString(),
-          icon: Icons.web,
-          color: Colors.blue,
-        ),
-      ],
-    );
-  }
-}
-
-class _StatCard extends StatelessWidget {
-  final String title;
-  final String value;
-  final IconData icon;
-  final Color color;
-
-  const _StatCard({
-    required this.title,
-    required this.value,
-    required this.icon,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            Icon(icon, color: color, size: 24),
-            const SizedBox(height: 8),
-            Text(
-              value,
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.bodySmall,
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class _MySitesSection extends StatelessWidget {
   const _MySitesSection();
 
@@ -177,26 +109,34 @@ class _MySitesSection extends StatelessWidget {
     final dashboardScreen = context
         .findAncestorWidgetOfExactType<DashboardScreen>();
 
-    return Column(
-      children: [
-        Text('My Sites', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 16),
-        Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 300),
-            child: _ActionCard(
-              title: 'My Sites',
-              subtitle: 'Manage your websites',
-              icon: Icons.web_asset,
-              color: Colors.blue,
-              onTap: () {
-                // Use callback if available, otherwise do nothing
-                dashboardScreen?.onNavigateToSites?.call();
-              },
+    return Consumer<SiteProvider>(
+      builder: (context, siteProvider, child) {
+        final stats = siteProvider.getSiteStatistics();
+        final totalSites = stats['total'] ?? 0;
+
+        return Column(
+          children: [
+            Text('My Sites', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 16),
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 300),
+                child: _ActionCard(
+                  title: 'My Sites',
+                  subtitle: 'Manage your websites',
+                  icon: Icons.web_asset,
+                  color: Colors.blue,
+                  count: totalSites,
+                  onTap: () {
+                    // Use callback if available, otherwise do nothing
+                    dashboardScreen?.onNavigateToSites?.call();
+                  },
+                ),
+              ),
             ),
-          ),
-        ),
-      ],
+          ],
+        );
+      },
     );
   }
 }
@@ -207,6 +147,7 @@ class _ActionCard extends StatelessWidget {
   final IconData icon;
   final Color color;
   final VoidCallback onTap;
+  final int? count;
 
   const _ActionCard({
     required this.title,
@@ -214,6 +155,7 @@ class _ActionCard extends StatelessWidget {
     required this.icon,
     required this.color,
     required this.onTap,
+    this.count,
   });
 
   @override
@@ -231,10 +173,36 @@ class _ActionCard extends StatelessWidget {
                 child: Icon(icon, color: color),
               ),
               const SizedBox(height: 8),
-              Text(
-                title,
-                style: const TextStyle(fontWeight: FontWeight.w500),
-                textAlign: TextAlign.center,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    title,
+                    style: const TextStyle(fontWeight: FontWeight.w500),
+                    textAlign: TextAlign.center,
+                  ),
+                  if (count != null) ...[
+                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 8,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: color.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        '$count',
+                        style: TextStyle(
+                          color: color,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
               ),
               Text(
                 subtitle,

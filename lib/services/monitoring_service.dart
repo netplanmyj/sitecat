@@ -126,64 +126,6 @@ class MonitoringService {
     return MonitoringResult.fromFirestore(querySnapshot.docs.first);
   }
 
-  /// Calculate uptime percentage for a site
-  Future<double> calculateUptime(
-    String siteId, {
-    Duration period = const Duration(days: 7),
-  }) async {
-    if (_currentUserId == null) {
-      return 0.0;
-    }
-
-    final startDate = DateTime.now().subtract(period);
-
-    final querySnapshot = await _resultsCollection(_currentUserId!)
-        .where('siteId', isEqualTo: siteId)
-        .where('timestamp', isGreaterThan: Timestamp.fromDate(startDate))
-        .get();
-
-    if (querySnapshot.docs.isEmpty) {
-      return 0.0;
-    }
-
-    final totalChecks = querySnapshot.docs.length;
-    final upChecks = querySnapshot.docs
-        .where((doc) => (doc.data() as Map<String, dynamic>)['isUp'] == true)
-        .length;
-
-    return (upChecks / totalChecks) * 100;
-  }
-
-  /// Calculate average response time for a site
-  Future<int> calculateAverageResponseTime(
-    String siteId, {
-    Duration period = const Duration(days: 7),
-  }) async {
-    if (_currentUserId == null) {
-      return 0;
-    }
-
-    final startDate = DateTime.now().subtract(period);
-
-    final querySnapshot = await _resultsCollection(_currentUserId!)
-        .where('siteId', isEqualTo: siteId)
-        .where('timestamp', isGreaterThan: Timestamp.fromDate(startDate))
-        .get();
-
-    if (querySnapshot.docs.isEmpty) {
-      return 0;
-    }
-
-    final totalResponseTime = querySnapshot.docs.fold<int>(
-      0,
-      (total, doc) =>
-          total +
-          ((doc.data() as Map<String, dynamic>)['responseTime'] as int? ?? 0),
-    );
-
-    return totalResponseTime ~/ querySnapshot.docs.length;
-  }
-
   /// Delete monitoring results for a site
   Future<void> deleteSiteResults(String siteId) async {
     if (_currentUserId == null) {

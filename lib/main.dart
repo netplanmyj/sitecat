@@ -79,6 +79,14 @@ class _AuthenticatedHomeState extends State<AuthenticatedHome> {
   @override
   void initState() {
     super.initState();
+
+    // Initialize providers
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<SiteProvider>().initialize();
+      }
+    });
+
     _screens = [
       DashboardScreen(
         onNavigateToSites: () {
