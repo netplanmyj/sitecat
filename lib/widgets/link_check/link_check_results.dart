@@ -65,6 +65,31 @@ class LinkCheckResults extends StatelessWidget {
           const SizedBox(height: 12),
         ],
 
+        // Page limit notification (Phase 2: 将来追加予定)
+        // if (result.pagesScanned >= AppConstants.freePlanPageLimit) ...[
+        //   Container(
+        //     padding: const EdgeInsets.all(12),
+        //     decoration: BoxDecoration(
+        //       color: Colors.blue.shade50,
+        //       borderRadius: BorderRadius.circular(8),
+        //       border: Border.all(color: Colors.blue.shade200),
+        //     ),
+        //     child: Row(
+        //       children: [
+        //         Icon(Icons.info, color: Colors.blue.shade700),
+        //         const SizedBox(width: 8),
+        //         Expanded(
+        //           child: Text(
+        //             '無料版は${AppConstants.freePlanPageLimit}ページまでスキャン可能です。',
+        //             style: TextStyle(color: Colors.blue.shade900),
+        //           ),
+        //         ),
+        //       ],
+        //     ),
+        //   ),
+        //   const SizedBox(height: 12),
+        // ],
+
         // Statistics cards
         Row(
           children: [

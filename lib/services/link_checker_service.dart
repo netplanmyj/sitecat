@@ -5,6 +5,7 @@ import 'package:html/parser.dart' as html_parser;
 import 'package:xml/xml.dart' as xml;
 import '../models/broken_link.dart';
 import '../models/site.dart';
+import '../constants/app_constants.dart';
 
 /// Service for checking broken links on websites
 class LinkCheckerService {
@@ -68,13 +69,18 @@ class LinkCheckerService {
     }
 
     // Limit internal pages to scan (to avoid excessive processing)
-    const maxPagesToScan = 50;
-    final endIndex = (startIndex + maxPagesToScan).clamp(
+    const maxPagesToScan = 50; // Per-batch limit
+    final remainingPageLimit = AppConstants.freePlanPageLimit - startIndex;
+    final actualPagesToScan = maxPagesToScan.clamp(0, remainingPageLimit);
+
+    final endIndex = (startIndex + actualPagesToScan).clamp(
       0,
       allInternalPages.length,
     );
     final pagesToScan = allInternalPages.sublist(startIndex, endIndex);
-    final scanCompleted = endIndex >= allInternalPages.length;
+    final scanCompleted =
+        endIndex >= allInternalPages.length ||
+        endIndex >= AppConstants.freePlanPageLimit;
 
     // Step 2: Extract links from each internal page
     final allFoundLinks = <Uri>{};

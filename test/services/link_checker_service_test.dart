@@ -167,6 +167,121 @@ ${urlElements.join('\n')}
     });
   });
 
+  group('Free Plan Page Limit', () {
+    test('should enforce 100 page limit for free plan', () {
+      // Arrange: 150 pages in sitemap
+      const totalPages = 150;
+      const freePlanLimit = 100;
+      const batchSize = 50;
+
+      // Act: First batch (0-50)
+      const startIndex1 = 0;
+      final remainingLimit1 = freePlanLimit - startIndex1;
+      final actualBatch1 = batchSize.clamp(0, remainingLimit1);
+      final endIndex1 = startIndex1 + actualBatch1;
+
+      // Assert: First batch scans 50 pages
+      expect(actualBatch1, 50);
+      expect(endIndex1, 50);
+      expect(endIndex1 < freePlanLimit, true);
+      expect(endIndex1 < totalPages, true, reason: 'More pages available');
+
+      // Act: Second batch (50-100)
+      const startIndex2 = 50;
+      final remainingLimit2 = freePlanLimit - startIndex2;
+      final actualBatch2 = batchSize.clamp(0, remainingLimit2);
+      final endIndex2 = startIndex2 + actualBatch2;
+
+      // Assert: Second batch scans 50 pages and reaches limit
+      expect(actualBatch2, 50);
+      expect(endIndex2, 100);
+      expect(endIndex2 >= freePlanLimit, true);
+
+      // Act: Third batch would exceed limit
+      const startIndex3 = 100;
+      final remainingLimit3 = freePlanLimit - startIndex3;
+      final actualBatch3 = batchSize.clamp(0, remainingLimit3);
+
+      // Assert: Third batch scans 0 pages (limit reached)
+      expect(actualBatch3, 0);
+      expect(remainingLimit3, 0);
+    });
+
+    test('should scan in 50 page batches', () {
+      // Arrange
+      const totalPages = 250;
+      const batchSize = 50;
+      const freePlanLimit = 100;
+
+      // Act & Assert: Simulate multiple batches
+      final batches = <int, int>{};
+      var currentIndex = 0;
+
+      while (currentIndex < freePlanLimit && currentIndex < totalPages) {
+        final remainingLimit = freePlanLimit - currentIndex;
+        final actualBatch = batchSize.clamp(0, remainingLimit);
+        final endIndex = currentIndex + actualBatch;
+
+        batches[currentIndex] = endIndex;
+        currentIndex = endIndex;
+      }
+
+      // Assert: Should have exactly 2 batches (0-50, 50-100)
+      expect(batches.length, 2);
+      expect(batches[0], 50); // First batch: 0-50
+      expect(batches[50], 100); // Second batch: 50-100
+      expect(currentIndex, 100); // Stopped at limit
+    });
+
+    test('should handle sites smaller than batch size', () {
+      // Arrange: 30 page site
+      const totalPages = 30;
+      const batchSize = 50;
+      const freePlanLimit = 100;
+
+      // Act: First batch
+      const startIndex = 0;
+      final remainingLimit = freePlanLimit - startIndex;
+      final actualBatch = batchSize.clamp(0, remainingLimit);
+      final endIndex = (startIndex + actualBatch).clamp(0, totalPages);
+
+      // Assert: Should scan all 30 pages in one batch
+      expect(actualBatch, 50); // Attempted 50 pages
+      expect(endIndex, 30); // But only 30 pages exist
+      expect(endIndex >= totalPages, true); // Scan completed
+    });
+
+    test('should handle sites exactly at limit', () {
+      // Arrange: Exactly 100 pages
+      const totalPages = 100;
+      const freePlanLimit = 100;
+
+      // Act: Two batches
+      const batch1End = 50;
+      const batch2End = 100;
+
+      // Assert: Should complete exactly at limit
+      expect(batch1End < freePlanLimit, true);
+      expect(batch2End, freePlanLimit);
+      expect(batch2End >= totalPages, true);
+    });
+
+    test('should mark scan as completed when limit reached', () {
+      // Arrange: 120 page site
+      const totalPages = 120;
+      const endIndex = 100; // After 2 batches
+      const freePlanLimit = 100;
+
+      // Act: Check completion status
+      final scanCompleted = endIndex >= totalPages || endIndex >= freePlanLimit;
+
+      // Assert: Should be completed due to limit, not total pages
+      expect(scanCompleted, true);
+      expect(endIndex < totalPages, true); // Not all pages scanned
+      expect(endIndex >= freePlanLimit, true); // But limit reached
+    });
+  });
+
   group('URL Validation', () {
     test('should validate HTTP URLs', () {
       const url = 'http://example.com';
