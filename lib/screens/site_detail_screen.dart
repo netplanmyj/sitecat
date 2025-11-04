@@ -28,6 +28,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     // Start listening to monitoring results
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MonitoringProvider>().listenToSiteResults(widget.site.id);
+      // Load latest link check result
+      context.read<LinkCheckerProvider>().loadLatestResult(widget.site.id);
     });
   }
 
@@ -165,6 +167,19 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
 
+                // Countdown timer (rate limit for checks)
+                if (timeUntilNext != null) ...[
+                  const SizedBox(height: 8),
+                  CountdownTimer(
+                    initialDuration: timeUntilNext,
+                    onComplete: () {
+                      if (mounted) {
+                        setState(() {});
+                      }
+                    },
+                  ),
+                ],
+
                 const SizedBox(height: 16),
                 const Divider(),
                 const SizedBox(height: 16),
@@ -201,7 +216,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
 
                 const SizedBox(height: 8),
 
-                // Continue scan button and Full scan button
+                // Full scan button and Continue scan button
                 Row(
                   children: [
                     // Full scan button
@@ -221,7 +236,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                                 ),
                               )
                             : const Icon(Icons.search, size: 20),
-                        label: const Text('Start Full Scan'),
+                        label: const Text('Full Scan'),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           backgroundColor: Colors.green,
@@ -277,18 +292,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                     fontStyle: FontStyle.italic,
                   ),
                 ),
-
-                if (timeUntilNext != null) ...[
-                  const SizedBox(height: 12),
-                  CountdownTimer(
-                    initialDuration: timeUntilNext,
-                    onComplete: () {
-                      if (mounted) {
-                        setState(() {});
-                      }
-                    },
-                  ),
-                ],
               ],
             );
           },

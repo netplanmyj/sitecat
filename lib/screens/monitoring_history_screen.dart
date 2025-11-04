@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/site.dart';
 import '../models/monitoring_result.dart';
 import '../providers/monitoring_provider.dart';
+import '../services/monitoring_service.dart';
 
 /// Screen to display monitoring history for a site
 class MonitoringHistoryScreen extends StatefulWidget {
@@ -228,6 +229,7 @@ class _MonitoringHistoryScreenState extends State<MonitoringHistoryScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: () => _showDetailDialog(context, result),
+        onLongPress: () => _confirmDeleteResult(context, result),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -441,5 +443,53 @@ class _MonitoringHistoryScreenState extends State<MonitoringHistoryScreen> {
         Text(value),
       ],
     );
+  }
+
+  Future<void> _confirmDeleteResult(
+    BuildContext context,
+    MonitoringResult result,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Result'),
+        content: const Text(
+          'Are you sure you want to delete this monitoring result? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted) {
+      try {
+        final monitoringService = MonitoringService();
+        await monitoringService.deleteMonitoringResult(
+          widget.site.id,
+          result.id,
+        );
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Result deleted successfully')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete result: $e')),
+          );
+        }
+      }
+    }
   }
 }

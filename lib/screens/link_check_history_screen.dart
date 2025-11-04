@@ -214,6 +214,7 @@ class _LinkCheckHistoryScreenState extends State<LinkCheckHistoryScreen> {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         onTap: () => _showDetailDialog(context, result),
+        onLongPress: () => _confirmDeleteResult(context, result),
         borderRadius: BorderRadius.circular(12),
         child: Padding(
           padding: const EdgeInsets.all(16),
@@ -438,5 +439,50 @@ class _LinkCheckHistoryScreenState extends State<LinkCheckHistoryScreen> {
         Text(value),
       ],
     );
+  }
+
+  Future<void> _confirmDeleteResult(
+    BuildContext context,
+    LinkCheckResult result,
+  ) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Result'),
+        content: const Text(
+          'Are you sure you want to delete this link check result? This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && context.mounted && result.id != null) {
+      try {
+        final linkChecker = context.read<LinkCheckerProvider>();
+        await linkChecker.deleteLinkCheckResult(widget.site.id, result.id!);
+
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Result deleted successfully')),
+          );
+        }
+      } catch (e) {
+        if (context.mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to delete result: $e')),
+          );
+        }
+      }
+    }
   }
 }
