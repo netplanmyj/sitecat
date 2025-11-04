@@ -38,15 +38,6 @@ class _SitesScreenState extends State<SitesScreen> {
       appBar: AppBar(
         title: const Text('My Sites'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        actions: [
-          IconButton(
-            onPressed: () {
-              Provider.of<SiteProvider>(context, listen: false).refreshSites();
-            },
-            icon: const Icon(Icons.refresh),
-            tooltip: 'Refresh',
-          ),
-        ],
       ),
       body: Consumer<SiteProvider>(
         builder: (context, siteProvider, child) {
