@@ -599,6 +599,24 @@ class LinkCheckerService {
     return LinkCheckResult.fromFirestore(snapshot.docs.first);
   }
 
+  /// Get check results history for a site
+  Future<List<LinkCheckResult>> getCheckResults(
+    String siteId, {
+    int limit = 50,
+  }) async {
+    if (_currentUserId == null) return [];
+
+    final snapshot = await _resultsCollection(_currentUserId!)
+        .where('siteId', isEqualTo: siteId)
+        .orderBy('timestamp', descending: true)
+        .limit(limit)
+        .get();
+
+    return snapshot.docs
+        .map((doc) => LinkCheckResult.fromFirestore(doc))
+        .toList();
+  }
+
   /// Delete all check results for a site (useful for cleanup)
   Future<void> deleteAllCheckResults(String siteId) async {
     if (_currentUserId == null) return;
