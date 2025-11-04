@@ -3,12 +3,11 @@ import 'package:provider/provider.dart';
 import '../models/site.dart';
 import '../models/broken_link.dart';
 import '../providers/link_checker_provider.dart';
-import '../providers/monitoring_provider.dart';
-import 'link_check/link_check_button.dart';
 import 'link_check/link_check_progress.dart';
 import 'link_check/link_check_results.dart';
 
-/// Widget for link checking section
+/// Widget for link check results display (read-only)
+/// Link checking is initiated from the "Full Scan" button in the parent screen
 class LinkCheckSection extends StatelessWidget {
   final Site site;
   final VoidCallback onCheckComplete;
@@ -30,13 +29,12 @@ class LinkCheckSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<LinkCheckerProvider, MonitoringProvider>(
-      builder: (context, linkChecker, monitoring, _) {
+    return Consumer<LinkCheckerProvider>(
+      builder: (context, linkChecker, _) {
         final state = linkChecker.getCheckState(site.id);
         final result = linkChecker.getCachedResult(site.id);
         final brokenLinks = linkChecker.getCachedBrokenLinks(site.id);
         final progress = linkChecker.getProgress(site.id);
-        final showContinueScan = result != null && !result.scanCompleted;
 
         return Card(
           child: Padding(
@@ -50,13 +48,13 @@ class LinkCheckSection extends StatelessWidget {
                     const Icon(Icons.link_outlined),
                     const SizedBox(width: 8),
                     const Text(
-                      'Link Check',
+                      'Link Check Results',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const Spacer(),
                     // Delete result button
                     if (result?.id != null)
                       IconButton(
@@ -73,24 +71,15 @@ class LinkCheckSection extends StatelessWidget {
                       ),
                   ],
                 ),
-                const SizedBox(height: 16),
 
-                // Check button
-                LinkCheckButton(
-                  site: site,
-                  showContinueScan: showContinueScan,
-                  onCheckComplete: onCheckComplete,
-                  onCheckError: onCheckError,
-                ),
-
-                // Progress indicator
+                // Progress indicator (when checking)
                 if (state == LinkCheckState.checking) ...[
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   LinkCheckProgress(checked: progress.$1, total: progress.$2),
                 ],
 
-                // Results
-                if (result != null)
+                // Results (when available)
+                if (result != null) ...[
                   LinkCheckResults(
                     result: result,
                     site: site,
@@ -104,6 +93,40 @@ class LinkCheckSection extends StatelessWidget {
                       result.id!,
                     ),
                   ),
+                ],
+
+                // No results yet
+                if (result == null && state != LinkCheckState.checking) ...[
+                  const SizedBox(height: 16),
+                  Center(
+                    child: Column(
+                      children: [
+                        Icon(
+                          Icons.link_off,
+                          size: 48,
+                          color: Colors.grey.shade400,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'No link check results yet',
+                          style: TextStyle(
+                            color: Colors.grey.shade600,
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'Use "Full Scan" above to check all links',
+                          style: TextStyle(
+                            color: Colors.grey.shade500,
+                            fontSize: 12,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
 
                 // Error message
                 if (state == LinkCheckState.error) ...[

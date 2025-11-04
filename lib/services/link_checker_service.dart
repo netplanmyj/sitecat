@@ -6,6 +6,7 @@ import 'package:xml/xml.dart' as xml;
 import '../models/broken_link.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
+import '../utils/url_helper.dart';
 
 /// Service for checking broken links on websites
 class LinkCheckerService {
@@ -34,7 +35,15 @@ class LinkCheckerService {
     }
 
     final startTime = DateTime.now();
-    final baseUrl = Uri.parse(site.url);
+    // Keep original base URL for domain comparison (sitemap URLs use localhost)
+    final originalBaseUrl = Uri.parse(site.url);
+    // Converted base URL for actual HTTP requests (Android: localhost -> 10.0.2.2)
+    final baseUrl = Uri.parse(UrlHelper.convertLocalhostForPlatform(site.url));
+
+    // Clear old broken links if starting a new scan (not continuing)
+    if (!continueFromLastScan) {
+      await deleteSiteBrokenLinks(site.id);
+    }
 
     // Step 1: Get internal pages from sitemap (these are our pages to scan)
     List<Uri> allInternalPages = [];
@@ -44,13 +53,16 @@ class LinkCheckerService {
         // Build full sitemap URL (combine with base URL if relative path)
         final fullSitemapUrl = _buildFullUrl(baseUrl, site.sitemapUrl!);
         allInternalPages = await _fetchSitemapUrls(fullSitemapUrl);
+        if (allInternalPages.isEmpty) {
+          allInternalPages = [originalBaseUrl];
+        }
       } catch (e) {
         // Sitemap fetch failed, fall back to checking only the top page
-        allInternalPages = [baseUrl];
+        allInternalPages = [originalBaseUrl];
       }
     } else {
       // No sitemap provided, check only the top page
-      allInternalPages = [baseUrl];
+      allInternalPages = [originalBaseUrl];
     }
 
     final totalPagesInSitemap = allInternalPages.length;
@@ -123,8 +135,8 @@ class LinkCheckerService {
           linkSourceMap[linkUrl] = pageUrl;
         }
 
-        // Categorize: internal or external
-        if (_isSameDomain(link, baseUrl)) {
+        // Categorize: internal or external (use original base URL for comparison)
+        if (_isSameDomain(link, originalBaseUrl)) {
           // Internal link - mark for checking
           internalLinks.add(link);
         } else {
@@ -273,8 +285,11 @@ class LinkCheckerService {
   /// Fetch HTML content from a URL (with HEAD pre-check)
   Future<String?> _fetchHtmlContent(String url) async {
     try {
+      // Convert localhost for Android emulator
+      final convertedUrl = UrlHelper.convertLocalhostForPlatform(url);
+
       // Step 1: HEAD request to check status and content type
-      final headCheck = await _checkUrlHead(url);
+      final headCheck = await _checkUrlHead(convertedUrl);
 
       // Skip if not OK status
       if (headCheck.statusCode != 200) {
@@ -289,7 +304,7 @@ class LinkCheckerService {
 
       // Step 2: GET request to fetch content
       final response = await _httpClient
-          .get(Uri.parse(url))
+          .get(Uri.parse(convertedUrl))
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
@@ -304,8 +319,11 @@ class LinkCheckerService {
   /// Fetch URLs from sitemap.xml (supports up to 2 levels of sitemap index)
   Future<List<Uri>> _fetchSitemapUrls(String sitemapUrl) async {
     try {
+      // Convert localhost for Android emulator
+      final convertedUrl = UrlHelper.convertLocalhostForPlatform(sitemapUrl);
+
       // Step 1: HEAD request to check status and content type
-      final headCheck = await _checkUrlHead(sitemapUrl);
+      final headCheck = await _checkUrlHead(convertedUrl);
 
       if (headCheck.statusCode != 200) {
         throw Exception('Sitemap not accessible: ${headCheck.statusCode}');
@@ -321,7 +339,7 @@ class LinkCheckerService {
 
       // Step 2: GET request to fetch sitemap content
       final response = await _httpClient
-          .get(Uri.parse(sitemapUrl))
+          .get(Uri.parse(convertedUrl))
           .timeout(const Duration(seconds: 10));
 
       if (response.statusCode != 200) {
@@ -344,10 +362,8 @@ class LinkCheckerService {
             final childSitemapUrl = locElement.innerText.trim();
             if (childSitemapUrl.isNotEmpty) {
               try {
-                // Recursively fetch URLs from child sitemap
-                final childUrls = await _fetchSitemapUrlsFromSingleSitemap(
-                  childSitemapUrl,
-                );
+                // Fetch URLs from child sitemap (without HEAD check)
+                final childUrls = await _parseSitemapXml(childSitemapUrl);
                 allUrls.addAll(childUrls);
 
                 // Limit total URLs to avoid excessive processing
@@ -364,71 +380,62 @@ class LinkCheckerService {
 
         return allUrls;
       } else {
-        // This is a regular sitemap - extract URLs directly
-        return _fetchSitemapUrlsFromSingleSitemap(sitemapUrl);
+        // This is a regular sitemap - extract URLs directly from current document
+        return _extractUrlsFromSitemapDocument(document);
       }
     } catch (e) {
       throw Exception('Error parsing sitemap: $e');
     }
   }
 
-  /// Fetch URLs from a single sitemap (non-index)
-  Future<List<Uri>> _fetchSitemapUrlsFromSingleSitemap(
-    String sitemapUrl,
-  ) async {
+  /// Parse a sitemap XML directly from a URL (used for child sitemaps)
+  Future<List<Uri>> _parseSitemapXml(String sitemapUrl) async {
     try {
-      // Step 1: HEAD request to check status and content type
-      final headCheck = await _checkUrlHead(sitemapUrl);
+      // Convert localhost for Android emulator
+      final convertedUrl = UrlHelper.convertLocalhostForPlatform(sitemapUrl);
 
-      if (headCheck.statusCode != 200) {
-        throw Exception('Sitemap not accessible: ${headCheck.statusCode}');
-      }
+      // Add longer delay to avoid overwhelming the server
+      await Future.delayed(const Duration(milliseconds: 2000));
 
-      // Verify it's XML content
-      final contentType = headCheck.contentType;
-      if (contentType != null &&
-          !contentType.contains('xml') &&
-          !contentType.contains('text/plain')) {
-        throw Exception('Invalid sitemap content type: $contentType');
-      }
-
-      // Step 2: GET request to fetch sitemap content
+      // Use shared client instead of creating new one
       final response = await _httpClient
-          .get(Uri.parse(sitemapUrl))
-          .timeout(const Duration(seconds: 10));
+          .get(Uri.parse(convertedUrl))
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode != 200) {
         throw Exception('Failed to fetch sitemap: ${response.statusCode}');
       }
 
-      // Parse XML
       final document = xml.XmlDocument.parse(response.body);
-
-      // Find all <loc> elements under <url> (not <sitemap>)
-      final urlElements = document.findAllElements('url');
-
-      final urls = <Uri>[];
-      for (final urlElement in urlElements) {
-        final locElement = urlElement.findElements('loc').firstOrNull;
-        if (locElement != null) {
-          final urlString = locElement.innerText.trim();
-          if (urlString.isNotEmpty) {
-            try {
-              final uri = Uri.parse(urlString);
-              if (uri.scheme == 'http' || uri.scheme == 'https') {
-                urls.add(uri);
-              }
-            } catch (e) {
-              // Invalid URL, skip
-            }
-          }
-        }
-      }
-
-      return urls;
+      return _extractUrlsFromSitemapDocument(document);
     } catch (e) {
       throw Exception('Error parsing sitemap: $e');
     }
+  }
+
+  /// Extract URLs from a parsed sitemap XML document
+  List<Uri> _extractUrlsFromSitemapDocument(xml.XmlDocument document) {
+    final urlElements = document.findAllElements('url');
+    final urls = <Uri>[];
+
+    for (final urlElement in urlElements) {
+      final locElement = urlElement.findElements('loc').firstOrNull;
+      if (locElement != null) {
+        final urlString = locElement.innerText.trim();
+        if (urlString.isNotEmpty) {
+          try {
+            final uri = Uri.parse(urlString);
+            if (uri.scheme == 'http' || uri.scheme == 'https') {
+              urls.add(uri);
+            }
+          } catch (e) {
+            // Skip invalid URLs
+          }
+        }
+      }
+    }
+
+    return urls;
   }
 
   /// Extract links from HTML content
@@ -462,9 +469,14 @@ class LinkCheckerService {
   /// Check if a link is broken
   Future<({int statusCode, String? error})?> _checkLink(Uri url) async {
     try {
+      // Convert localhost for Android emulator
+      final convertedUrl = UrlHelper.convertLocalhostForPlatform(
+        url.toString(),
+      );
+
       // Use HEAD request for efficiency
       final response = await _httpClient
-          .head(url)
+          .head(Uri.parse(convertedUrl))
           .timeout(const Duration(seconds: 5));
 
       // Consider 404 and 5xx as broken

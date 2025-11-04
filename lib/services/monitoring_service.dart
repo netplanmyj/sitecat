@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 import '../models/monitoring_result.dart';
 import '../models/site.dart';
+import '../utils/url_helper.dart';
 
 /// Service for monitoring website health
 class MonitoringService {
@@ -33,9 +34,12 @@ class MonitoringService {
     String? error;
 
     try {
+      // Convert localhost to platform-specific address (10.0.2.2 for Android emulator)
+      final targetUrl = UrlHelper.convertLocalhostForPlatform(site.url);
+
       // Perform HTTP request with 10-second timeout to reduce load on target sites
       final response = await http
-          .get(Uri.parse(site.url))
+          .get(Uri.parse(targetUrl))
           .timeout(const Duration(seconds: 10));
 
       statusCode = response.statusCode;
