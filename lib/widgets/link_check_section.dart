@@ -48,7 +48,7 @@ class LinkCheckSection extends StatelessWidget {
                     const Icon(Icons.link_outlined),
                     const SizedBox(width: 8),
                     const Text(
-                      'Link Check Results',
+                      'Full Scan Results',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,

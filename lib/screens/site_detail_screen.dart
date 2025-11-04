@@ -45,9 +45,16 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             children: [
               SiteInfoCard(site: widget.site),
               const SizedBox(height: 16),
-              _buildCheckButton(),
+
+              // Quick Check section
+              _buildQuickCheckSection(),
               const SizedBox(height: 16),
               MonitoringResultCard(site: widget.site),
+
+              const SizedBox(height: 24),
+
+              // Full Scan section
+              _buildFullScanSection(),
               const SizedBox(height: 16),
               LinkCheckSection(
                 site: widget.site,
@@ -87,12 +94,12 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
     );
   }
 
-  Widget _buildCheckButton() {
+  Widget _buildQuickCheckSection() {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Consumer2<MonitoringProvider, LinkCheckerProvider>(
-          builder: (context, monitoringProvider, linkCheckerProvider, child) {
+        child: Consumer<MonitoringProvider>(
+          builder: (context, monitoringProvider, child) {
             final isCheckingSite = monitoringProvider.isChecking(
               widget.site.id,
             );
@@ -102,19 +109,16 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             final timeUntilNext = monitoringProvider.getTimeUntilNextCheck(
               widget.site.id,
             );
-            final isCheckingLinks = linkCheckerProvider.isChecking(
-              widget.site.id,
-            );
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Row(
                   children: [
-                    Icon(Icons.monitor_heart, size: 24),
+                    Icon(Icons.speed, size: 24),
                     SizedBox(width: 8),
                     Text(
-                      'Health Check',
+                      'Quick Check',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
@@ -124,47 +128,35 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Choose your check type:',
-                  style: TextStyle(fontSize: 14, color: Colors.grey.shade700),
+                  '⚡ Site status only (~3 seconds)',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 12),
 
-                // Quick Check and Full Scan buttons
-                Row(
-                  children: [
-                    // Quick Check button
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: (isCheckingSite || !canCheckSite)
-                            ? null
-                            : () => _quickCheck(),
-                        icon: isCheckingSite
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.speed, size: 20),
-                        label: const Text('Quick Check'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          backgroundColor: Colors.blue,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
+                // Quick Check button
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: (isCheckingSite || !canCheckSite)
+                        ? null
+                        : () => _quickCheck(),
+                    icon: isCheckingSite
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.speed, size: 20),
+                    label: const Text('Start Check'),
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      backgroundColor: Colors.blue,
+                      foregroundColor: Colors.white,
                     ),
-                  ],
-                ),
-
-                const SizedBox(height: 8),
-
-                // Quick Check info text
-                Text(
-                  '⚡ Quick: Site status only (~3 seconds)',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                  ),
                 ),
 
                 // Countdown timer (rate limit for checks)
@@ -179,15 +171,45 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                     },
                   ),
                 ],
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 
-                const SizedBox(height: 16),
-                const Divider(),
-                const SizedBox(height: 16),
+  Widget _buildFullScanSection() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Consumer2<MonitoringProvider, LinkCheckerProvider>(
+          builder: (context, monitoringProvider, linkCheckerProvider, child) {
+            final isCheckingSite = monitoringProvider.isChecking(
+              widget.site.id,
+            );
+            final canCheckSite = monitoringProvider.canCheckSite(
+              widget.site.id,
+            );
+            final isCheckingLinks = linkCheckerProvider.isChecking(
+              widget.site.id,
+            );
 
-                // Full Scan section
-                const Text(
-                  'Full Scan Options',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Row(
+                  children: [
+                    Icon(Icons.link, size: 24),
+                    SizedBox(width: 8),
+                    Text(
+                      'Full Scan',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 8),
                 Text(
@@ -236,7 +258,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                                 ),
                               )
                             : const Icon(Icons.search, size: 20),
-                        label: const Text('Full Scan'),
+                        label: const Text('Start Scan'),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
                           backgroundColor: Colors.green,
@@ -266,7 +288,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                                   ),
                                 )
                               : const Icon(Icons.play_arrow, size: 20),
-                          label: const Text('Continue Scan'),
+                          label: const Text('Continue'),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
                             foregroundColor: Colors.orange,
