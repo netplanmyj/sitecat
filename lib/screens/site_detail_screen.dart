@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../models/site.dart';
 import '../providers/monitoring_provider.dart';
 import '../providers/link_checker_provider.dart';
+import '../providers/site_provider.dart';
 import '../widgets/site_info_card.dart';
 import '../widgets/link_check_section.dart';
 import '../widgets/monitoring_result_card.dart';
@@ -19,6 +20,8 @@ class SiteDetailScreen extends StatefulWidget {
 }
 
 class _SiteDetailScreenState extends State<SiteDetailScreen> {
+  bool _checkExternalLinks = false;
+
   @override
   void initState() {
     super.initState();
@@ -151,64 +154,128 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(width: 12),
-
-                    // Full Scan button
-                    Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed:
-                            (isCheckingSite || isCheckingLinks || !canCheckSite)
-                            ? null
-                            : () => _fullScan(),
-                        icon: (isCheckingSite || isCheckingLinks)
-                            ? SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              )
-                            : const Icon(Icons.search, size: 20),
-                        label: const Text('Full Scan'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          foregroundColor: Colors.blue,
-                          side: const BorderSide(
-                            color: Colors.blue,
-                            width: 1.5,
-                          ),
-                        ),
-                      ),
-                    ),
                   ],
                 ),
 
                 const SizedBox(height: 8),
 
-                // Info text
+                // Quick Check info text
+                Text(
+                  '⚡ Quick: Site status only (~3 seconds)',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+
+                const SizedBox(height: 16),
+                const Divider(),
+                const SizedBox(height: 16),
+
+                // Full Scan section
+                const Text(
+                  'Full Scan Options',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  '🔍 Site status + all links check (may take several minutes)',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                ),
+                const SizedBox(height: 12),
+
+                // External links checkbox
+                CheckboxListTile(
+                  value: _checkExternalLinks,
+                  onChanged: isCheckingSite || isCheckingLinks
+                      ? null
+                      : (value) {
+                          setState(() {
+                            _checkExternalLinks = value ?? false;
+                          });
+                        },
+                  title: const Text('Check external links'),
+                  subtitle: const Text(
+                    'Also check links to other domains (takes longer)',
+                  ),
+                  contentPadding: EdgeInsets.zero,
+                  controlAffinity: ListTileControlAffinity.leading,
+                ),
+
+                const SizedBox(height: 8),
+
+                // Continue scan button and Full scan button
                 Row(
                   children: [
+                    // Full scan button
                     Expanded(
-                      child: Text(
-                        '⚡ Quick: Site status only',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
+                      child: ElevatedButton.icon(
+                        onPressed:
+                            (isCheckingSite || isCheckingLinks || !canCheckSite)
+                            ? null
+                            : () => _fullScan(),
+                        icon: (isCheckingSite || isCheckingLinks)
+                            ? const SizedBox(
+                                width: 18,
+                                height: 18,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Colors.white,
+                                ),
+                              )
+                            : const Icon(Icons.search, size: 20),
+                        label: const Text('Start Full Scan'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          backgroundColor: Colors.green,
+                          foregroundColor: Colors.white,
                         ),
                       ),
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        '🔍 Full: Site + all links',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
+
+                    // Continue scan button (only if previous scan was incomplete)
+                    if (linkCheckerProvider
+                            .getCachedResult(widget.site.id)
+                            ?.scanCompleted ==
+                        false) ...[
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: (isCheckingSite || isCheckingLinks)
+                              ? null
+                              : () => _continueScan(),
+                          icon: isCheckingLinks
+                              ? SizedBox(
+                                  width: 18,
+                                  height: 18,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: Theme.of(context).primaryColor,
+                                  ),
+                                )
+                              : const Icon(Icons.play_arrow, size: 20),
+                          label: const Text('Continue Scan'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            foregroundColor: Colors.orange,
+                            side: const BorderSide(
+                              color: Colors.orange,
+                              width: 1.5,
+                            ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
+                ),
+
+                const SizedBox(height: 8),
+
+                // Note about page limit
+                Text(
+                  'Note: Free plan scans up to 50 pages per check',
+                  style: TextStyle(
+                    fontSize: 11,
+                    color: Colors.grey.shade600,
+                    fontStyle: FontStyle.italic,
+                  ),
                 ),
 
                 if (timeUntilNext != null) ...[
@@ -236,19 +303,41 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
 
     if (!mounted) return;
 
+    // Check for provider error first
     if (provider.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(provider.error!), backgroundColor: Colors.red),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('✓ Quick check completed'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
+      return;
     }
+
+    // Check the actual result for errors (statusCode 0 or error message)
+    final results = provider.getSiteResults(widget.site.id);
+    if (results.isNotEmpty) {
+      final latestResult = results.first;
+      if (!latestResult.isUp || latestResult.error != null) {
+        final errorMsg =
+            latestResult.error ??
+            'Site check failed (Status: ${latestResult.statusCode})';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('✗ $errorMsg'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+    }
+
+    // Success
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('✓ Quick check completed'),
+        backgroundColor: Colors.green,
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 
   Future<void> _fullScan() async {
@@ -258,6 +347,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
 
     if (!mounted) return;
 
+    // Check for provider error first
     if (monitoringProvider.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -268,42 +358,54 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
       return;
     }
 
-    // Step 2: Show result and ask if user wants to continue with link check
-    final shouldContinue = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.check_circle, color: Colors.green),
-            SizedBox(width: 8),
-            Text('Site Check Complete'),
-          ],
-        ),
-        content: const Text(
-          'Site is responding correctly.\n\n'
-          'Continue with full link scan?\n'
-          '(This may take a few minutes)',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Skip Link Check'),
+    // Check the actual result for errors
+    final results = monitoringProvider.getSiteResults(widget.site.id);
+    if (results.isNotEmpty) {
+      final latestResult = results.first;
+      if (!latestResult.isUp || latestResult.error != null) {
+        // Site check failed - show warning but continue with link check
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Warning: ${latestResult.error ?? 'Site check failed (Status: ${latestResult.statusCode})'}\n'
+              'Continuing with link check...',
+            ),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
           ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.pop(context, true),
-            icon: const Icon(Icons.link_outlined),
-            label: const Text('Start Link Scan'),
-          ),
-        ],
-      ),
+        );
+      }
+    }
+
+    // Run link check directly (no confirmation dialog needed)
+    await _runLinkCheck(continueFromLastScan: false);
+  }
+
+  Future<void> _continueScan() async {
+    // Get updated site data with the latest lastScannedPageIndex
+    final siteProvider = context.read<SiteProvider>();
+    final updatedSite = siteProvider.sites.firstWhere(
+      (s) => s.id == widget.site.id,
+      orElse: () => widget.site,
     );
 
-    if (shouldContinue != true || !mounted) return;
+    await _runLinkCheck(continueFromLastScan: true, site: updatedSite);
+  }
 
-    // Step 3: Run link check
+  Future<void> _runLinkCheck({
+    required bool continueFromLastScan,
+    Site? site,
+  }) async {
     final linkCheckerProvider = context.read<LinkCheckerProvider>();
+    final targetSite = site ?? widget.site;
+
     try {
-      await linkCheckerProvider.checkSiteLinks(widget.site);
+      await linkCheckerProvider.checkSiteLinks(
+        targetSite,
+        checkExternalLinks: _checkExternalLinks,
+        continueFromLastScan: continueFromLastScan,
+      );
 
       if (!mounted) return;
 
@@ -323,8 +425,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
           SnackBar(
             content: Text(
               brokenCount == 0
-                  ? '✓ Full scan complete - No broken links found!'
-                  : '⚠️ Full scan complete - Found $brokenCount broken link${brokenCount > 1 ? 's' : ''}',
+                  ? '✓ Link scan complete - No broken links found!'
+                  : '⚠️ Link scan complete - Found $brokenCount broken link${brokenCount > 1 ? 's' : ''}',
             ),
             backgroundColor: brokenCount == 0 ? Colors.green : Colors.orange,
             duration: const Duration(seconds: 3),
