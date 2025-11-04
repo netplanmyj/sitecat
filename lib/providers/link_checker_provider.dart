@@ -24,6 +24,7 @@ class LinkCheckerProvider extends ChangeNotifier {
   final Map<String, int> _checkedCounts = {};
   final Map<String, int> _totalCounts = {};
   final Map<String, DateTime> _lastCheckTime = {};
+  final Map<String, List<LinkCheckResult>> _checkHistory = {};
 
   // Getters
 
@@ -75,6 +76,26 @@ class LinkCheckerProvider extends ChangeNotifier {
     final remaining = minimumCheckInterval - timeSinceLastCheck;
 
     return remaining.isNegative ? null : remaining;
+  }
+
+  /// Get check history for a site
+  List<LinkCheckResult> getCheckHistory(String siteId) {
+    return _checkHistory[siteId] ?? [];
+  }
+
+  /// Load check history from Firestore
+  Future<void> loadCheckHistory(String siteId, {int limit = 50}) async {
+    try {
+      final results = await _linkCheckerService.getCheckResults(
+        siteId,
+        limit: limit,
+      );
+      _checkHistory[siteId] = results;
+      notifyListeners();
+    } catch (e) {
+      _errors[siteId] = 'Failed to load check history: $e';
+      notifyListeners();
+    }
   }
 
   /// Check if a link check result has a URL mismatch

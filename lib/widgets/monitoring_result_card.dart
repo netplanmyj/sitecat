@@ -1,19 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/monitoring_result.dart';
+import '../models/site.dart';
 import '../providers/monitoring_provider.dart';
+import '../screens/monitoring_history_screen.dart';
 
 /// Widget for displaying latest monitoring result
 class MonitoringResultCard extends StatelessWidget {
-  final String siteId;
+  final Site site;
 
-  const MonitoringResultCard({super.key, required this.siteId});
+  const MonitoringResultCard({super.key, required this.site});
 
   @override
   Widget build(BuildContext context) {
     return Consumer<MonitoringProvider>(
       builder: (context, provider, child) {
-        final latestResult = provider.getLatestResult(siteId);
+        final latestResult = provider.getLatestResult(site.id);
 
         if (latestResult == null) {
           return Card(
@@ -83,6 +85,26 @@ class MonitoringResultCard extends StatelessWidget {
                     ),
                   ),
                 ],
+                const SizedBox(height: 12),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              MonitoringHistoryScreen(site: site),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.history, size: 18),
+                    label: const Text('View History'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.blue,
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
