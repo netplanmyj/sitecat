@@ -4,48 +4,49 @@
 [![Flutter](https://img.shields.io/badge/Flutter-3.0+-blue.svg)](https://flutter.dev/)
 [![Firebase](https://img.shields.io/badge/Firebase-Enabled-orange.svg)](https://firebase.google.com/)
 
-**SiteCat**は、ウェブサイトの死活監視とリンク切れ検出を行うクロスプラットフォームアプリケーションです。
+**SiteCat**は、ウェブサイトの死活監視とリンク切れ検出を行うモバイルアプリケーションです。
 
-## 🚀 主要機能
+## 🚀 現在の機能（MVP完成）
 
-### 無料版 🆓
-- **手動監視**: ボタンタップでリアルタイム死活チェック
-- **基本リンクチェック**: 単一ページのリンク切れ検出
+- **手動監視**: ボタンタップでウェブサイトの死活チェック
+- **基本統計**: 稼働率、平均応答時間の表示
+- **監視履歴**: 過去の監視結果を保存・表示
 - **Google認証**: アカウント管理とデータ同期
-- **履歴保存**: 30日間の監視履歴
-- **複数デバイス**: データの自動同期
-- **制限**: 10サイトまで、1日10回チェック、手動実行のみ
+- **マルチサイト管理**: 複数サイトの一元管理
+- **リアルタイム同期**: Firestore経由でデバイス間同期
+- **ダッシュボード**: Recent Activity表示
 
-### 有料版 💎
-- **自動監視**: 5分〜24時間間隔での定期ヘルスチェック
-- **高度なリンクチェック**: サイト全体の詳細スキャン
-- **リアルタイム通知**: プッシュ通知、メール、Slack連携
-- **詳細レポート**: アップタイム統計とパフォーマンス分析
-- **無制限**: サイト数制限なし、1年間の履歴保持
-- **API連携**: 外部システムとの統合機能
+## � 開発中・計画中の機能
+
+- **リンク切れチェック**: サイト内のリンク切れを検出（Phase 2 進行中）
+- **自動監視**: Cloud Functionsによる定期監視（Phase 4 検討中）
+- **プッシュ通知**: ダウンタイム検出時の通知（Phase 4 検討中）
+- **詳細レポート**: 時系列グラフ、高度な分析（Phase 4 検討中）
+
+> フリーミアムモデル（無料版/有料版）は将来的に検討予定です。詳細は [PRICING_STRATEGY.md](docs/PRICING_STRATEGY.md) を参照。
 
 ## 📱 対応プラットフォーム
 
-- iOS
-- Android  
-- Web (Progressive Web App)
+- **iOS** 📱
+- **Android** 🤖
+
+> **Note**: モバイル専用アプリです。プッシュ通知などモバイル特有の機能を重視した設計です。
 
 ## 🛠 技術スタック
 
 - **Frontend**: Flutter (Dart)
 - **Backend**: Firebase
-  - Authentication (認証)
+  - Authentication (Google Sign-In)
   - Cloud Firestore (データベース)
-  - Cloud Functions (サーバーサイド処理)
-  - Cloud Messaging (プッシュ通知)
-- **Hosting**: Firebase Hosting
+  - Cloud Functions (将来の自動監視用)
+- **状態管理**: Provider Pattern
 
 ## 📋 前提条件
 
 - Flutter SDK 3.0+
 - Dart SDK 3.0+
 - Firebase CLI
-- Android Studio / Xcode (モバイル開発の場合)
+- Android Studio / Xcode
 
 ## 🚦 セットアップ
 
@@ -66,38 +67,24 @@
    npm install -g firebase-tools
    firebase login
    
-   # 環境別プロジェクト作成
-   firebase projects:create sitecat-dev --display-name "SiteCat Development"
-   firebase projects:create sitecat-prod --display-name "SiteCat Production"
-   
    # プロジェクト初期化
-   firebase use sitecat-dev  # 開発時
+   firebase use sitecat-dev  # 開発環境
    firebase init
    ```
+
+   > **Note**: Firebase プロジェクト設定の詳細は [FIREBASE_SETUP.md](FIREBASE_SETUP.md) を参照
 
 4. **アプリ実行**
    ```bash
    flutter run
    ```
 
-## � 料金プラン
+## 📚 ドキュメント
 
-| 機能 | 無料版 | Personal ($9.99/月) | Business ($29.99/月) |
-|------|--------|-------------------|---------------------|
-| 監視サイト数 | 10個まで | 無制限 | 無制限 |
-| 監視方法 | 手動のみ | 自動+手動 | 自動+手動 |
-| チェック頻度 | 1日10回 | 5分〜24時間 | 1分〜24時間 |
-| 履歴保持 | 30日 | 1年間 | 1年間 |
-| 通知方法 | アプリ内のみ | プッシュ+メール | 全通知+Slack |
-| レポート | 基本統計 | 詳細レポート | 高度な分析 |
-| API連携 | なし | あり | あり |
-| チーム機能 | なし | なし | あり |
-
-## �📚 ドキュメント
-
-- [プロジェクト概要](docs/PROJECT_CONCEPT.md)
-- [開発ガイド](docs/DEVELOPMENT_GUIDE.md)
-- [料金・機能戦略](docs/PRICING_STRATEGY.md)
+- [プロジェクト概要](docs/PROJECT_CONCEPT.md): SiteCatの目的と主要機能
+- [開発ガイド](docs/DEVELOPMENT_GUIDE.md): アーキテクチャ、セットアップ、開発ロードマップ
+- [Firebase認証](docs/FIREBASE_AUTH_SPEC.md): 認証システムの実装概要
+- [料金・機能戦略](docs/PRICING_STRATEGY.md): 将来の収益化計画（検討中）
 
 ## 🤝 コントリビューション
 

@@ -173,11 +173,6 @@ class SiteProvider extends ChangeNotifier {
     }).toList();
   }
 
-  // Refresh sites manually
-  Future<void> refreshSites() async {
-    _listenToSites();
-  }
-
   // Update last checked time for a site
   Future<void> updateLastChecked(String siteId) async {
     try {
