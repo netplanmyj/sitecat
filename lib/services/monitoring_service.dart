@@ -147,4 +147,13 @@ class MonitoringService {
 
     await batch.commit();
   }
+
+  /// Delete a single monitoring result
+  Future<void> deleteMonitoringResult(String siteId, String resultId) async {
+    if (_currentUserId == null) {
+      throw Exception('User must be authenticated');
+    }
+
+    await _resultsCollection(_currentUserId!).doc(resultId).delete();
+  }
 }

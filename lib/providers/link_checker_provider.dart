@@ -158,7 +158,11 @@ class LinkCheckerProvider extends ChangeNotifier {
       // Cache the result
       _resultCache[siteId] = result;
 
-      // Fetch broken links
+      // Update state to completed and notify immediately
+      _checkStates[siteId] = LinkCheckState.completed;
+      notifyListeners(); // Immediate UI update with scan results
+
+      // Fetch broken links (async, but UI already shows results)
       final brokenLinks = await _linkCheckerService.getBrokenLinks(siteId);
       _brokenLinksCache[siteId] = brokenLinks;
 
@@ -170,8 +174,7 @@ class LinkCheckerProvider extends ChangeNotifier {
       // Record check time
       _lastCheckTime[siteId] = DateTime.now();
 
-      // Update state to completed
-      _checkStates[siteId] = LinkCheckState.completed;
+      // Notify again after broken links are loaded
       notifyListeners();
     } catch (e) {
       // Handle error

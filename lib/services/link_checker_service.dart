@@ -261,9 +261,27 @@ class LinkCheckerService {
       newLastScannedPageIndex: newLastScannedPageIndex,
     );
 
-    await _resultsCollection(_currentUserId!).add(result.toFirestore());
+    // Save to Firestore and get the document reference
+    final docRef = await _resultsCollection(
+      _currentUserId!,
+    ).add(result.toFirestore());
 
-    return result;
+    // Return result with the Firestore document ID
+    return LinkCheckResult(
+      id: docRef.id,
+      siteId: result.siteId,
+      checkedUrl: result.checkedUrl,
+      timestamp: result.timestamp,
+      totalLinks: result.totalLinks,
+      brokenLinks: result.brokenLinks,
+      internalLinks: result.internalLinks,
+      externalLinks: result.externalLinks,
+      scanDuration: result.scanDuration,
+      pagesScanned: result.pagesScanned,
+      totalPagesInSitemap: result.totalPagesInSitemap,
+      scanCompleted: result.scanCompleted,
+      newLastScannedPageIndex: result.newLastScannedPageIndex,
+    );
   }
 
   /// Check URL with HEAD request before fetching content

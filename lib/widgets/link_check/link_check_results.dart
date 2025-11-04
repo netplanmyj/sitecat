@@ -32,6 +32,13 @@ class LinkCheckResults extends StatelessWidget {
         const Divider(),
         const SizedBox(height: 12),
 
+        // Timestamp
+        Text(
+          'Checked at: ${_formatTimestamp(result.timestamp)}',
+          style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+        ),
+        const SizedBox(height: 12),
+
         // URL mismatch warning
         if (UrlUtils.hasUrlMismatch(result.checkedUrl, site.url)) ...[
           UrlMismatchWarning(
@@ -173,19 +180,24 @@ class LinkCheckResults extends StatelessWidget {
             ),
           ),
         ),
-
-        // Delete result button
-        const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: TextButton.icon(
-            onPressed: onDeleteResult,
-            icon: const Icon(Icons.delete_outline, size: 18),
-            label: const Text('Delete This Result'),
-            style: TextButton.styleFrom(foregroundColor: Colors.grey),
-          ),
-        ),
       ],
     );
+  }
+
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inMinutes < 1) {
+      return 'Just now';
+    } else if (difference.inHours < 1) {
+      return '${difference.inMinutes} min ago';
+    } else if (difference.inDays < 1) {
+      return '${difference.inHours} hours ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} days ago';
+    } else {
+      return '${timestamp.month}/${timestamp.day} ${timestamp.hour}:${timestamp.minute.toString().padLeft(2, '0')}';
+    }
   }
 }
