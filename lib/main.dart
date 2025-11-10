@@ -95,6 +95,11 @@ class _AuthenticatedHomeState extends State<AuthenticatedHome> {
             _currentIndex = 1; // Switch to Sites tab
           });
         },
+        onNavigateToResults: () {
+          setState(() {
+            _currentIndex = 2; // Switch to Results tab
+          });
+        },
       ),
       const SitesScreen(),
       const ResultsScreen(),

@@ -2,16 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
 import '../providers/site_provider.dart';
-import '../services/monitoring_service.dart';
-import '../services/link_checker_service.dart';
-import '../models/monitoring_result.dart';
+import '../providers/link_checker_provider.dart';
+import '../models/site.dart';
 import '../models/broken_link.dart';
+import 'site_detail_screen.dart';
 
 /// ダッシュボード画面
 class DashboardScreen extends StatelessWidget {
   final VoidCallback? onNavigateToSites;
+  final VoidCallback? onNavigateToResults;
 
-  const DashboardScreen({super.key, this.onNavigateToSites});
+  const DashboardScreen({
+    super.key,
+    this.onNavigateToSites,
+    this.onNavigateToResults,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -34,22 +39,14 @@ class DashboardScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // My Sites Section
-                const _MySitesSection(),
+                _MySitesSection(
+                  onNavigateToSites: onNavigateToSites,
+                ),
                 const SizedBox(height: 24),
 
-                // Recent Activity placeholder
-                Center(
-                  child: Text(
-                    'Recent Activity',
-                    style: Theme.of(context).textTheme.titleLarge,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 300),
-                    child: const _RecentActivityCard(),
-                  ),
+                // Recent Activity Section
+                _RecentActivitySection(
+                  onNavigateToResults: onNavigateToResults,
                 ),
               ],
             ),
@@ -105,39 +102,79 @@ class _WelcomeCard extends StatelessWidget {
 }
 
 class _MySitesSection extends StatelessWidget {
-  const _MySitesSection();
+  final VoidCallback? onNavigateToSites;
+
+  const _MySitesSection({this.onNavigateToSites});
 
   @override
   Widget build(BuildContext context) {
-    // Find the parent DashboardScreen to get the callback
-    final dashboardScreen = context
-        .findAncestorWidgetOfExactType<DashboardScreen>();
-
     return Consumer<SiteProvider>(
       builder: (context, siteProvider, child) {
-        final stats = siteProvider.getSiteStatistics();
-        final totalSites = stats['total'] ?? 0;
+        final sites = siteProvider.sites.take(5).toList();
 
         return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('My Sites', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 16),
-            Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 300),
-                child: _ActionCard(
-                  title: 'My Sites',
-                  subtitle: 'Manage your websites',
-                  icon: Icons.web_asset,
-                  color: Colors.blue,
-                  count: totalSites,
-                  onTap: () {
-                    // Use callback if available, otherwise do nothing
-                    dashboardScreen?.onNavigateToSites?.call();
-                  },
-                ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'My Sites',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
             ),
+            const SizedBox(height: 16),
+
+            // Site cards (max 5)
+            if (sites.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.all(32),
+                  child: Column(
+                    children: [
+                      Icon(
+                        Icons.web_asset,
+                        size: 64,
+                        color: Colors.grey.shade400,
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'No sites added yet',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: sites.length,
+                itemBuilder: (context, index) {
+                  final site = sites[index];
+                  return _SiteCard(site: site);
+                },
+              ),
+
+            // All Sites button
+            if (sites.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Center(
+                  child: TextButton.icon(
+                    onPressed: onNavigateToSites,
+                    icon: const Icon(Icons.arrow_forward),
+                    label: Text(
+                      'All Sites (${siteProvider.sites.length})',
+                      style: const TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
+                ),
+              ),
           ],
         );
       },
@@ -145,230 +182,167 @@ class _MySitesSection extends StatelessWidget {
   }
 }
 
-class _ActionCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-  final int? count;
+class _SiteCard extends StatelessWidget {
+  final Site site;
 
-  const _ActionCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.color,
-    required this.onTap,
-    this.count,
-  });
+  const _SiteCard({required this.site});
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(8),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            children: [
-              CircleAvatar(
-                backgroundColor: color.withValues(alpha: 0.1),
-                child: Icon(icon, color: color),
-              ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontWeight: FontWeight.w500),
-                    textAlign: TextAlign.center,
-                  ),
-                  if (count != null) ...[
-                    const SizedBox(width: 8),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: color.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '$count',
-                        style: TextStyle(
-                          color: color,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              Text(
-                subtitle,
-                style: Theme.of(context).textTheme.bodySmall,
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: Colors.blue.shade100,
+          child: Icon(Icons.language, color: Colors.blue.shade700),
         ),
+        title: Text(
+          site.name,
+          style: const TextStyle(fontWeight: FontWeight.w500),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              site.displayUrl,
+              style: TextStyle(color: Colors.grey.shade600),
+            ),
+            const SizedBox(height: 4),
+            Row(
+              children: [
+                Icon(Icons.schedule, size: 14, color: Colors.grey.shade500),
+                const SizedBox(width: 4),
+                Text(
+                  'Every ${site.checkIntervalDisplay}',
+                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                ),
+              ],
+            ),
+          ],
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => SiteDetailScreen(site: site),
+            ),
+          );
+        },
       ),
     );
   }
 }
 
-class _RecentActivityCard extends StatelessWidget {
-  const _RecentActivityCard();
+class _RecentActivitySection extends StatelessWidget {
+  final VoidCallback? onNavigateToResults;
+
+  const _RecentActivitySection({this.onNavigateToResults});
 
   @override
   Widget build(BuildContext context) {
-    final monitoringService = MonitoringService();
-    final linkCheckerService = LinkCheckerService();
+    return Consumer<LinkCheckerProvider>(
+      builder: (context, linkCheckerProvider, child) {
+        final allResults = linkCheckerProvider
+            .getAllCheckHistory()
+            .take(5)
+            .toList();
 
-    return Consumer<SiteProvider>(
-      builder: (context, siteProvider, child) {
-        // サイトが1つもない場合はプレースホルダーを表示
-        if (siteProvider.sites.isEmpty) {
-          return Card(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  Icon(Icons.timeline, size: 48, color: Colors.grey.shade400),
-                  const SizedBox(height: 8),
-                  Text(
-                    'No activity yet',
-                    style: TextStyle(color: Colors.grey.shade600),
-                  ),
-                ],
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Text(
+                'Recent Activity',
+                style: Theme.of(context).textTheme.titleLarge,
               ),
             ),
-          );
-        }
+            const SizedBox(height: 16),
 
-        // 最初のサイトの最新結果を取得
-        final site = siteProvider.sites.first;
-
-        return FutureBuilder<(MonitoringResult?, LinkCheckResult?)>(
-          future:
-              Future.wait([
-                monitoringService.getLatestResult(site.id),
-                linkCheckerService.getLatestCheckResult(site.id),
-              ]).then(
-                (results) => (
-                  results[0] as MonitoringResult?,
-                  results[1] as LinkCheckResult?,
-                ),
-              ),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Card(
+            // Results list (max 5)
+            if (allResults.isEmpty)
+              Center(
                 child: Padding(
-                  padding: EdgeInsets.all(16),
-                  child: Center(child: CircularProgressIndicator()),
-                ),
-              );
-            }
-
-            final monitoringResult = snapshot.data?.$1;
-            final linkCheckResult = snapshot.data?.$2;
-
-            // 両方の結果がない場合
-            if (monitoringResult == null && linkCheckResult == null) {
-              return Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(32),
                   child: Column(
                     children: [
                       Icon(
                         Icons.timeline,
-                        size: 48,
+                        size: 64,
                         color: Colors.grey.shade400,
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                       Text(
-                        'No checks performed yet',
-                        style: TextStyle(color: Colors.grey.shade600),
+                        'No scan results yet',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey.shade600,
+                        ),
                       ),
                     ],
                   ),
                 ),
-              );
-            }
+              )
+            else
+              Consumer<SiteProvider>(
+                builder: (context, siteProvider, child) {
+                  return ListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    itemCount: allResults.length,
+                    itemBuilder: (context, index) {
+                      final item = allResults[index];
+                      final site = siteProvider.sites.firstWhere(
+                        (s) => s.id == item.siteId,
+                        orElse: () => Site(
+                          id: item.siteId,
+                          userId: '',
+                          name: 'Unknown Site',
+                          url: '',
+                          checkInterval: 60,
+                          createdAt: DateTime.now(),
+                          updatedAt: DateTime.now(),
+                        ),
+                      );
+                      return _ResultCard(
+                        site: site,
+                        result: item.result,
+                      );
+                    },
+                  );
+                },
+              ),
 
-            return Card(
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Site Check結果
-                    if (monitoringResult != null) ...[
-                      _ActivityItem(
-                        icon: monitoringResult.isUp
-                            ? Icons.check_circle
-                            : Icons.error,
-                        iconColor: monitoringResult.isUp
-                            ? Colors.green
-                            : Colors.red,
-                        title: 'Latest Site Check',
-                        subtitle:
-                            '${site.name} - ${monitoringResult.isUp ? "Up" : "Down"}',
-                        timestamp: monitoringResult.timestamp,
-                        details:
-                            '${monitoringResult.statusCode} (${monitoringResult.responseTime}ms)',
-                      ),
-                      if (linkCheckResult != null) const Divider(height: 24),
-                    ],
-
-                    // Link Check結果
-                    if (linkCheckResult != null) ...[
-                      _ActivityItem(
-                        icon: linkCheckResult.brokenLinks == 0
-                            ? Icons.link
-                            : Icons.link_off,
-                        iconColor: linkCheckResult.brokenLinks == 0
-                            ? Colors.blue
-                            : Colors.orange,
-                        title: 'Latest Link Check',
-                        subtitle: site.name,
-                        timestamp: linkCheckResult.timestamp,
-                        details: linkCheckResult.brokenLinks == 0
-                            ? '${linkCheckResult.totalLinks} links checked - All OK'
-                            : '${linkCheckResult.brokenLinks}/${linkCheckResult.totalLinks} broken links',
-                      ),
-                    ],
-                  ],
+            // All Results button
+            if (allResults.isNotEmpty)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Center(
+                  child: TextButton.icon(
+                    onPressed: onNavigateToResults,
+                    icon: const Icon(Icons.arrow_forward),
+                    label: const Text(
+                      'All Results',
+                      style: TextStyle(fontWeight: FontWeight.w500),
+                    ),
+                  ),
                 ),
               ),
-            );
-          },
+          ],
         );
       },
     );
   }
 }
 
-/// Recent Activity Item Widget
-class _ActivityItem extends StatelessWidget {
-  final IconData icon;
-  final Color iconColor;
-  final String title;
-  final String subtitle;
-  final DateTime timestamp;
-  final String details;
+class _ResultCard extends StatelessWidget {
+  final Site site;
+  final LinkCheckResult result;
 
-  const _ActivityItem({
-    required this.icon,
-    required this.iconColor,
-    required this.title,
-    required this.subtitle,
-    required this.timestamp,
-    required this.details,
+  const _ResultCard({
+    required this.site,
+    required this.result,
   });
 
   String _formatTimestamp(DateTime timestamp) {
@@ -390,40 +364,52 @@ class _ActivityItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Icon(icon, color: iconColor, size: 20),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                  fontSize: 13,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                details,
-                style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
-              ),
-            ],
+    final hasIssues = result.brokenLinks > 0;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: hasIssues
+              ? Colors.orange.shade100
+              : Colors.green.shade100,
+          child: Icon(
+            hasIssues ? Icons.link_off : Icons.check_circle,
+            color: hasIssues ? Colors.orange.shade700 : Colors.green.shade700,
           ),
         ),
-        Text(
-          _formatTimestamp(timestamp),
-          style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+        title: Text(
+          site.name,
+          style: const TextStyle(fontWeight: FontWeight.w500),
         ),
-      ],
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              hasIssues
+                  ? '${result.brokenLinks}/${result.totalLinks} broken links'
+                  : '${result.totalLinks} links checked - All OK',
+              style: TextStyle(
+                color: hasIssues ? Colors.orange.shade700 : Colors.grey.shade600,
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              _formatTimestamp(result.timestamp),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => SiteDetailScreen(site: site),
+            ),
+          );
+        },
+      ),
     );
   }
 }

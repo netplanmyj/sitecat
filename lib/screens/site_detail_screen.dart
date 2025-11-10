@@ -190,6 +190,12 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
             final isCheckingLinks = linkCheckerProvider.isChecking(
               widget.site.id,
             );
+            final canCheckLinks = linkCheckerProvider.canCheckSite(
+              widget.site.id,
+            );
+            final timeUntilNext = linkCheckerProvider.getTimeUntilNextCheck(
+              widget.site.id,
+            );
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -240,7 +246,9 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                     // Full scan button
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: isCheckingLinks ? null : () => _fullScan(),
+                        onPressed: (isCheckingLinks || !canCheckLinks)
+                            ? null
+                            : () => _fullScan(),
                         icon: _isStartScanning
                             ? const SizedBox(
                                 width: 18,
@@ -295,6 +303,19 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                     ],
                   ],
                 ),
+
+                // Countdown timer (rate limit for link checks)
+                if (timeUntilNext != null) ...[
+                  const SizedBox(height: 8),
+                  CountdownTimer(
+                    initialDuration: timeUntilNext,
+                    onComplete: () {
+                      if (mounted) {
+                        setState(() {});
+                      }
+                    },
+                  ),
+                ],
 
                 const SizedBox(height: 8),
 
