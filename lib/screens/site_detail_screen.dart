@@ -21,6 +21,8 @@ class SiteDetailScreen extends StatefulWidget {
 
 class _SiteDetailScreenState extends State<SiteDetailScreen> {
   bool _checkExternalLinks = false;
+  bool _isStartScanning = false;
+  bool _isContinueScanning = false;
 
   @override
   void initState() {
@@ -185,12 +187,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Consumer2<MonitoringProvider, LinkCheckerProvider>(
           builder: (context, monitoringProvider, linkCheckerProvider, child) {
-            final isCheckingSite = monitoringProvider.isChecking(
-              widget.site.id,
-            );
-            final canCheckSite = monitoringProvider.canCheckSite(
-              widget.site.id,
-            );
             final isCheckingLinks = linkCheckerProvider.isChecking(
               widget.site.id,
             );
@@ -221,7 +217,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                 // External links checkbox
                 CheckboxListTile(
                   value: _checkExternalLinks,
-                  onChanged: isCheckingSite || isCheckingLinks
+                  onChanged: isCheckingLinks
                       ? null
                       : (value) {
                           setState(() {
@@ -244,11 +240,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                     // Full scan button
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed:
-                            (isCheckingSite || isCheckingLinks || !canCheckSite)
-                            ? null
-                            : () => _fullScan(),
-                        icon: (isCheckingSite || isCheckingLinks)
+                        onPressed: isCheckingLinks ? null : () => _fullScan(),
+                        icon: _isStartScanning
                             ? const SizedBox(
                                 width: 18,
                                 height: 18,
@@ -275,10 +268,10 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                       const SizedBox(width: 12),
                       Expanded(
                         child: OutlinedButton.icon(
-                          onPressed: (isCheckingSite || isCheckingLinks)
+                          onPressed: isCheckingLinks
                               ? null
                               : () => _continueScan(),
-                          icon: isCheckingLinks
+                          icon: _isContinueScanning
                               ? SizedBox(
                                   width: 18,
                                   height: 18,
@@ -366,56 +359,80 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   }
 
   Future<void> _fullScan() async {
-    // Step 1: Run site check first
-    final monitoringProvider = context.read<MonitoringProvider>();
-    await monitoringProvider.checkSite(widget.site);
+    setState(() {
+      _isStartScanning = true;
+    });
 
-    if (!mounted) return;
+    try {
+      // Step 1: Run site check first
+      final monitoringProvider = context.read<MonitoringProvider>();
+      await monitoringProvider.checkSite(widget.site);
 
-    // Check for provider error first
-    if (monitoringProvider.error != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Site check failed: ${monitoringProvider.error}'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      return;
-    }
+      if (!mounted) return;
 
-    // Check the actual result for errors
-    final results = monitoringProvider.getSiteResults(widget.site.id);
-    if (results.isNotEmpty) {
-      final latestResult = results.first;
-      if (!latestResult.isUp || latestResult.error != null) {
-        // Site check failed - show warning but continue with link check
-        if (!mounted) return;
+      // Check for provider error first
+      if (monitoringProvider.error != null) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(
-              'Warning: ${latestResult.error ?? 'Site check failed (Status: ${latestResult.statusCode})'}\n'
-              'Continuing with link check...',
-            ),
-            backgroundColor: Colors.orange,
-            duration: const Duration(seconds: 3),
+            content: Text('Site check failed: ${monitoringProvider.error}'),
+            backgroundColor: Colors.red,
           ),
         );
+        return;
+      }
+
+      // Check the actual result for errors
+      final results = monitoringProvider.getSiteResults(widget.site.id);
+      if (results.isNotEmpty) {
+        final latestResult = results.first;
+        if (!latestResult.isUp || latestResult.error != null) {
+          // Site check failed - show warning but continue with link check
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                'Warning: ${latestResult.error ?? 'Site check failed (Status: ${latestResult.statusCode})'}\n'
+                'Continuing with link check...',
+              ),
+              backgroundColor: Colors.orange,
+              duration: const Duration(seconds: 3),
+            ),
+          );
+        }
+      }
+
+      // Run link check directly (no confirmation dialog needed)
+      await _runLinkCheck(continueFromLastScan: false);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isStartScanning = false;
+        });
       }
     }
-
-    // Run link check directly (no confirmation dialog needed)
-    await _runLinkCheck(continueFromLastScan: false);
   }
 
   Future<void> _continueScan() async {
-    // Get updated site data with the latest lastScannedPageIndex
-    final siteProvider = context.read<SiteProvider>();
-    final updatedSite = siteProvider.sites.firstWhere(
-      (s) => s.id == widget.site.id,
-      orElse: () => widget.site,
-    );
+    setState(() {
+      _isContinueScanning = true;
+    });
 
-    await _runLinkCheck(continueFromLastScan: true, site: updatedSite);
+    try {
+      // Get updated site data with the latest lastScannedPageIndex
+      final siteProvider = context.read<SiteProvider>();
+      final updatedSite = siteProvider.sites.firstWhere(
+        (s) => s.id == widget.site.id,
+        orElse: () => widget.site,
+      );
+
+      await _runLinkCheck(continueFromLastScan: true, site: updatedSite);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isContinueScanning = false;
+        });
+      }
+    }
   }
 
   Future<void> _runLinkCheck({

@@ -13,6 +13,7 @@ void main() {
         monitoringEnabled: true,
         checkInterval: 60,
         createdAt: now,
+        updatedAt: now,
       );
 
       expect(site.id, equals('test_site_123'));
@@ -32,6 +33,7 @@ void main() {
         url: 'https://example.com',
         name: 'Valid HTTPS Site',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       final site2 = Site(
@@ -40,6 +42,7 @@ void main() {
         url: 'http://example.com',
         name: 'Valid HTTP Site',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       final site3 = Site(
@@ -48,6 +51,7 @@ void main() {
         url: 'invalid-url',
         name: 'Invalid Site',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       expect(site1.isValidUrl, isTrue);
@@ -62,6 +66,7 @@ void main() {
         url: 'https://www.example.com/path/to/page',
         name: 'Test Site',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       expect(site.displayUrl, equals('www.example.com'));
@@ -76,6 +81,7 @@ void main() {
         monitoringEnabled: false,
         checkInterval: 30,
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       final updatedSite = originalSite.copyWith(
@@ -102,6 +108,7 @@ void main() {
         url: 'https://example.com',
         name: 'Test Site',
         createdAt: now,
+        updatedAt: now,
         lastChecked: null,
       );
       expect(site1.lastCheckedDisplay, equals('Never'));
@@ -112,6 +119,7 @@ void main() {
         url: 'https://example.com',
         name: 'Test Site',
         createdAt: now,
+        updatedAt: now,
         lastChecked: now.subtract(const Duration(minutes: 30)),
       );
       expect(site2.lastCheckedDisplay, equals('30m ago'));
@@ -124,6 +132,7 @@ void main() {
         name: 'Test Site',
         checkInterval: 60,
         createdAt: now,
+        updatedAt: now,
       );
       expect(site3.checkIntervalDisplay, equals('1h'));
 
@@ -134,6 +143,7 @@ void main() {
         name: 'Test Site',
         checkInterval: 90,
         createdAt: now,
+        updatedAt: now,
       );
       expect(site4.checkIntervalDisplay, equals('1h 30m'));
     });
@@ -216,6 +226,7 @@ void main() {
         monitoringEnabled: true,
         checkInterval: 30,
         createdAt: now,
+        updatedAt: now,
       );
 
       expect(site.isValidUrl, isTrue);
@@ -232,6 +243,7 @@ void main() {
         name: 'Test Site',
         checkInterval: 5,
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
       expect(site1.checkInterval, equals(5));
 
@@ -242,6 +254,7 @@ void main() {
         name: 'Test Site',
         checkInterval: 1440,
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
       expect(site2.checkInterval, equals(1440));
     });
@@ -253,6 +266,7 @@ void main() {
         url: 'https://example.com',
         name: 'Site 1',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       final site2 = Site(
@@ -261,6 +275,7 @@ void main() {
         url: 'https://different.com',
         name: 'Site 2',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       final site3 = Site(
@@ -269,6 +284,7 @@ void main() {
         url: 'https://example.com',
         name: 'Site 1',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       expect(site1, equals(site2));

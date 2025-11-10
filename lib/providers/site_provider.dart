@@ -85,6 +85,7 @@ class SiteProvider extends ChangeNotifier {
       }
 
       // Create new site
+      final now = DateTime.now();
       final site = Site(
         id: '', // Will be set by Firestore
         userId: '', // Will be set by SiteService
@@ -93,7 +94,8 @@ class SiteProvider extends ChangeNotifier {
         sitemapUrl: sitemapUrl,
         monitoringEnabled: monitoringEnabled,
         checkInterval: checkInterval,
-        createdAt: DateTime.now(),
+        createdAt: now,
+        updatedAt: now,
       );
 
       await _siteService.createSite(site);
@@ -121,7 +123,9 @@ class SiteProvider extends ChangeNotifier {
         return false;
       }
 
-      await _siteService.updateSite(site);
+      // Update the updatedAt timestamp
+      final updatedSite = site.copyWith(updatedAt: DateTime.now());
+      await _siteService.updateSite(updatedSite);
       return true;
     } catch (e) {
       _setError('Failed to update site: $e');

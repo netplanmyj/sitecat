@@ -22,7 +22,11 @@ class SiteInfoCard extends StatelessWidget {
             const SizedBox(height: 12),
             _buildInfoRow('URL', site.url),
             const SizedBox(height: 8),
-            _buildInfoRow('Registered', _formatDate(site.createdAt)),
+            if (site.sitemapUrl != null) ...[
+              _buildInfoRow('Sitemap', site.sitemapUrl!),
+              const SizedBox(height: 8),
+            ],
+            _buildInfoRow('Updated', _formatDate(site.updatedAt)),
           ],
         ),
       ),
@@ -34,7 +38,7 @@ class SiteInfoCard extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SizedBox(
-          width: 80,
+          width: 100,
           child: Text(
             label,
             style: const TextStyle(
