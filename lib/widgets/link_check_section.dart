@@ -54,21 +54,6 @@ class LinkCheckSection extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const Spacer(),
-                    // Delete result button
-                    if (result?.id != null)
-                      IconButton(
-                        icon: const Icon(Icons.delete_outline, size: 20),
-                        tooltip: 'Delete this result',
-                        onPressed: () => _confirmDeleteResult(
-                          context,
-                          linkChecker,
-                          site.id,
-                          result!.id!,
-                        ),
-                        padding: EdgeInsets.zero,
-                        constraints: const BoxConstraints(),
-                      ),
                   ],
                 ),
 
@@ -86,12 +71,6 @@ class LinkCheckSection extends StatelessWidget {
                     brokenLinks: brokenLinks,
                     onViewBrokenLinks: () =>
                         onViewBrokenLinks(site, brokenLinks, result),
-                    onDeleteResult: () => _confirmDeleteResult(
-                      context,
-                      linkChecker,
-                      site.id,
-                      result.id!,
-                    ),
                   ),
                 ],
 
@@ -158,50 +137,5 @@ class LinkCheckSection extends StatelessWidget {
         );
       },
     );
-  }
-
-  Future<void> _confirmDeleteResult(
-    BuildContext context,
-    LinkCheckerProvider linkChecker,
-    String siteId,
-    String resultId,
-  ) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Delete Result'),
-        content: const Text(
-          'Are you sure you want to delete this link check result? This action cannot be undone.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed == true && context.mounted) {
-      try {
-        await linkChecker.deleteLinkCheckResult(siteId, resultId);
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Result deleted successfully')),
-          );
-        }
-      } catch (e) {
-        if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Failed to delete result: $e')),
-          );
-        }
-      }
-    }
   }
 }
