@@ -397,7 +397,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
       // Show warning dialog if URL changed
       if (urlChanged) {
         final confirm = await _showUrlChangeWarningDialog();
-        if (!confirm) return;
+        if (!confirm || !mounted) return;
       }
     }
 
