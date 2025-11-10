@@ -3,8 +3,6 @@ import '../../models/broken_link.dart';
 import '../../models/site.dart';
 import '../../screens/link_check_history_screen.dart';
 import 'link_stat_card.dart';
-import 'url_mismatch_warning.dart';
-import '../../utils/url_utils.dart';
 
 /// Widget to display link check results summary
 class LinkCheckResults extends StatelessWidget {
@@ -38,15 +36,6 @@ class LinkCheckResults extends StatelessWidget {
           style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
         ),
         const SizedBox(height: 12),
-
-        // URL mismatch warning
-        if (UrlUtils.hasUrlMismatch(result.checkedUrl, site.url)) ...[
-          UrlMismatchWarning(
-            checkedUrl: result.checkedUrl,
-            currentUrl: site.url,
-          ),
-          const SizedBox(height: 12),
-        ],
 
         // Scan completion status
         if (!result.scanCompleted) ...[

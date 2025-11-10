@@ -390,6 +390,17 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
   Future<void> _saveSite() async {
     if (!_formKey.currentState!.validate()) return;
 
+    // Check if URL changed (for edit mode)
+    if (widget.isEdit) {
+      final urlChanged = widget.site!.url != _urlController.text.trim();
+
+      // Show warning dialog if URL changed
+      if (urlChanged) {
+        final confirm = await _showUrlChangeWarningDialog();
+        if (!confirm || !mounted) return;
+      }
+    }
+
     setState(() {
       _isLoading = true;
     });
@@ -453,5 +464,79 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
         });
       }
     }
+  }
+
+  Future<bool> _showUrlChangeWarningDialog() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.orange),
+            SizedBox(width: 8),
+            Text('URL Change Detected'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'You are changing the site URL. This will affect:',
+              style: TextStyle(fontWeight: FontWeight.w500),
+            ),
+            const SizedBox(height: 12),
+            _buildWarningItem('Previous check results will show as mismatched'),
+            const SizedBox(height: 8),
+            _buildWarningItem('Link check history will be cleared'),
+            const SizedBox(height: 8),
+            _buildWarningItem('You may need to run a new full scan'),
+            const SizedBox(height: 16),
+            Text(
+              'Old URL: ${widget.site!.url}',
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.grey.shade700,
+                fontFamily: 'monospace',
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'New URL: ${_urlController.text.trim()}',
+              style: const TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.w500,
+                fontFamily: 'monospace',
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.orange,
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Update URL'),
+          ),
+        ],
+      ),
+    );
+    return result ?? false;
+  }
+
+  Widget _buildWarningItem(String text) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('• ', style: TextStyle(fontSize: 16)),
+        Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
+      ],
+    );
   }
 }
