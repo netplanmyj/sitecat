@@ -10,7 +10,6 @@ class LinkCheckResults extends StatelessWidget {
   final Site site;
   final List<BrokenLink> brokenLinks;
   final VoidCallback onViewBrokenLinks;
-  final VoidCallback onDeleteResult;
 
   const LinkCheckResults({
     super.key,
@@ -18,7 +17,6 @@ class LinkCheckResults extends StatelessWidget {
     required this.site,
     required this.brokenLinks,
     required this.onViewBrokenLinks,
-    required this.onDeleteResult,
   });
 
   @override
