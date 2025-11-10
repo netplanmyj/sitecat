@@ -39,9 +39,7 @@ class DashboardScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // My Sites Section
-                _MySitesSection(
-                  onNavigateToSites: onNavigateToSites,
-                ),
+                _MySitesSection(onNavigateToSites: onNavigateToSites),
                 const SizedBox(height: 24),
 
                 // Recent Activity Section
@@ -163,7 +161,10 @@ class _MySitesSection extends StatelessWidget {
             // All Sites button
             if (sites.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Center(
                   child: TextButton.icon(
                     onPressed: onNavigateToSites,
@@ -305,10 +306,7 @@ class _RecentActivitySection extends StatelessWidget {
                           updatedAt: DateTime.now(),
                         ),
                       );
-                      return _ResultCard(
-                        site: site,
-                        result: item.result,
-                      );
+                      return _ResultCard(site: site, result: item.result);
                     },
                   );
                 },
@@ -317,7 +315,10 @@ class _RecentActivitySection extends StatelessWidget {
             // All Results button
             if (allResults.isNotEmpty)
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 8,
+                ),
                 child: Center(
                   child: TextButton.icon(
                     onPressed: onNavigateToResults,
@@ -340,10 +341,7 @@ class _ResultCard extends StatelessWidget {
   final Site site;
   final LinkCheckResult result;
 
-  const _ResultCard({
-    required this.site,
-    required this.result,
-  });
+  const _ResultCard({required this.site, required this.result});
 
   String _formatTimestamp(DateTime timestamp) {
     final now = DateTime.now();
@@ -390,7 +388,9 @@ class _ResultCard extends StatelessWidget {
                   ? '${result.brokenLinks}/${result.totalLinks} broken links'
                   : '${result.totalLinks} links checked - All OK',
               style: TextStyle(
-                color: hasIssues ? Colors.orange.shade700 : Colors.grey.shade600,
+                color: hasIssues
+                    ? Colors.orange.shade700
+                    : Colors.grey.shade600,
                 fontSize: 13,
               ),
             ),
