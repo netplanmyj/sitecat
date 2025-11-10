@@ -136,6 +136,10 @@ class LinkCheckerProvider extends ChangeNotifier {
     _checkStates[siteId] = LinkCheckState.checking;
     _errors.remove(siteId);
 
+    // Store previous progress before potentially resetting
+    final previousChecked = _checkedCounts[siteId] ?? 0;
+    final previousTotal = _totalCounts[siteId] ?? 0;
+
     // Only reset progress counters for new scans, not for continue scan
     if (!continueFromLastScan) {
       _checkedCounts[siteId] = 0;
@@ -165,9 +169,13 @@ class LinkCheckerProvider extends ChangeNotifier {
       _checkStates[siteId] = LinkCheckState.completed;
       notifyListeners(); // Immediate UI update with scan results
 
-      // Fetch broken links (async, but UI already shows results)
-      final brokenLinks = await _linkCheckerService.getBrokenLinks(siteId);
-      _brokenLinksCache[siteId] = brokenLinks;
+      // Fetch broken links using resultId (async, but UI already shows results)
+      if (result.id != null) {
+        final brokenLinks = await _linkCheckerService.getBrokenLinks(
+          result.id!,
+        );
+        _brokenLinksCache[siteId] = brokenLinks;
+      }
 
       // Update site's lastScannedPageIndex
       await _siteService.updateSite(
@@ -180,9 +188,17 @@ class LinkCheckerProvider extends ChangeNotifier {
       // Notify again after broken links are loaded
       notifyListeners();
     } catch (e) {
-      // Handle error
+      // Handle error - preserve the last known state for continue functionality
       _checkStates[siteId] = LinkCheckState.error;
       _errors[siteId] = e.toString();
+
+      // Restore previous progress if this was a new scan that failed early
+      // This ensures Continue button works correctly after an error
+      if (!continueFromLastScan && previousChecked > 0) {
+        _checkedCounts[siteId] = previousChecked;
+        _totalCounts[siteId] = previousTotal;
+      }
+
       notifyListeners();
       rethrow;
     }

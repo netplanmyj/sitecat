@@ -49,12 +49,18 @@ service cloud.firestore {
         allow create: if request.auth != null && request.auth.uid == userId;
         allow update: if request.auth != null && request.auth.uid == userId;
         allow delete: if request.auth != null && request.auth.uid == userId;
+        
+        // 壊れたリンクサブコレクション - linkCheckResults配下に存在
+        match /brokenLinks/{linkId} {
+          // 親のlinkCheckResultsと同じユーザーのみアクセス可能
+          allow read, write: if request.auth != null && request.auth.uid == userId;
+        }
       }
       
-      // 壊れたリンクサブコレクション - ユーザー配下に存在
+      // 壊れたリンクサブコレクション - ユーザー配下（レガシー、削除予定）
       match /brokenLinks/{linkId} {
-        // 自分のユーザーID配下の壊れたリンクのみアクセス可能
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        // 自分のユーザーID配下の壊れたリンクのみアクセス可能（読み取り専用）
+        allow read: if request.auth != null && request.auth.uid == userId;
       }
       
       // アラートサブコレクション - ユーザー配下に存在
