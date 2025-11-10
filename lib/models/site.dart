@@ -8,6 +8,7 @@ class Site {
   final bool monitoringEnabled;
   final int checkInterval; // minutes
   final DateTime createdAt;
+  final DateTime updatedAt;
   final DateTime? lastChecked;
   final String? sitemapUrl; // Sitemap URL for link checking (optional)
   final int
@@ -21,6 +22,7 @@ class Site {
     this.monitoringEnabled = true,
     this.checkInterval = 60, // Default: 60 minutes
     required this.createdAt,
+    required this.updatedAt,
     this.lastChecked,
     this.sitemapUrl,
     this.lastScannedPageIndex = 0, // Default: 0 (start from beginning)
@@ -29,6 +31,8 @@ class Site {
   // Factory constructor to create Site from Firestore document
   factory Site.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    final createdAt =
+        (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now();
     return Site(
       id: doc.id,
       userId: data['userId'] ?? '',
@@ -36,7 +40,8 @@ class Site {
       name: data['name'] ?? '',
       monitoringEnabled: data['monitoringEnabled'] ?? true,
       checkInterval: data['checkInterval'] ?? 60,
-      createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+      createdAt: createdAt,
+      updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? createdAt,
       lastChecked: (data['lastChecked'] as Timestamp?)?.toDate(),
       sitemapUrl: data['sitemapUrl'],
       lastScannedPageIndex: (data['lastScannedPageIndex'] as int?) ?? 0,
@@ -52,6 +57,7 @@ class Site {
       'monitoringEnabled': monitoringEnabled,
       'checkInterval': checkInterval,
       'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
       'lastChecked': lastChecked != null
           ? Timestamp.fromDate(lastChecked!)
           : null,
@@ -69,6 +75,7 @@ class Site {
     bool? monitoringEnabled,
     int? checkInterval,
     DateTime? createdAt,
+    DateTime? updatedAt,
     DateTime? lastChecked,
     String? sitemapUrl,
     int? lastScannedPageIndex,
@@ -81,6 +88,7 @@ class Site {
       monitoringEnabled: monitoringEnabled ?? this.monitoringEnabled,
       checkInterval: checkInterval ?? this.checkInterval,
       createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
       lastChecked: lastChecked ?? this.lastChecked,
       sitemapUrl: sitemapUrl ?? this.sitemapUrl,
       lastScannedPageIndex: lastScannedPageIndex ?? this.lastScannedPageIndex,

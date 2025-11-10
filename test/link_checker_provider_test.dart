@@ -13,6 +13,7 @@ void main() {
         url: 'https://example.com',
         sitemapUrl: 'https://example.com/sitemap.xml',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       final result = LinkCheckResult(
@@ -41,6 +42,7 @@ void main() {
         url: 'https://new-domain.com',
         sitemapUrl: 'https://new-domain.com/sitemap.xml',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       final result = LinkCheckResult(
@@ -69,6 +71,7 @@ void main() {
         url: 'https://example.com',
         sitemapUrl: 'https://example.com/sitemap.xml',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       final result = LinkCheckResult(
@@ -97,6 +100,7 @@ void main() {
         url: 'https://www.example.com',
         sitemapUrl: 'https://www.example.com/sitemap.xml',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       final result = LinkCheckResult(
@@ -125,6 +129,7 @@ void main() {
         url: 'https://example.com/',
         sitemapUrl: 'https://example.com/sitemap.xml',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       final result = LinkCheckResult(
@@ -153,6 +158,7 @@ void main() {
         url: 'https://Example.COM',
         sitemapUrl: 'https://Example.COM/sitemap.xml',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       final result = LinkCheckResult(
@@ -181,6 +187,7 @@ void main() {
         url: 'https://example.com/new-path',
         sitemapUrl: 'https://example.com/new-path/sitemap.xml',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       final result = LinkCheckResult(
@@ -209,6 +216,7 @@ void main() {
         url: 'HTTPS://WWW.Example.COM/',
         sitemapUrl: 'https://www.example.com/sitemap.xml',
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       final result = LinkCheckResult(

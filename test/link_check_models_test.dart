@@ -15,6 +15,7 @@ void main() {
         monitoringEnabled: true,
         checkInterval: 60,
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
         lastScannedPageIndex: 50,
       );
 
@@ -30,6 +31,7 @@ void main() {
         monitoringEnabled: true,
         checkInterval: 60,
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
         lastScannedPageIndex: 0,
       );
 
@@ -48,6 +50,7 @@ void main() {
         monitoringEnabled: true,
         checkInterval: 60,
         createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
 
       expect(site.lastScannedPageIndex, equals(0));
