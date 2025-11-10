@@ -109,6 +109,7 @@ class LinkCheckResult {
   id; // Firestore document ID (optional, only available after save)
   final String siteId;
   final String checkedUrl; // URL that was checked (to detect mismatches)
+  final String? checkedSitemapUrl; // Sitemap URL that was used for this scan
   final DateTime timestamp;
   final int totalLinks;
   final int brokenLinks;
@@ -124,6 +125,7 @@ class LinkCheckResult {
     this.id,
     required this.siteId,
     required this.checkedUrl,
+    this.checkedSitemapUrl,
     required this.timestamp,
     required this.totalLinks,
     required this.brokenLinks,
@@ -143,6 +145,7 @@ class LinkCheckResult {
       id: doc.id,
       siteId: data['siteId'] ?? '',
       checkedUrl: data['checkedUrl'] ?? '', // URL that was checked
+      checkedSitemapUrl: data['checkedSitemapUrl'], // Sitemap URL used
       timestamp: (data['timestamp'] as Timestamp).toDate(),
       totalLinks: data['totalLinks'] ?? 0,
       brokenLinks: data['brokenLinks'] ?? 0,
@@ -161,6 +164,7 @@ class LinkCheckResult {
     return {
       'siteId': siteId,
       'checkedUrl': checkedUrl,
+      'checkedSitemapUrl': checkedSitemapUrl,
       'timestamp': Timestamp.fromDate(timestamp),
       'totalLinks': totalLinks,
       'brokenLinks': brokenLinks,

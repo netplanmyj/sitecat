@@ -8,6 +8,7 @@ import 'providers/monitoring_provider.dart';
 import 'providers/link_checker_provider.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/sites_screen.dart';
+import 'screens/results_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/login_screen.dart';
 
@@ -96,6 +97,7 @@ class _AuthenticatedHomeState extends State<AuthenticatedHome> {
         },
       ),
       const SitesScreen(),
+      const ResultsScreen(),
       const ProfileScreen(),
     ];
   }
@@ -118,6 +120,10 @@ class _AuthenticatedHomeState extends State<AuthenticatedHome> {
             label: 'Dashboard',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.web), label: 'Sites'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.assessment),
+            label: 'Results',
+          ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
       ),
