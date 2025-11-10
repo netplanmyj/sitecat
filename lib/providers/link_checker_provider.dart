@@ -26,6 +26,9 @@ class LinkCheckerProvider extends ChangeNotifier {
   final Map<String, DateTime> _lastCheckTime = {};
   final Map<String, List<LinkCheckResult>> _checkHistory = {};
 
+  // All results across sites
+  List<({String siteId, LinkCheckResult result})> _allCheckHistory = [];
+
   // Getters
 
   /// Get the current check state for a site
@@ -208,21 +211,6 @@ class LinkCheckerProvider extends ChangeNotifier {
     }
   }
 
-  /// Clear broken links for a site
-  Future<void> clearBrokenLinks(String siteId) async {
-    try {
-      await _linkCheckerService.clearBrokenLinks(siteId);
-      _brokenLinksCache.remove(siteId);
-      _resultCache.remove(siteId);
-      _checkStates[siteId] = LinkCheckState.idle;
-      notifyListeners();
-    } catch (e) {
-      _errors[siteId] = 'Failed to clear broken links: $e';
-      notifyListeners();
-      rethrow;
-    }
-  }
-
   /// Delete a specific link check result
   Future<void> deleteLinkCheckResult(String siteId, String resultId) async {
     try {
@@ -263,5 +251,53 @@ class LinkCheckerProvider extends ChangeNotifier {
     _checkedCounts.clear();
     _totalCounts.clear();
     notifyListeners();
+  }
+
+  /// Get all check history across all sites
+  List<({String siteId, LinkCheckResult result})> getAllCheckHistory() {
+    return _allCheckHistory;
+  }
+
+  /// Load all check history from Firestore (across all sites)
+  Future<void> loadAllCheckHistory({int limit = 50}) async {
+    try {
+      final results = await _linkCheckerService.getAllCheckResults(
+        limit: limit,
+      );
+
+      _allCheckHistory = results
+          .map((result) => (siteId: result.siteId, result: result))
+          .toList();
+
+      notifyListeners();
+    } catch (e) {
+      // Handle error silently or log it
+      debugPrint('Error loading all check history: $e');
+    }
+  }
+
+  /// Get broken links for a specific result
+  Future<List<BrokenLink>> getBrokenLinksForResult(
+    String siteId,
+    String resultId,
+  ) async {
+    try {
+      // Check cache first
+      final cached = _brokenLinksCache[siteId];
+      if (cached != null && cached.isNotEmpty) {
+        // Verify if this is for the same result
+        final cachedResult = _resultCache[siteId];
+        if (cachedResult?.id == resultId) {
+          return cached;
+        }
+      }
+
+      // Fetch from Firestore using resultId
+      final brokenLinks = await _linkCheckerService.getBrokenLinks(resultId);
+      return brokenLinks;
+    } catch (e) {
+      debugPrint('Error getting broken links for result: $e');
+      return [];
+    }
   }
 }

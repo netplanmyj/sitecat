@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/site_provider.dart';
-import '../providers/link_checker_provider.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
 
@@ -406,17 +405,10 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
     });
 
     final siteProvider = Provider.of<SiteProvider>(context, listen: false);
-    final linkCheckerProvider = Provider.of<LinkCheckerProvider>(
-      context,
-      listen: false,
-    );
     bool success;
 
     try {
       if (widget.isEdit) {
-        // Check if URL changed
-        final urlChanged = widget.site!.url != _urlController.text.trim();
-
         // Update existing site
         final updatedSite = widget.site!.copyWith(
           name: _nameController.text.trim(),
@@ -426,11 +418,6 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
               : _sitemapUrlController.text.trim(),
         );
         success = await siteProvider.updateSite(updatedSite);
-
-        // Clear broken links cache if URL changed
-        if (success && urlChanged) {
-          await linkCheckerProvider.clearBrokenLinks(widget.site!.id);
-        }
       } else {
         // Create new site
         success = await siteProvider.createSite(

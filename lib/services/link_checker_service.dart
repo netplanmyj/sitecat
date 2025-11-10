@@ -18,10 +18,12 @@ class LinkCheckerService {
   String? get _currentUserId => _auth.currentUser?.uid;
 
   // Collection references (hierarchical structure)
-  CollectionReference _brokenLinksCollection(String userId) =>
-      _firestore.collection('users').doc(userId).collection('brokenLinks');
   CollectionReference _resultsCollection(String userId) =>
       _firestore.collection('users').doc(userId).collection('linkCheckResults');
+
+  // Broken links as subcollection under linkCheckResults
+  CollectionReference _brokenLinksCollection(String userId, String resultId) =>
+      _resultsCollection(userId).doc(resultId).collection('brokenLinks');
 
   /// Check all links on a site
   Future<LinkCheckResult> checkSiteLinks(
@@ -39,11 +41,6 @@ class LinkCheckerService {
     final originalBaseUrl = Uri.parse(site.url);
     // Converted base URL for actual HTTP requests (Android: localhost -> 10.0.2.2)
     final baseUrl = Uri.parse(UrlHelper.convertLocalhostForPlatform(site.url));
-
-    // Clear old broken links if starting a new scan (not continuing)
-    if (!continueFromLastScan) {
-      await deleteSiteBrokenLinks(site.id);
-    }
 
     // Step 1: Get internal pages from sitemap (these are our pages to scan)
     List<Uri> allInternalPages = [];
@@ -215,19 +212,12 @@ class LinkCheckerService {
       }
     }
 
-    // Step 5: Save broken links to Firestore
+    // Step 5: Prepare broken links
     // If continuing, keep previous broken links and add new ones
     final allBrokenLinks =
         continueFromLastScan && previousBrokenLinks.isNotEmpty
         ? [...previousBrokenLinks, ...brokenLinks]
         : brokenLinks;
-
-    // Clear old broken links before saving new ones (for continue scan)
-    if (continueFromLastScan && startIndex > 0) {
-      await deleteSiteBrokenLinks(site.id);
-    }
-
-    await _saveBrokenLinks(allBrokenLinks);
 
     // Step 6: Create and save result
     final endTime = DateTime.now();
@@ -249,6 +239,7 @@ class LinkCheckerService {
     final result = LinkCheckResult(
       siteId: site.id,
       checkedUrl: site.url, // Record the URL that was checked
+      checkedSitemapUrl: site.sitemapUrl, // Record the sitemap URL used
       timestamp: DateTime.now(),
       totalLinks: cumulativeTotalLinks,
       brokenLinks: allBrokenLinks.length,
@@ -266,11 +257,17 @@ class LinkCheckerService {
       _currentUserId!,
     ).add(result.toFirestore());
 
+    final resultId = docRef.id;
+
+    // Save broken links as subcollection under this result
+    await _saveBrokenLinks(resultId, allBrokenLinks);
+
     // Return result with the Firestore document ID
     return LinkCheckResult(
-      id: docRef.id,
+      id: resultId,
       siteId: result.siteId,
       checkedUrl: result.checkedUrl,
+      checkedSitemapUrl: result.checkedSitemapUrl,
       timestamp: result.timestamp,
       totalLinks: result.totalLinks,
       brokenLinks: result.brokenLinks,
@@ -541,65 +538,44 @@ class LinkCheckerService {
     return '$baseStr$pathStr';
   }
 
-  /// Save broken links to Firestore
-  Future<void> _saveBrokenLinks(List<BrokenLink> brokenLinks) async {
+  /// Save broken links to Firestore (under a specific result)
+  Future<void> _saveBrokenLinks(
+    String resultId,
+    List<BrokenLink> brokenLinks,
+  ) async {
     if (brokenLinks.isEmpty || _currentUserId == null) return;
 
     final batch = _firestore.batch();
     for (final link in brokenLinks) {
-      final docRef = _brokenLinksCollection(_currentUserId!).doc();
+      final docRef = _brokenLinksCollection(_currentUserId!, resultId).doc();
       batch.set(docRef, link.toFirestore());
     }
 
     await batch.commit();
   }
 
-  /// Get broken links for a site (Stream)
-  Stream<List<BrokenLink>> getSiteBrokenLinks(
-    String siteId, {
-    int limit = 100,
-  }) {
-    if (_currentUserId == null) {
-      return Stream.value([]);
-    }
-
-    return _brokenLinksCollection(_currentUserId!)
-        .where('siteId', isEqualTo: siteId)
-        .orderBy('timestamp', descending: true)
-        .limit(limit)
-        .snapshots()
-        .map((snapshot) {
-          return snapshot.docs
-              .map((doc) => BrokenLink.fromFirestore(doc))
-              .toList();
-        });
-  }
-
-  /// Get broken links for a site (Future)
-  Future<List<BrokenLink>> getBrokenLinks(
-    String siteId, {
-    int limit = 100,
-  }) async {
+  /// Get broken links for a specific result
+  Future<List<BrokenLink>> getBrokenLinks(String resultId) async {
     if (_currentUserId == null) {
       return [];
     }
 
-    final snapshot = await _brokenLinksCollection(_currentUserId!)
-        .where('siteId', isEqualTo: siteId)
-        .orderBy('timestamp', descending: true)
-        .limit(limit)
-        .get();
+    final snapshot = await _brokenLinksCollection(
+      _currentUserId!,
+      resultId,
+    ).orderBy('timestamp', descending: true).get();
 
     return snapshot.docs.map((doc) => BrokenLink.fromFirestore(doc)).toList();
   }
 
-  /// Delete all broken links for a site
-  Future<void> deleteSiteBrokenLinks(String siteId) async {
+  /// Delete all broken links for a specific result (when deleting the result)
+  Future<void> _deleteResultBrokenLinks(String resultId) async {
     if (_currentUserId == null) return;
 
     final snapshot = await _brokenLinksCollection(
       _currentUserId!,
-    ).where('siteId', isEqualTo: siteId).get();
+      resultId,
+    ).get();
 
     final batch = _firestore.batch();
     for (final doc in snapshot.docs) {
@@ -607,11 +583,6 @@ class LinkCheckerService {
     }
 
     await batch.commit();
-  }
-
-  /// Clear broken links for a site (alias for deleteSiteBrokenLinks)
-  Future<void> clearBrokenLinks(String siteId) async {
-    return deleteSiteBrokenLinks(siteId);
   }
 
   /// Get latest check result for a site
@@ -647,6 +618,19 @@ class LinkCheckerService {
         .toList();
   }
 
+  /// Get all check results across all sites
+  Future<List<LinkCheckResult>> getAllCheckResults({int limit = 50}) async {
+    if (_currentUserId == null) return [];
+
+    final snapshot = await _resultsCollection(
+      _currentUserId!,
+    ).orderBy('timestamp', descending: true).limit(limit).get();
+
+    return snapshot.docs
+        .map((doc) => LinkCheckResult.fromFirestore(doc))
+        .toList();
+  }
+
   /// Delete all check results for a site (useful for cleanup)
   Future<void> deleteAllCheckResults(String siteId) async {
     if (_currentUserId == null) return;
@@ -667,6 +651,10 @@ class LinkCheckerService {
   Future<void> deleteLinkCheckResult(String resultId) async {
     if (_currentUserId == null) return;
 
+    // Delete all broken links in the subcollection first
+    await _deleteResultBrokenLinks(resultId);
+
+    // Delete the result document
     await _resultsCollection(_currentUserId!).doc(resultId).delete();
   }
 }
