@@ -211,9 +211,13 @@ class LinkCheckerProvider extends ChangeNotifier {
       if (result != null) {
         _resultCache[siteId] = result;
 
-        // Also load broken links
-        final brokenLinks = await _linkCheckerService.getBrokenLinks(siteId);
-        _brokenLinksCache[siteId] = brokenLinks;
+        // Also load broken links using resultId
+        if (result.id != null) {
+          final brokenLinks = await _linkCheckerService.getBrokenLinks(
+            result.id!,
+          );
+          _brokenLinksCache[siteId] = brokenLinks;
+        }
 
         _checkStates[siteId] = LinkCheckState.completed;
       } else {
