@@ -7,7 +7,8 @@ import '../providers/site_provider.dart';
 import '../widgets/site_info_card.dart';
 import '../widgets/link_check_section.dart';
 import '../widgets/monitoring_result_card.dart';
-import '../widgets/countdown_timer.dart';
+import '../widgets/site_detail/quick_check_section.dart';
+import '../widgets/site_detail/full_scan_section.dart';
 import 'broken_links_screen.dart';
 
 class SiteDetailScreen extends StatefulWidget {
@@ -21,8 +22,6 @@ class SiteDetailScreen extends StatefulWidget {
 
 class _SiteDetailScreenState extends State<SiteDetailScreen> {
   bool _checkExternalLinks = false;
-  bool _isStartScanning = false;
-  bool _isContinueScanning = false;
 
   @override
   void initState() {
@@ -49,14 +48,23 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               const SizedBox(height: 16),
 
               // Quick Check section
-              _buildQuickCheckSection(),
+              QuickCheckSection(site: widget.site, onQuickCheck: _quickCheck),
               const SizedBox(height: 16),
               MonitoringResultCard(site: widget.site),
 
               const SizedBox(height: 24),
 
               // Full Scan section
-              _buildFullScanSection(),
+              FullScanSection(
+                site: widget.site,
+                onFullScan: (checkExternalLinks) {
+                  setState(() {
+                    _checkExternalLinks = checkExternalLinks;
+                  });
+                  _fullScan();
+                },
+                onContinueScan: _continueScan,
+              ),
               const SizedBox(height: 16),
               LinkCheckSection(
                 site: widget.site,
@@ -91,246 +99,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildQuickCheckSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Consumer<MonitoringProvider>(
-          builder: (context, monitoringProvider, child) {
-            final isCheckingSite = monitoringProvider.isChecking(
-              widget.site.id,
-            );
-            final canCheckSite = monitoringProvider.canCheckSite(
-              widget.site.id,
-            );
-            final timeUntilNext = monitoringProvider.getTimeUntilNextCheck(
-              widget.site.id,
-            );
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.speed, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Quick Check',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  '⚡ Site status only (~3 seconds)',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 12),
-
-                // Quick Check button
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: (isCheckingSite || !canCheckSite)
-                        ? null
-                        : () => _quickCheck(),
-                    icon: isCheckingSite
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
-                            ),
-                          )
-                        : const Icon(Icons.speed, size: 20),
-                    label: const Text('Start Check'),
-                    style: ElevatedButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      backgroundColor: Colors.blue,
-                      foregroundColor: Colors.white,
-                    ),
-                  ),
-                ),
-
-                // Countdown timer (rate limit for checks)
-                if (timeUntilNext != null) ...[
-                  const SizedBox(height: 8),
-                  CountdownTimer(
-                    initialDuration: timeUntilNext,
-                    onComplete: () {
-                      if (mounted) {
-                        setState(() {});
-                      }
-                    },
-                  ),
-                ],
-              ],
-            );
-          },
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFullScanSection() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Consumer2<MonitoringProvider, LinkCheckerProvider>(
-          builder: (context, monitoringProvider, linkCheckerProvider, child) {
-            final isCheckingLinks = linkCheckerProvider.isChecking(
-              widget.site.id,
-            );
-            final canCheckLinks = linkCheckerProvider.canCheckSite(
-              widget.site.id,
-            );
-            final timeUntilNext = linkCheckerProvider.getTimeUntilNextCheck(
-              widget.site.id,
-            );
-
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Row(
-                  children: [
-                    Icon(Icons.link, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Full Scan',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  '🔍 Site status + all links check (may take several minutes)',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 12),
-
-                // External links checkbox
-                CheckboxListTile(
-                  value: _checkExternalLinks,
-                  onChanged: isCheckingLinks
-                      ? null
-                      : (value) {
-                          setState(() {
-                            _checkExternalLinks = value ?? false;
-                          });
-                        },
-                  title: const Text('Check external links'),
-                  subtitle: const Text(
-                    'Also check links to other domains (takes longer)',
-                  ),
-                  contentPadding: EdgeInsets.zero,
-                  controlAffinity: ListTileControlAffinity.leading,
-                ),
-
-                const SizedBox(height: 8),
-
-                // Full scan button and Continue scan button
-                Row(
-                  children: [
-                    // Full scan button
-                    Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: (isCheckingLinks || !canCheckLinks)
-                            ? null
-                            : () => _fullScan(),
-                        icon: _isStartScanning
-                            ? const SizedBox(
-                                width: 18,
-                                height: 18,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2,
-                                  color: Colors.white,
-                                ),
-                              )
-                            : const Icon(Icons.search, size: 20),
-                        label: const Text('Start Scan'),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          backgroundColor: Colors.green,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
-                    ),
-
-                    // Continue scan button (only if previous scan was incomplete)
-                    if (linkCheckerProvider
-                            .getCachedResult(widget.site.id)
-                            ?.scanCompleted ==
-                        false) ...[
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: isCheckingLinks
-                              ? null
-                              : () => _continueScan(),
-                          icon: _isContinueScanning
-                              ? SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: Theme.of(context).primaryColor,
-                                  ),
-                                )
-                              : const Icon(Icons.play_arrow, size: 20),
-                          label: const Text('Continue'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            foregroundColor: Colors.orange,
-                            side: const BorderSide(
-                              color: Colors.orange,
-                              width: 1.5,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-
-                // Countdown timer (rate limit for link checks)
-                if (timeUntilNext != null) ...[
-                  const SizedBox(height: 8),
-                  CountdownTimer(
-                    initialDuration: timeUntilNext,
-                    onComplete: () {
-                      if (mounted) {
-                        setState(() {});
-                      }
-                    },
-                  ),
-                ],
-
-                const SizedBox(height: 8),
-
-                // Note about page limit
-                Text(
-                  'Note: Free plan scans up to 50 pages per check',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: Colors.grey.shade600,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-            );
-          },
         ),
       ),
     );
@@ -380,10 +148,6 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   }
 
   Future<void> _fullScan() async {
-    setState(() {
-      _isStartScanning = true;
-    });
-
     try {
       // Step 1: Run site check first
       final monitoringProvider = context.read<MonitoringProvider>();
@@ -424,20 +188,12 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
 
       // Run link check directly (no confirmation dialog needed)
       await _runLinkCheck(continueFromLastScan: false);
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isStartScanning = false;
-        });
-      }
+    } catch (e) {
+      // Error handling is done in _runLinkCheck
     }
   }
 
   Future<void> _continueScan() async {
-    setState(() {
-      _isContinueScanning = true;
-    });
-
     try {
       // Get updated site data with the latest lastScannedPageIndex
       final siteProvider = context.read<SiteProvider>();
@@ -447,12 +203,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
       );
 
       await _runLinkCheck(continueFromLastScan: true, site: updatedSite);
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isContinueScanning = false;
-        });
-      }
+    } catch (e) {
+      // Error handling is done in _runLinkCheck
     }
   }
 
