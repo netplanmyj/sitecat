@@ -20,12 +20,16 @@ class SiteDetailScreen extends StatefulWidget {
   State<SiteDetailScreen> createState() => _SiteDetailScreenState();
 }
 
-class _SiteDetailScreenState extends State<SiteDetailScreen> {
+class _SiteDetailScreenState extends State<SiteDetailScreen>
+    with SingleTickerProviderStateMixin {
   bool _checkExternalLinks = false;
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+
     // Start listening to monitoring results
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MonitoringProvider>().listenToSiteResults(widget.site.id);
@@ -35,70 +39,108 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.site.name)),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SiteInfoCard(site: widget.site),
-              const SizedBox(height: 16),
+      appBar: AppBar(
+        title: Text(widget.site.name),
+        bottom: TabBar(
+          controller: _tabController,
+          tabs: const [
+            Tab(text: 'Quick Check', icon: Icon(Icons.speed)),
+            Tab(text: 'Full Scan', icon: Icon(Icons.link)),
+          ],
+        ),
+      ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          // Quick Check Tab
+          _buildQuickCheckTab(),
+          // Full Scan Tab
+          _buildFullScanTab(),
+        ],
+      ),
+    );
+  }
 
-              // Quick Check section
-              QuickCheckSection(site: widget.site, onQuickCheck: _quickCheck),
-              const SizedBox(height: 16),
-              MonitoringResultCard(site: widget.site),
+  // Quick Check Tab
+  Widget _buildQuickCheckTab() {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SiteInfoCard(site: widget.site),
+            const SizedBox(height: 16),
+            QuickCheckSection(site: widget.site, onQuickCheck: _quickCheck),
+            const SizedBox(height: 16),
+            MonitoringResultCard(site: widget.site),
+          ],
+        ),
+      ),
+    );
+  }
 
-              const SizedBox(height: 24),
-
-              // Full Scan section
-              FullScanSection(
-                site: widget.site,
-                onFullScan: (checkExternalLinks) {
-                  setState(() {
-                    _checkExternalLinks = checkExternalLinks;
-                  });
-                  _fullScan();
-                },
-                onContinueScan: _continueScan,
-              ),
-              const SizedBox(height: 16),
-              LinkCheckSection(
-                site: widget.site,
-                onCheckComplete: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Link check completed'),
-                      backgroundColor: Colors.green,
+  // Full Scan Tab
+  Widget _buildFullScanTab() {
+    return SingleChildScrollView(
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SiteInfoCard(site: widget.site),
+            const SizedBox(height: 16),
+            FullScanSection(
+              site: widget.site,
+              onFullScan: (checkExternalLinks) {
+                setState(() {
+                  _checkExternalLinks = checkExternalLinks;
+                });
+                _fullScan();
+              },
+              onContinueScan: _continueScan,
+            ),
+            const SizedBox(height: 16),
+            LinkCheckSection(
+              site: widget.site,
+              onCheckComplete: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Link check completed'),
+                    backgroundColor: Colors.green,
+                  ),
+                );
+              },
+              onCheckError: (error) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Error: $error'),
+                    backgroundColor: Colors.red,
+                  ),
+                );
+              },
+              onViewBrokenLinks: (site, brokenLinks, result) {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => BrokenLinksScreen(
+                      site: site,
+                      brokenLinks: brokenLinks,
+                      result: result,
                     ),
-                  );
-                },
-                onCheckError: (error) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $error'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                },
-                onViewBrokenLinks: (site, brokenLinks, result) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => BrokenLinksScreen(
-                        site: site,
-                        brokenLinks: brokenLinks,
-                        result: result,
-                      ),
-                    ),
-                  );
-                },
-              ),
-            ],
-          ),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
       ),
     );
@@ -149,44 +191,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
 
   Future<void> _fullScan() async {
     try {
-      // Step 1: Run site check first
-      final monitoringProvider = context.read<MonitoringProvider>();
-      await monitoringProvider.checkSite(widget.site);
-
-      if (!mounted) return;
-
-      // Check for provider error first
-      if (monitoringProvider.error != null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Site check failed: ${monitoringProvider.error}'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        return;
-      }
-
-      // Check the actual result for errors
-      final results = monitoringProvider.getSiteResults(widget.site.id);
-      if (results.isNotEmpty) {
-        final latestResult = results.first;
-        if (!latestResult.isUp || latestResult.error != null) {
-          // Site check failed - show warning but continue with link check
-          if (!mounted) return;
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(
-                'Warning: ${latestResult.error ?? 'Site check failed (Status: ${latestResult.statusCode})'}\n'
-                'Continuing with link check...',
-              ),
-              backgroundColor: Colors.orange,
-              duration: const Duration(seconds: 3),
-            ),
-          );
-        }
-      }
-
-      // Run link check directly (no confirmation dialog needed)
+      // Full Scan uses LinkCheckerProvider only (no MonitoringProvider)
+      // This ensures independent countdown timers for Quick Check and Full Scan
       await _runLinkCheck(continueFromLastScan: false);
     } catch (e) {
       // Error handling is done in _runLinkCheck
