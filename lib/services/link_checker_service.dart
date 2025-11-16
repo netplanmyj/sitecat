@@ -179,6 +179,10 @@ class LinkCheckerService {
 
     // Step 4: Check external links only if requested
     if (checkExternalLinks) {
+      // Notify that external link checking is starting
+      final cumulativePagesScanned = startIndex + pagesScanned;
+      onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
+
       final externalLinksList = externalLinks.toList();
       int checkedExternal = 0;
 
