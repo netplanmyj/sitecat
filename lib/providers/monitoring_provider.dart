@@ -7,8 +7,8 @@ import '../services/monitoring_service.dart';
 class MonitoringProvider extends ChangeNotifier {
   final MonitoringService _monitoringService = MonitoringService();
 
-  // Minimum interval between checks (5 minutes) to reduce load on target sites
-  static const Duration minimumCheckInterval = Duration(minutes: 5);
+  // Minimum interval between checks (1 minute for debugging)
+  static const Duration minimumCheckInterval = Duration(minutes: 1);
 
   // State variables
   final Map<String, List<MonitoringResult>> _resultsBySite = {};

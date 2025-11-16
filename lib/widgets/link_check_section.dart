@@ -35,6 +35,9 @@ class LinkCheckSection extends StatelessWidget {
         final result = linkChecker.getCachedResult(site.id);
         final brokenLinks = linkChecker.getCachedBrokenLinks(site.id);
         final progress = linkChecker.getProgress(site.id);
+        final isProcessingExternalLinks = linkChecker.isProcessingExternalLinks(
+          site.id,
+        );
 
         return Card(
           child: Padding(
@@ -60,7 +63,11 @@ class LinkCheckSection extends StatelessWidget {
                 // Progress indicator (when checking)
                 if (state == LinkCheckState.checking) ...[
                   const SizedBox(height: 16),
-                  LinkCheckProgress(checked: progress.$1, total: progress.$2),
+                  LinkCheckProgress(
+                    checked: progress.$1,
+                    total: progress.$2,
+                    isProcessingExternalLinks: isProcessingExternalLinks,
+                  ),
                 ],
 
                 // Results (when available)

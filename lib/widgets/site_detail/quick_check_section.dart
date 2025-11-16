@@ -4,7 +4,7 @@ import '../../models/site.dart';
 import '../../providers/monitoring_provider.dart';
 import '../countdown_timer.dart';
 
-class QuickCheckSection extends StatelessWidget {
+class QuickCheckSection extends StatefulWidget {
   final Site site;
   final VoidCallback onQuickCheck;
 
@@ -15,16 +15,25 @@ class QuickCheckSection extends StatelessWidget {
   });
 
   @override
+  State<QuickCheckSection> createState() => _QuickCheckSectionState();
+}
+
+class _QuickCheckSectionState extends State<QuickCheckSection> {
+  @override
   Widget build(BuildContext context) {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Consumer<MonitoringProvider>(
           builder: (context, monitoringProvider, child) {
-            final isCheckingSite = monitoringProvider.isChecking(site.id);
-            final canCheckSite = monitoringProvider.canCheckSite(site.id);
+            final isCheckingSite = monitoringProvider.isChecking(
+              widget.site.id,
+            );
+            final canCheckSite = monitoringProvider.canCheckSite(
+              widget.site.id,
+            );
             final timeUntilNext = monitoringProvider.getTimeUntilNextCheck(
-              site.id,
+              widget.site.id,
             );
 
             return Column(
@@ -56,7 +65,7 @@ class QuickCheckSection extends StatelessWidget {
                   child: ElevatedButton.icon(
                     onPressed: (isCheckingSite || !canCheckSite)
                         ? null
-                        : onQuickCheck,
+                        : widget.onQuickCheck,
                     icon: isCheckingSite
                         ? const SizedBox(
                             width: 18,
@@ -82,8 +91,10 @@ class QuickCheckSection extends StatelessWidget {
                   CountdownTimer(
                     initialDuration: timeUntilNext,
                     onComplete: () {
-                      // Trigger rebuild by notifying parent if needed
-                      // Parent should use setState when this completes
+                      // Force UI update when countdown completes
+                      if (mounted) {
+                        setState(() {});
+                      }
                     },
                   ),
                 ],
