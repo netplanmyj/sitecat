@@ -156,20 +156,12 @@ class LinkCheckerProvider extends ChangeNotifier {
     final previousChecked = _checkedCounts[siteId] ?? 0;
     final previousTotal = _totalCounts[siteId] ?? 0;
 
-    // Only reset progress counters for new scans, not for continue scan
-    if (!continueFromLastScan) {
-      _checkedCounts[siteId] = 0;
-      _totalCounts[siteId] = 0;
-      _isProcessingExternalLinks[siteId] = false;
-      _externalLinksChecked[siteId] = 0;
-      _externalLinksTotal[siteId] = 0;
-    } else {
-      // For continue scan, reset link checking progress but keep page progress
-      _isProcessingExternalLinks[siteId] = false;
-      _externalLinksChecked[siteId] = 0;
-      _externalLinksTotal[siteId] = 0;
-    }
-    // For continue scan, keep the previous page progress values until new progress arrives
+    // Reset progress counters at the start of scan (both new and continue)
+    _checkedCounts[siteId] = 0;
+    _totalCounts[siteId] = 0;
+    _isProcessingExternalLinks[siteId] = false;
+    _externalLinksChecked[siteId] = 0;
+    _externalLinksTotal[siteId] = 0;
 
     notifyListeners();
 
@@ -205,7 +197,7 @@ class LinkCheckerProvider extends ChangeNotifier {
 
       // Update state to completed and notify immediately
       _checkStates[siteId] = LinkCheckState.completed;
-      _isProcessingExternalLinks[siteId] = false; // Reset flag
+      // Keep progress display (don't reset _isProcessingExternalLinks)
       notifyListeners(); // Immediate UI update with scan results
 
       // Fetch broken links using resultId (async, but UI already shows results)

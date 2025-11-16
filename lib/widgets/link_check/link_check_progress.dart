@@ -20,12 +20,8 @@ class LinkCheckProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPageCheckComplete = total > 0 && checked >= total;
-    // Show links checking when:
-    // 1. Link checking has started (isProcessingExternalLinks=true)
-    // 2. There are links to check (externalLinksTotal > 0)
-    // Note: Don't require page check completion for Continue scans
-    final showLinksChecking =
-        isProcessingExternalLinks && externalLinksTotal > 0;
+    // Show links checking when there are links (keep display after completion)
+    final showLinksChecking = externalLinksTotal > 0;
 
     // DEBUG: Print values
     print(
@@ -61,22 +57,9 @@ class LinkCheckProgress extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Text(
-                    'Checking links...',
-                    style: TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                  const SizedBox(width: 8),
-                  const SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
-                    ),
-                  ),
-                ],
+              const Text(
+                'Checking links...',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
               ),
               Text(
                 '$externalLinksChecked / $externalLinksTotal',
