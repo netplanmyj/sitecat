@@ -20,11 +20,12 @@ class LinkCheckProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPageCheckComplete = total > 0 && checked >= total;
+    // Show links checking when:
+    // 1. Link checking has started (isProcessingExternalLinks=true)
+    // 2. There are links to check (externalLinksTotal > 0)
+    // Note: Don't require page check completion for Continue scans
     final showLinksChecking =
-        isPageCheckComplete &&
-        isProcessingExternalLinks &&
-        externalLinksTotal >
-            0; // Show when checking any links (internal or external)
+        isProcessingExternalLinks && externalLinksTotal > 0;
 
     // DEBUG: Print values
     print(
