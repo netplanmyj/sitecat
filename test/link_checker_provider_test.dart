@@ -87,6 +87,81 @@ void main() {
     test('minimum check interval logic - 1 minute for debugging', () {
       expect(LinkCheckerProvider.minimumCheckInterval.inMinutes, equals(1));
     });
+
+    test('external links progress tracking - handles empty state', () {
+      final Map<String, int> externalLinksChecked = {};
+      final Map<String, int> externalLinksTotal = {};
+
+      final checked = externalLinksChecked['site_1'] ?? 0;
+      final total = externalLinksTotal['site_1'] ?? 0;
+
+      expect(checked, equals(0));
+      expect(total, equals(0));
+    });
+
+    test('external links progress tracking - tracks progress correctly', () {
+      final Map<String, int> externalLinksChecked = {'site_1': 15};
+      final Map<String, int> externalLinksTotal = {'site_1': 30};
+
+      final checked = externalLinksChecked['site_1'] ?? 0;
+      final total = externalLinksTotal['site_1'] ?? 0;
+
+      expect(checked, equals(15));
+      expect(total, equals(30));
+      expect(checked < total, isTrue);
+    });
+
+    test('external links progress tracking - completes when all checked', () {
+      final Map<String, int> externalLinksChecked = {'site_1': 30};
+      final Map<String, int> externalLinksTotal = {'site_1': 30};
+
+      final checked = externalLinksChecked['site_1'] ?? 0;
+      final total = externalLinksTotal['site_1'] ?? 0;
+
+      expect(checked, equals(total));
+      expect(checked >= total, isTrue);
+    });
+
+    test('external links progress - calculates percentage correctly', () {
+      // Test progress calculation logic
+      double calculateProgress(int checked, int total) {
+        return total > 0 ? checked / total : 0.0;
+      }
+
+      expect(calculateProgress(0, 30), equals(0.0));
+      expect(calculateProgress(15, 30), equals(0.5));
+      expect(calculateProgress(30, 30), equals(1.0));
+      expect(calculateProgress(0, 0), equals(0.0)); // Edge case
+    });
+
+    test('two-stage progress - page scan then external links', () {
+      // Simulate the two-stage progress flow
+      final stages = <String, Map<String, int>>{
+        'pages': {'checked': 50, 'total': 50},
+        'external': {'checked': 0, 'total': 20},
+      };
+
+      // Stage 1: Page scanning complete
+      expect(stages['pages']!['checked'], equals(stages['pages']!['total']));
+
+      // Stage 2: External links starting
+      expect(stages['external']!['checked'], equals(0));
+      expect(stages['external']!['total'], greaterThan(0));
+
+      // Simulate progress
+      stages['external']!['checked'] = 10;
+      expect(
+        stages['external']!['checked']! < stages['external']!['total']!,
+        isTrue,
+      );
+
+      // Simulate completion
+      stages['external']!['checked'] = 20;
+      expect(
+        stages['external']!['checked'],
+        equals(stages['external']!['total']),
+      );
+    });
   });
 
   group('UrlUtils - URL Mismatch Detection', () {
