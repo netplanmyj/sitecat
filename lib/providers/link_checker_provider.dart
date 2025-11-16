@@ -13,8 +13,8 @@ class LinkCheckerProvider extends ChangeNotifier {
   final LinkCheckerService _linkCheckerService = LinkCheckerService();
   final SiteService _siteService = SiteService();
 
-  // Minimum interval between checks (5 minutes) to reduce server load
-  static const Duration minimumCheckInterval = Duration(minutes: 5);
+  // Minimum interval between checks (1 minute for debugging)
+  static const Duration minimumCheckInterval = Duration(minutes: 1);
 
   // State variables
   final Map<String, LinkCheckState> _checkStates = {};
@@ -25,6 +25,7 @@ class LinkCheckerProvider extends ChangeNotifier {
   final Map<String, int> _totalCounts = {};
   final Map<String, DateTime> _lastCheckTime = {};
   final Map<String, List<LinkCheckResult>> _checkHistory = {};
+  final Map<String, bool> _isProcessingExternalLinks = {};
 
   // All results across sites
   List<({String siteId, LinkCheckResult result})> _allCheckHistory = [];
@@ -54,6 +55,11 @@ class LinkCheckerProvider extends ChangeNotifier {
   /// Get progress for a site (returns checked/total)
   (int checked, int total) getProgress(String siteId) {
     return (_checkedCounts[siteId] ?? 0, _totalCounts[siteId] ?? 0);
+  }
+
+  /// Check if external links are being processed
+  bool isProcessingExternalLinks(String siteId) {
+    return _isProcessingExternalLinks[siteId] ?? false;
   }
 
   /// Check if a site is currently being checked
@@ -144,6 +150,7 @@ class LinkCheckerProvider extends ChangeNotifier {
     if (!continueFromLastScan) {
       _checkedCounts[siteId] = 0;
       _totalCounts[siteId] = 0;
+      _isProcessingExternalLinks[siteId] = false;
     }
     // For continue scan, keep the previous progress values until new progress arrives
 
@@ -158,6 +165,12 @@ class LinkCheckerProvider extends ChangeNotifier {
         onProgress: (checked, total) {
           _checkedCounts[siteId] = checked;
           _totalCounts[siteId] = total;
+
+          // Mark as processing external links when page check is complete
+          if (checkExternalLinks && checked >= total && total > 0) {
+            _isProcessingExternalLinks[siteId] = true;
+          }
+
           notifyListeners();
         },
       );
@@ -167,6 +180,7 @@ class LinkCheckerProvider extends ChangeNotifier {
 
       // Update state to completed and notify immediately
       _checkStates[siteId] = LinkCheckState.completed;
+      _isProcessingExternalLinks[siteId] = false; // Reset flag
       notifyListeners(); // Immediate UI update with scan results
 
       // Fetch broken links using resultId (async, but UI already shows results)
@@ -191,6 +205,7 @@ class LinkCheckerProvider extends ChangeNotifier {
       // Handle error - preserve the last known state for continue functionality
       _checkStates[siteId] = LinkCheckState.error;
       _errors[siteId] = e.toString();
+      _isProcessingExternalLinks[siteId] = false; // Reset flag on error
 
       // Restore previous progress if this was a new scan that failed early
       // This ensures Continue button works correctly after an error

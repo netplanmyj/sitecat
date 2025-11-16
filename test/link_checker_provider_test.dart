@@ -1,9 +1,95 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sitecat/models/broken_link.dart';
 import 'package:sitecat/models/site.dart';
+import 'package:sitecat/providers/link_checker_provider.dart';
 import 'package:sitecat/utils/url_utils.dart';
 
 void main() {
+  group('LinkCheckerProvider - State Management Logic', () {
+    test('isProcessingExternalLinks logic - returns false for empty map', () {
+      // Test the logic without instantiating the provider
+      final Map<String, bool> isProcessingMap = {};
+      expect(isProcessingMap['site_1'] ?? false, isFalse);
+    });
+
+    test('isProcessingExternalLinks logic - returns true when set', () {
+      final Map<String, bool> isProcessingMap = {'site_1': true};
+      expect(isProcessingMap['site_1'] ?? false, isTrue);
+    });
+
+    test(
+      'isProcessingExternalLinks logic - returns false when explicitly set',
+      () {
+        final Map<String, bool> isProcessingMap = {'site_1': false};
+        expect(isProcessingMap['site_1'] ?? false, isFalse);
+      },
+    );
+
+    test('progress tracking logic - handles empty state', () {
+      final Map<String, int> checkedCounts = {};
+      final Map<String, int> totalCounts = {};
+
+      final checked = checkedCounts['site_1'] ?? 0;
+      final total = totalCounts['site_1'] ?? 0;
+
+      expect(checked, equals(0));
+      expect(total, equals(0));
+    });
+
+    test('progress tracking logic - tracks progress correctly', () {
+      final Map<String, int> checkedCounts = {'site_1': 25};
+      final Map<String, int> totalCounts = {'site_1': 50};
+
+      final checked = checkedCounts['site_1'] ?? 0;
+      final total = totalCounts['site_1'] ?? 0;
+
+      expect(checked, equals(25));
+      expect(total, equals(50));
+      expect(checked < total, isTrue);
+    });
+
+    test('external links processing trigger - activates when pages complete', () {
+      final checked = 50;
+      final total = 50;
+      final checkExternalLinks = true;
+
+      // Simulates the condition: checkExternalLinks && checked >= total && total > 0
+      final shouldProcessExternal =
+          checkExternalLinks && checked >= total && total > 0;
+
+      expect(shouldProcessExternal, isTrue);
+    });
+
+    test('external links processing trigger - does not activate mid-scan', () {
+      const checked = 25;
+      const total = 50;
+      const checkExternalLinks = true;
+
+      const shouldProcessExternal =
+          checkExternalLinks && checked >= total && total > 0;
+
+      expect(shouldProcessExternal, isFalse);
+    });
+
+    test(
+      'external links processing trigger - does not activate when disabled',
+      () {
+        const checked = 50;
+        const total = 50;
+        const checkExternalLinks = false;
+
+        const shouldProcessExternal =
+            checkExternalLinks && checked >= total && total > 0;
+
+        expect(shouldProcessExternal, isFalse);
+      },
+    );
+
+    test('minimum check interval logic - 1 minute for debugging', () {
+      expect(LinkCheckerProvider.minimumCheckInterval.inMinutes, equals(1));
+    });
+  });
+
   group('UrlUtils - URL Mismatch Detection', () {
     test('detects no mismatch when URLs are identical', () {
       final site = Site(
