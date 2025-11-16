@@ -154,19 +154,9 @@ class LinkCheckerService {
     final totalAllLinks = totalInternalLinks + externalLinksCount;
     int checkedInternal = 0;
 
-    // DEBUG
-    print(
-      '🔍 LinkChecker: checkExternalLinks=$checkExternalLinks, '
-      'internal=$totalInternalLinks, external=$externalLinksCount, '
-      'total=$totalAllLinks',
-    );
-
     // Report initial state if there are links to check
     if (totalAllLinks > 0) {
-      print('📢 Reporting initial progress: 0/$totalAllLinks'); // DEBUG
       onExternalLinksProgress?.call(0, totalAllLinks);
-    } else {
-      print('⚠️ NOT reporting: totalAllLinks=$totalAllLinks'); // DEBUG
     }
 
     for (final link in internalLinksList) {

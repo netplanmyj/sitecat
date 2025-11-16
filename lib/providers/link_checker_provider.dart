@@ -178,14 +178,12 @@ class LinkCheckerProvider extends ChangeNotifier {
           notifyListeners();
         },
         onExternalLinksProgress: (checked, total) {
-          print('🔗 Links progress: $checked/$total'); // DEBUG
           _externalLinksChecked[siteId] = checked;
           _externalLinksTotal[siteId] = total;
 
           // Mark as processing links when this callback is first called
           if (!(_isProcessingExternalLinks[siteId] ?? false)) {
             _isProcessingExternalLinks[siteId] = true;
-            print('✅ isProcessingExternalLinks set to true'); // DEBUG
           }
 
           notifyListeners();

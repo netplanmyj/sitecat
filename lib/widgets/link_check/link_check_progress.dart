@@ -19,17 +19,8 @@ class LinkCheckProgress extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPageCheckComplete = total > 0 && checked >= total;
     // Show links checking when there are links (keep display after completion)
     final showLinksChecking = externalLinksTotal > 0;
-
-    // DEBUG: Print values
-    print(
-      '📊 LinkCheckProgress: pageComplete=$isPageCheckComplete, '
-      'isProcessing=$isProcessingExternalLinks, '
-      'linksTotal=$externalLinksTotal, '
-      'show=$showLinksChecking',
-    );
 
     return Column(
       children: [
