@@ -178,16 +178,17 @@ class LinkCheckerProvider extends ChangeNotifier {
           _checkedCounts[siteId] = checked;
           _totalCounts[siteId] = total;
 
-          // Mark as processing external links when page check is complete
-          if (checkExternalLinks && checked >= total && total > 0) {
-            _isProcessingExternalLinks[siteId] = true;
-          }
-
           notifyListeners();
         },
         onExternalLinksProgress: (checked, total) {
           _externalLinksChecked[siteId] = checked;
           _externalLinksTotal[siteId] = total;
+
+          // Mark as processing links when this callback is first called
+          if (!(_isProcessingExternalLinks[siteId] ?? false)) {
+            _isProcessingExternalLinks[siteId] = true;
+          }
+
           notifyListeners();
         },
       );

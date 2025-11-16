@@ -21,7 +21,9 @@ class LinkCheckProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     final isPageCheckComplete = total > 0 && checked >= total;
     final showExternalLinksProcessing =
-        isPageCheckComplete && isProcessingExternalLinks;
+        isPageCheckComplete &&
+        isProcessingExternalLinks &&
+        externalLinksTotal > 0; // Only show if there are links to check
 
     return Column(
       children: [

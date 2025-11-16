@@ -148,7 +148,16 @@ class LinkCheckerService {
     final brokenLinks = <BrokenLink>[];
     final internalLinksList = internalLinks.toList();
     final totalInternalLinks = internalLinksList.length;
+
+    // Calculate total links to check (for progress reporting)
+    final externalLinksCount = checkExternalLinks ? externalLinks.length : 0;
+    final totalAllLinks = totalInternalLinks + externalLinksCount;
     int checkedInternal = 0;
+
+    // Report initial state if checking links
+    if (checkExternalLinks && totalAllLinks > 0) {
+      onExternalLinksProgress?.call(0, totalAllLinks);
+    }
 
     for (final link in internalLinksList) {
       final linkUrl = link.toString();
@@ -177,10 +186,9 @@ class LinkCheckerService {
       }
 
       checkedInternal++;
-      // Report internal links progress (if external links will be checked, combine them)
+      // Report internal links progress (combined with external total)
       if (checkExternalLinks) {
-        // Will combine with external links later
-        onExternalLinksProgress?.call(checkedInternal, totalInternalLinks);
+        onExternalLinksProgress?.call(checkedInternal, totalAllLinks);
       }
     }
 
@@ -191,13 +199,7 @@ class LinkCheckerService {
       onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
 
       final externalLinksList = externalLinks.toList();
-      final totalExternalLinks = externalLinksList.length;
-      final totalAllLinks = totalInternalLinks + totalExternalLinks;
       int checkedExternal = 0;
-
-      // Report initial state for external links phase
-      // (internal links already checked)
-      onExternalLinksProgress?.call(checkedInternal, totalAllLinks);
 
       for (final link in externalLinksList) {
         final linkUrl = link.toString();
