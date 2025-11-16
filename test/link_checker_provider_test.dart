@@ -71,19 +71,18 @@ void main() {
       expect(shouldProcessExternal, isFalse);
     });
 
-    test(
-      'external links processing trigger - does not activate when disabled',
-      () {
-        final checked = 50;
-        final total = 50;
-        final checkExternalLinks = false;
+    test('external links processing trigger - validates condition logic', () {
+      // Helper function to test the condition logic dynamically
+      bool shouldProcessExternal(bool enabled, int checked, int total) {
+        return enabled && checked >= total && total > 0;
+      }
 
-        final shouldProcessExternal =
-            checkExternalLinks && checked >= total && total > 0;
-
-        expect(shouldProcessExternal, isFalse);
-      },
-    );
+      // Test various scenarios
+      expect(shouldProcessExternal(true, 50, 50), isTrue); // All conditions met
+      expect(shouldProcessExternal(false, 50, 50), isFalse); // Disabled
+      expect(shouldProcessExternal(true, 40, 50), isFalse); // Not complete
+      expect(shouldProcessExternal(true, 50, 0), isFalse); // Empty total
+    });
 
     test('minimum check interval logic - 1 minute for debugging', () {
       expect(LinkCheckerProvider.minimumCheckInterval.inMinutes, equals(1));
