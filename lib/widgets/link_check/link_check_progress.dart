@@ -52,7 +52,7 @@ class LinkCheckProgress extends StatelessWidget {
               Row(
                 children: [
                   const Text(
-                    'Checking external links...',
+                    'Checking links...',
                     style: TextStyle(fontSize: 13, color: Colors.grey),
                   ),
                   const SizedBox(width: 8),
