@@ -74,11 +74,11 @@ void main() {
     test(
       'external links processing trigger - does not activate when disabled',
       () {
-        const checked = 50;
-        const total = 50;
-        const checkExternalLinks = false;
+        final checked = 50;
+        final total = 50;
+        final checkExternalLinks = false;
 
-        const shouldProcessExternal =
+        final shouldProcessExternal =
             checkExternalLinks && checked >= total && total > 0;
 
         expect(shouldProcessExternal, isFalse);
