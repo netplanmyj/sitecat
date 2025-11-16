@@ -20,17 +20,18 @@ class LinkCheckProgress extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isPageCheckComplete = total > 0 && checked >= total;
-    final showExternalLinksProcessing =
+    final showLinksChecking =
         isPageCheckComplete &&
         isProcessingExternalLinks &&
-        externalLinksTotal > 0; // Only show if there are links to check
+        externalLinksTotal >
+            0; // Show when checking any links (internal or external)
 
     // DEBUG: Print values
     print(
       '📊 LinkCheckProgress: pageComplete=$isPageCheckComplete, '
       'isProcessing=$isProcessingExternalLinks, '
       'linksTotal=$externalLinksTotal, '
-      'show=$showExternalLinksProcessing',
+      'show=$showLinksChecking',
     );
 
     return Column(
@@ -53,8 +54,8 @@ class LinkCheckProgress extends StatelessWidget {
         const SizedBox(height: 12),
         LinearProgressIndicator(value: total > 0 ? checked / total : null),
 
-        // External links checking progress (shown when processing)
-        if (showExternalLinksProcessing) ...[
+        // Links checking progress (internal + external)
+        if (showLinksChecking) ...[
           const SizedBox(height: 20),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
