@@ -25,6 +25,14 @@ class LinkCheckProgress extends StatelessWidget {
         isProcessingExternalLinks &&
         externalLinksTotal > 0; // Only show if there are links to check
 
+    // DEBUG: Print values
+    print(
+      '📊 LinkCheckProgress: pageComplete=$isPageCheckComplete, '
+      'isProcessing=$isProcessingExternalLinks, '
+      'linksTotal=$externalLinksTotal, '
+      'show=$showExternalLinksProcessing',
+    );
+
     return Column(
       children: [
         const SizedBox(height: 16),

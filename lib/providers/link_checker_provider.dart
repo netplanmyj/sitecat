@@ -163,8 +163,13 @@ class LinkCheckerProvider extends ChangeNotifier {
       _isProcessingExternalLinks[siteId] = false;
       _externalLinksChecked[siteId] = 0;
       _externalLinksTotal[siteId] = 0;
+    } else {
+      // For continue scan, reset link checking progress but keep page progress
+      _isProcessingExternalLinks[siteId] = false;
+      _externalLinksChecked[siteId] = 0;
+      _externalLinksTotal[siteId] = 0;
     }
-    // For continue scan, keep the previous progress values until new progress arrives
+    // For continue scan, keep the previous page progress values until new progress arrives
 
     notifyListeners();
 
@@ -181,12 +186,14 @@ class LinkCheckerProvider extends ChangeNotifier {
           notifyListeners();
         },
         onExternalLinksProgress: (checked, total) {
+          print('🔗 Links progress: $checked/$total'); // DEBUG
           _externalLinksChecked[siteId] = checked;
           _externalLinksTotal[siteId] = total;
 
           // Mark as processing links when this callback is first called
           if (!(_isProcessingExternalLinks[siteId] ?? false)) {
             _isProcessingExternalLinks[siteId] = true;
+            print('✅ isProcessingExternalLinks set to true'); // DEBUG
           }
 
           notifyListeners();
