@@ -31,6 +31,7 @@ class LinkCheckerService {
     bool checkExternalLinks = true,
     bool continueFromLastScan = false, // Continue from last scanned index
     void Function(int checked, int total)? onProgress,
+    void Function(int checked, int total)? onExternalLinksProgress,
   }) async {
     if (_currentUserId == null) {
       throw Exception('User must be authenticated to check links');
@@ -146,7 +147,17 @@ class LinkCheckerService {
     // Step 3: Check internal links for broken pages
     final brokenLinks = <BrokenLink>[];
     final internalLinksList = internalLinks.toList();
+    final totalInternalLinks = internalLinksList.length;
+
+    // Calculate total links to check (for progress reporting)
+    final externalLinksCount = checkExternalLinks ? externalLinks.length : 0;
+    final totalAllLinks = totalInternalLinks + externalLinksCount;
     int checkedInternal = 0;
+
+    // Report initial state if there are links to check
+    if (totalAllLinks > 0) {
+      onExternalLinksProgress?.call(0, totalAllLinks);
+    }
 
     for (final link in internalLinksList) {
       final linkUrl = link.toString();
@@ -175,10 +186,18 @@ class LinkCheckerService {
       }
 
       checkedInternal++;
+      // Always report internal links progress
+      if (totalAllLinks > 0) {
+        onExternalLinksProgress?.call(checkedInternal, totalAllLinks);
+      }
     }
 
     // Step 4: Check external links only if requested
     if (checkExternalLinks) {
+      // Notify that external link checking is starting
+      final cumulativePagesScanned = startIndex + pagesScanned;
+      onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
+
       final externalLinksList = externalLinks.toList();
       int checkedExternal = 0;
 
@@ -209,6 +228,9 @@ class LinkCheckerService {
         }
 
         checkedExternal++;
+        // Report combined progress (internal + external)
+        final totalChecked = checkedInternal + checkedExternal;
+        onExternalLinksProgress?.call(totalChecked, totalAllLinks);
       }
     }
 

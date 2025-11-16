@@ -5,46 +5,33 @@ class LinkCheckProgress extends StatelessWidget {
   final int checked;
   final int total;
   final bool isProcessingExternalLinks;
+  final int externalLinksChecked;
+  final int externalLinksTotal;
 
   const LinkCheckProgress({
     super.key,
     required this.checked,
     required this.total,
     this.isProcessingExternalLinks = false,
+    this.externalLinksChecked = 0,
+    this.externalLinksTotal = 0,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isPageCheckComplete = total > 0 && checked >= total;
-    final showExternalLinksProcessing =
-        isPageCheckComplete && isProcessingExternalLinks;
+    // Show links checking when there are links (keep display after completion)
+    final showLinksChecking = externalLinksTotal > 0;
 
     return Column(
       children: [
         const SizedBox(height: 16),
+        // Page scanning progress
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Row(
-              children: [
-                Text(
-                  showExternalLinksProcessing
-                      ? 'Checking external links...'
-                      : 'Checking pages...',
-                  style: const TextStyle(fontSize: 13, color: Colors.grey),
-                ),
-                if (showExternalLinksProcessing) ...[
-                  const SizedBox(width: 8),
-                  const SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
-                    ),
-                  ),
-                ],
-              ],
+            Text(
+              'Checking pages...',
+              style: const TextStyle(fontSize: 13, color: Colors.grey),
             ),
             Text(
               '$checked / $total',
@@ -53,13 +40,31 @@ class LinkCheckProgress extends StatelessWidget {
           ],
         ),
         const SizedBox(height: 12),
-        LinearProgressIndicator(
-          value: showExternalLinksProcessing
-              ? null // Indeterminate mode for external links
-              : (total > 0 ? checked / total : null),
-          color: showExternalLinksProcessing ? Colors.orange : null,
-        ),
-        if (showExternalLinksProcessing) ...[
+        LinearProgressIndicator(value: total > 0 ? checked / total : null),
+
+        // Links checking progress (internal + external)
+        if (showLinksChecking) ...[
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Checking links...',
+                style: TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+              Text(
+                '$externalLinksChecked / $externalLinksTotal',
+                style: const TextStyle(fontSize: 13, color: Colors.grey),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          LinearProgressIndicator(
+            value: externalLinksTotal > 0
+                ? externalLinksChecked / externalLinksTotal
+                : null,
+            color: Colors.orange,
+          ),
           const SizedBox(height: 8),
           Text(
             'This may take a few minutes...',
