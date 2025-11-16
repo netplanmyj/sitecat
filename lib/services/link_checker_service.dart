@@ -31,6 +31,7 @@ class LinkCheckerService {
     bool checkExternalLinks = true,
     bool continueFromLastScan = false, // Continue from last scanned index
     void Function(int checked, int total)? onProgress,
+    void Function(int checked, int total)? onExternalLinksProgress,
   }) async {
     if (_currentUserId == null) {
       throw Exception('User must be authenticated to check links');
@@ -184,6 +185,7 @@ class LinkCheckerService {
       onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
 
       final externalLinksList = externalLinks.toList();
+      final totalExternalLinks = externalLinksList.length;
       int checkedExternal = 0;
 
       for (final link in externalLinksList) {
@@ -213,6 +215,8 @@ class LinkCheckerService {
         }
 
         checkedExternal++;
+        // Report external links progress
+        onExternalLinksProgress?.call(checkedExternal, totalExternalLinks);
       }
     }
 

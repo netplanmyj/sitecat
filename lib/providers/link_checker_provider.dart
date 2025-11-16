@@ -26,6 +26,8 @@ class LinkCheckerProvider extends ChangeNotifier {
   final Map<String, DateTime> _lastCheckTime = {};
   final Map<String, List<LinkCheckResult>> _checkHistory = {};
   final Map<String, bool> _isProcessingExternalLinks = {};
+  final Map<String, int> _externalLinksChecked = {};
+  final Map<String, int> _externalLinksTotal = {};
 
   // All results across sites
   List<({String siteId, LinkCheckResult result})> _allCheckHistory = [];
@@ -60,6 +62,14 @@ class LinkCheckerProvider extends ChangeNotifier {
   /// Check if external links are being processed
   bool isProcessingExternalLinks(String siteId) {
     return _isProcessingExternalLinks[siteId] ?? false;
+  }
+
+  /// Get external links checking progress (returns checked/total)
+  (int checked, int total) getExternalLinksProgress(String siteId) {
+    return (
+      _externalLinksChecked[siteId] ?? 0,
+      _externalLinksTotal[siteId] ?? 0,
+    );
   }
 
   /// Check if a site is currently being checked
@@ -151,6 +161,8 @@ class LinkCheckerProvider extends ChangeNotifier {
       _checkedCounts[siteId] = 0;
       _totalCounts[siteId] = 0;
       _isProcessingExternalLinks[siteId] = false;
+      _externalLinksChecked[siteId] = 0;
+      _externalLinksTotal[siteId] = 0;
     }
     // For continue scan, keep the previous progress values until new progress arrives
 
@@ -171,6 +183,11 @@ class LinkCheckerProvider extends ChangeNotifier {
             _isProcessingExternalLinks[siteId] = true;
           }
 
+          notifyListeners();
+        },
+        onExternalLinksProgress: (checked, total) {
+          _externalLinksChecked[siteId] = checked;
+          _externalLinksTotal[siteId] = total;
           notifyListeners();
         },
       );

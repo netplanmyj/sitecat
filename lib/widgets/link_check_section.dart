@@ -35,6 +35,9 @@ class LinkCheckSection extends StatelessWidget {
         final result = linkChecker.getCachedResult(site.id);
         final brokenLinks = linkChecker.getCachedBrokenLinks(site.id);
         final progress = linkChecker.getProgress(site.id);
+        final externalLinksProgress = linkChecker.getExternalLinksProgress(
+          site.id,
+        );
         final isProcessingExternalLinks = linkChecker.isProcessingExternalLinks(
           site.id,
         );
@@ -67,6 +70,8 @@ class LinkCheckSection extends StatelessWidget {
                     checked: progress.$1,
                     total: progress.$2,
                     isProcessingExternalLinks: isProcessingExternalLinks,
+                    externalLinksChecked: externalLinksProgress.$1,
+                    externalLinksTotal: externalLinksProgress.$2,
                   ),
                 ],
 
