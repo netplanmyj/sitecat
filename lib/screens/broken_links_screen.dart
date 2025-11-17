@@ -28,7 +28,7 @@ class BrokenLinksScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Broken Links'),
+        title: const Text('Scan Results'),
         backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
       body: Column(
