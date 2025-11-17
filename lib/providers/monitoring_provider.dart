@@ -36,6 +36,22 @@ class MonitoringProvider extends ChangeNotifier {
     return results != null && results.isNotEmpty ? results.first : null;
   }
 
+  /// Get all monitoring results across all sites
+  List<({String siteId, MonitoringResult result})> getAllResults() {
+    final allResults = <({String siteId, MonitoringResult result})>[];
+
+    _resultsBySite.forEach((siteId, results) {
+      for (final result in results) {
+        allResults.add((siteId: siteId, result: result));
+      }
+    });
+
+    // Sort by timestamp (newest first)
+    allResults.sort((a, b) => b.result.timestamp.compareTo(a.result.timestamp));
+
+    return allResults;
+  }
+
   @override
   void dispose() {
     _subscriptions?.forEach((key, subscription) {

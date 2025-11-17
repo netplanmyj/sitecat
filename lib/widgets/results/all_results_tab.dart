@@ -1,21 +1,63 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/broken_link.dart';
+import '../../models/monitoring_result.dart';
 import '../../models/site.dart';
 import '../../providers/link_checker_provider.dart';
+import '../../providers/monitoring_provider.dart';
 import '../../providers/site_provider.dart';
 import '../../utils/date_formatter.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../screens/broken_links_screen.dart';
+
+// Unified result type for Quick Check and Full Scan
+sealed class UnifiedResult {
+  final String siteId;
+  final DateTime timestamp;
+
+  UnifiedResult({required this.siteId, required this.timestamp});
+}
+
+class QuickCheckResult extends UnifiedResult {
+  final MonitoringResult result;
+
+  QuickCheckResult({required super.siteId, required this.result})
+    : super(timestamp: result.timestamp);
+}
+
+class FullScanResult extends UnifiedResult {
+  final LinkCheckResult result;
+
+  FullScanResult({required super.siteId, required this.result})
+    : super(timestamp: result.timestamp);
+}
 
 class AllResultsTab extends StatelessWidget {
   const AllResultsTab({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Consumer2<LinkCheckerProvider, SiteProvider>(
-      builder: (context, linkChecker, siteProvider, child) {
-        final allResults = linkChecker.getAllCheckHistory();
+    return Consumer3<LinkCheckerProvider, MonitoringProvider, SiteProvider>(
+      builder: (context, linkChecker, monitoring, siteProvider, child) {
+        // Combine Quick Check and Full Scan results
+        final allResults = <UnifiedResult>[];
+
+        // Add Full Scan results
+        for (final item in linkChecker.getAllCheckHistory()) {
+          allResults.add(
+            FullScanResult(siteId: item.siteId, result: item.result),
+          );
+        }
+
+        // Add Quick Check results
+        for (final item in monitoring.getAllResults()) {
+          allResults.add(
+            QuickCheckResult(siteId: item.siteId, result: item.result),
+          );
+        }
+
+        // Sort by timestamp (newest first)
+        allResults.sort((a, b) => b.timestamp.compareTo(a.timestamp));
 
         if (allResults.isEmpty) {
           return const Center(
@@ -24,7 +66,7 @@ class AllResultsTab extends StatelessWidget {
               child: EmptyState(
                 icon: Icons.assessment,
                 title: 'No results yet',
-                subtitle: 'Run a full scan to see results',
+                subtitle: 'Run a scan or check to see results',
               ),
             ),
           );
@@ -47,19 +89,153 @@ class AllResultsTab extends StatelessWidget {
               ),
             );
 
-            return _buildResultCard(context, item.result, site, linkChecker);
+            return switch (item) {
+              QuickCheckResult() => _buildQuickCheckCard(context, item, site),
+              FullScanResult() => _buildFullScanCard(
+                context,
+                item,
+                site,
+                linkChecker,
+              ),
+            };
           },
         );
       },
     );
   }
 
-  Widget _buildResultCard(
+  Widget _buildQuickCheckCard(
     BuildContext context,
-    LinkCheckResult result,
+    QuickCheckResult item,
+    Site site,
+  ) {
+    final result = item.result;
+    final isUp = result.isUp;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 12),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Header
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 16,
+                  backgroundColor: isUp
+                      ? Colors.green.shade100
+                      : Colors.red.shade100,
+                  child: Icon(
+                    isUp ? Icons.check_circle : Icons.error,
+                    size: 18,
+                    color: isUp ? Colors.green.shade700 : Colors.red.shade700,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            site.name,
+                            style: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.blue.shade50,
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.blue.shade200),
+                            ),
+                            child: Text(
+                              'Quick Check',
+                              style: TextStyle(
+                                fontSize: 10,
+                                color: Colors.blue.shade700,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        site.url,
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade600,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 12),
+            const Divider(),
+            const SizedBox(height: 8),
+
+            // Stats
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceAround,
+              children: [
+                _buildStatItem(
+                  Icons.speed,
+                  '${result.responseTime}ms',
+                  'Response',
+                  result.responseTime < 1000 ? Colors.green : Colors.orange,
+                ),
+                _buildStatItem(
+                  Icons.code,
+                  '${result.statusCode}',
+                  'Status',
+                  result.statusCode >= 200 && result.statusCode < 300
+                      ? Colors.green
+                      : Colors.orange,
+                ),
+                _buildStatItem(
+                  isUp ? Icons.check_circle : Icons.error,
+                  isUp ? 'UP' : 'DOWN',
+                  'Status',
+                  isUp ? Colors.green : Colors.red,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 8),
+
+            // Timestamp
+            Text(
+              DateFormatter.formatRelativeTime(result.timestamp),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFullScanCard(
+    BuildContext context,
+    FullScanResult item,
     Site site,
     LinkCheckerProvider linkChecker,
   ) {
+    final result = item.result;
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
@@ -87,18 +263,22 @@ class AllResultsTab extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Site name and status
+              // Header
               Row(
                 children: [
                   CircleAvatar(
                     radius: 16,
-                    backgroundColor: Theme.of(context).primaryColor,
-                    child: Text(
-                      site.name.isNotEmpty ? site.name[0].toUpperCase() : '?',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                      ),
+                    backgroundColor: result.brokenLinks > 0
+                        ? Colors.orange.shade100
+                        : Colors.green.shade100,
+                    child: Icon(
+                      result.brokenLinks > 0
+                          ? Icons.link_off
+                          : Icons.check_circle,
+                      size: 18,
+                      color: result.brokenLinks > 0
+                          ? Colors.orange.shade700
+                          : Colors.green.shade700,
                     ),
                   ),
                   const SizedBox(width: 12),
@@ -106,12 +286,38 @@ class AllResultsTab extends StatelessWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(
-                          site.name,
-                          style: const TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 16,
-                          ),
+                        Row(
+                          children: [
+                            Text(
+                              site.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: Colors.purple.shade50,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(
+                                  color: Colors.purple.shade200,
+                                ),
+                              ),
+                              child: Text(
+                                'Full Scan',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Colors.purple.shade700,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         Text(
                           site.url,
