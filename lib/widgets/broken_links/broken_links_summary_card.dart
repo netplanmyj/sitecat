@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/broken_link.dart';
 import '../../models/site.dart';
+import '../../utils/date_formatter.dart';
 
 class BrokenLinksSummaryCard extends StatelessWidget {
   final Site site;
@@ -24,6 +25,11 @@ class BrokenLinksSummaryCard extends StatelessWidget {
             Text(
               site.name,
               style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Scanned ${DateFormatter.formatRelativeTime(result.timestamp)}',
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
             ),
             const SizedBox(height: 12),
             Row(

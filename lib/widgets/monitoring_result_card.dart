@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../models/monitoring_result.dart';
 import '../models/site.dart';
 import '../providers/monitoring_provider.dart';
-import '../screens/monitoring_history_screen.dart';
 
 /// Widget for displaying latest monitoring result
 class MonitoringResultCard extends StatelessWidget {
@@ -85,26 +84,6 @@ class MonitoringResultCard extends StatelessWidget {
                     ),
                   ),
                 ],
-                const SizedBox(height: 12),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) =>
-                              MonitoringHistoryScreen(site: site),
-                        ),
-                      );
-                    },
-                    icon: const Icon(Icons.history, size: 18),
-                    label: const Text('View History'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.blue,
-                    ),
-                  ),
-                ),
               ],
             ),
           ),

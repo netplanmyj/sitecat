@@ -97,38 +97,65 @@ class BySiteTab extends StatelessWidget {
     Site site,
     LinkCheckerProvider linkChecker,
   ) {
-    return ListTile(
-      leading: Icon(
-        result.scanCompleted ? Icons.check_circle : Icons.incomplete_circle,
-        color: result.scanCompleted ? Colors.green : Colors.orange,
-      ),
-      title: Text(
-        '${result.pagesScanned} pages • ${result.brokenLinks} broken',
-        style: const TextStyle(fontSize: 14),
-      ),
-      subtitle: Text(
-        DateFormatter.formatRelativeTime(result.timestamp),
-        style: const TextStyle(fontSize: 12),
-      ),
-      trailing: const Icon(Icons.chevron_right, size: 20),
-      onTap: () async {
-        final brokenLinks = await linkChecker.getBrokenLinksForResult(
-          site.id,
-          result.id!,
-        );
-        if (context.mounted) {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => BrokenLinksScreen(
-                site: site,
-                brokenLinks: brokenLinks,
-                result: result,
-              ),
+    final hasIssues = result.brokenLinks > 0;
+
+    return Card(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: ListTile(
+        leading: CircleAvatar(
+          backgroundColor: hasIssues
+              ? Colors.orange.shade100
+              : Colors.green.shade100,
+          child: Icon(
+            hasIssues ? Icons.link_off : Icons.check_circle,
+            color: hasIssues ? Colors.orange.shade700 : Colors.green.shade700,
+          ),
+        ),
+        title: Text(
+          hasIssues
+              ? '${result.brokenLinks}/${result.totalLinks} broken links'
+              : '${result.totalLinks} links checked - All OK',
+          style: TextStyle(
+            color: hasIssues ? Colors.orange.shade700 : Colors.grey.shade700,
+            fontSize: 14,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 4),
+            Text(
+              '${result.pagesScanned}/${result.totalPagesInSitemap} pages',
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
+            const SizedBox(height: 2),
+            Text(
+              DateFormatter.formatRelativeTime(result.timestamp),
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+            ),
+          ],
+        ),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: () async {
+          final brokenLinks = await linkChecker.getBrokenLinksForResult(
+            site.id,
+            result.id!,
           );
-        }
-      },
+          if (context.mounted) {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BrokenLinksScreen(
+                  site: site,
+                  brokenLinks: brokenLinks,
+                  result: result,
+                ),
+              ),
+            );
+          }
+        },
+      ),
     );
   }
 }

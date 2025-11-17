@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../providers/link_checker_provider.dart';
 import '../widgets/dashboard/welcome_card.dart';
 import '../widgets/dashboard/my_sites_section.dart';
 import '../widgets/dashboard/recent_activity_section.dart';
 
 /// ダッシュボード画面
-class DashboardScreen extends StatelessWidget {
+class DashboardScreen extends StatefulWidget {
   final VoidCallback? onNavigateToSites;
   final VoidCallback? onNavigateToResults;
 
@@ -15,6 +16,20 @@ class DashboardScreen extends StatelessWidget {
     this.onNavigateToSites,
     this.onNavigateToResults,
   });
+
+  @override
+  State<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends State<DashboardScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // Load recent activity data
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<LinkCheckerProvider>().loadAllCheckHistory(limit: 5);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,11 +52,13 @@ class DashboardScreen extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 // My Sites Section
-                MySitesSection(onNavigateToSites: onNavigateToSites),
+                MySitesSection(onNavigateToSites: widget.onNavigateToSites),
                 const SizedBox(height: 24),
 
                 // Recent Activity Section
-                RecentActivitySection(onNavigateToResults: onNavigateToResults),
+                RecentActivitySection(
+                  onNavigateToResults: widget.onNavigateToResults,
+                ),
               ],
             ),
           );

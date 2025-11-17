@@ -61,153 +61,17 @@ class _MonitoringHistoryScreenState extends State<MonitoringHistoryScreen> {
             );
           }
 
-          return Column(
-            children: [
-              // Summary Card
-              _buildSummaryCard(results),
-              const SizedBox(height: 8),
-
-              // History List
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.all(16),
-                  itemCount: results.length,
-                  itemBuilder: (context, index) {
-                    final result = results[index];
-                    return _buildHistoryItem(context, result, index);
-                  },
-                ),
-              ),
-            ],
+          return Expanded(
+            child: ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: results.length,
+              itemBuilder: (context, index) {
+                final result = results[index];
+                return _buildHistoryItem(context, result, index);
+              },
+            ),
           );
         },
-      ),
-    );
-  }
-
-  Widget _buildSummaryCard(List<MonitoringResult> results) {
-    final totalChecks = results.length;
-    final successfulChecks = results.where((r) => r.isUp).length;
-    final failedChecks = totalChecks - successfulChecks;
-    final uptime = totalChecks > 0
-        ? ((successfulChecks / totalChecks) * 100).toStringAsFixed(1)
-        : '0.0';
-    final avgResponseTime = results.isNotEmpty
-        ? (results.map((r) => r.responseTime).reduce((a, b) => a + b) /
-                  results.length)
-              .round()
-        : 0;
-
-    return Card(
-      margin: const EdgeInsets.all(16),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.analytics_outlined, color: Colors.blue.shade700),
-                const SizedBox(width: 8),
-                const Text(
-                  'Statistics',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatItem(
-                    'Total Checks',
-                    totalChecks.toString(),
-                    Icons.fact_check,
-                    Colors.blue,
-                  ),
-                ),
-                Expanded(
-                  child: _buildStatItem(
-                    'Uptime',
-                    '$uptime%',
-                    Icons.trending_up,
-                    double.parse(uptime) >= 95 ? Colors.green : Colors.orange,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildStatItem(
-                    'Successful',
-                    successfulChecks.toString(),
-                    Icons.check_circle,
-                    Colors.green,
-                  ),
-                ),
-                Expanded(
-                  child: _buildStatItem(
-                    'Failed',
-                    failedChecks.toString(),
-                    Icons.error,
-                    failedChecks > 0 ? Colors.red : Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            _buildStatItem(
-              'Avg Response Time',
-              '${avgResponseTime}ms',
-              Icons.speed,
-              avgResponseTime < 1000 ? Colors.green : Colors.orange,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatItem(
-    String label,
-    String value,
-    IconData icon,
-    Color color,
-  ) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  value,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: color,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
       ),
     );
   }
