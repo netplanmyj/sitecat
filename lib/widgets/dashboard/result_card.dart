@@ -33,30 +33,28 @@ class DashboardResultCard extends StatelessWidget {
             color: hasIssues ? Colors.orange.shade700 : Colors.green.shade700,
           ),
         ),
-        title: Text(
-          site.name,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        title: Row(
           children: [
-            Text(
-              hasIssues
-                  ? '${result.brokenLinks}/${result.totalLinks} broken links'
-                  : '${result.totalLinks} links checked - All OK',
-              style: TextStyle(
-                color: hasIssues
-                    ? Colors.orange.shade700
-                    : Colors.grey.shade600,
-                fontSize: 13,
+            Expanded(
+              child: Text(
+                site.name,
+                style: const TextStyle(fontWeight: FontWeight.w500),
               ),
             ),
-            const SizedBox(height: 4),
             Text(
               DateFormatter.formatRelativeTime(result.timestamp),
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
             ),
           ],
+        ),
+        subtitle: Text(
+          hasIssues
+              ? '${result.brokenLinks}/${result.totalLinks} broken links'
+              : '${result.totalLinks} links checked - All OK',
+          style: TextStyle(
+            color: hasIssues ? Colors.orange.shade700 : Colors.grey.shade600,
+            fontSize: 13,
+          ),
         ),
         trailing: const Icon(Icons.chevron_right),
         onTap: () async {
