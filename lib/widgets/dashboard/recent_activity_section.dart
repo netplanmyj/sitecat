@@ -1,10 +1,36 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../../models/broken_link.dart';
+import '../../models/monitoring_result.dart';
 import '../../models/site.dart';
 import '../../providers/link_checker_provider.dart';
+import '../../providers/monitoring_provider.dart';
 import '../../providers/site_provider.dart';
 import '../common/empty_state.dart';
+import '../monitoring/quick_check_card.dart';
 import 'result_card.dart';
+
+// Unified result type for Quick Check and Full Scan
+sealed class UnifiedDashboardResult {
+  final String siteId;
+  final DateTime timestamp;
+
+  UnifiedDashboardResult({required this.siteId, required this.timestamp});
+}
+
+class QuickCheckDashboardResult extends UnifiedDashboardResult {
+  final MonitoringResult result;
+
+  QuickCheckDashboardResult({required super.siteId, required this.result})
+    : super(timestamp: result.timestamp);
+}
+
+class FullScanDashboardResult extends UnifiedDashboardResult {
+  final LinkCheckResult result;
+
+  FullScanDashboardResult({required super.siteId, required this.result})
+    : super(timestamp: result.timestamp);
+}
 
 class RecentActivitySection extends StatelessWidget {
   final VoidCallback? onNavigateToResults;
@@ -13,12 +39,28 @@ class RecentActivitySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<LinkCheckerProvider>(
-      builder: (context, linkCheckerProvider, child) {
-        final allResults = linkCheckerProvider
-            .getAllCheckHistory()
-            .take(5)
-            .toList();
+    return Consumer3<LinkCheckerProvider, MonitoringProvider, SiteProvider>(
+      builder: (context, linkChecker, monitoring, siteProvider, child) {
+        // Combine Quick Check and Full Scan results
+        final allResults = <UnifiedDashboardResult>[];
+
+        // Add Full Scan results
+        for (final item in linkChecker.getAllCheckHistory()) {
+          allResults.add(
+            FullScanDashboardResult(siteId: item.siteId, result: item.result),
+          );
+        }
+
+        // Add Quick Check results
+        for (final item in monitoring.getAllResults()) {
+          allResults.add(
+            QuickCheckDashboardResult(siteId: item.siteId, result: item.result),
+          );
+        }
+
+        // Sort by timestamp (newest first) and take 5
+        allResults.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+        final recentResults = allResults.take(5).toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -33,7 +75,7 @@ class RecentActivitySection extends StatelessWidget {
             const SizedBox(height: 16),
 
             // Results list (max 5)
-            if (allResults.isEmpty)
+            if (recentResults.isEmpty)
               const Center(
                 child: Padding(
                   padding: EdgeInsets.all(32),
@@ -44,38 +86,41 @@ class RecentActivitySection extends StatelessWidget {
                 ),
               )
             else
-              Consumer<SiteProvider>(
-                builder: (context, siteProvider, child) {
-                  return ListView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: allResults.length,
-                    itemBuilder: (context, index) {
-                      final item = allResults[index];
-                      final site = siteProvider.sites.firstWhere(
-                        (s) => s.id == item.siteId,
-                        orElse: () => Site(
-                          id: item.siteId,
-                          userId: '',
-                          name: 'Unknown Site',
-                          url: '',
-                          checkInterval: 60,
-                          createdAt: DateTime.now(),
-                          updatedAt: DateTime.now(),
-                        ),
-                      );
-                      return DashboardResultCard(
-                        site: site,
-                        result: item.result,
-                      );
-                    },
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                itemCount: recentResults.length,
+                itemBuilder: (context, index) {
+                  final item = recentResults[index];
+                  final site = siteProvider.sites.firstWhere(
+                    (s) => s.id == item.siteId,
+                    orElse: () => Site(
+                      id: item.siteId,
+                      userId: '',
+                      name: 'Unknown Site',
+                      url: '',
+                      checkInterval: 60,
+                      createdAt: DateTime.now(),
+                      updatedAt: DateTime.now(),
+                    ),
                   );
+
+                  return switch (item) {
+                    FullScanDashboardResult() => DashboardResultCard(
+                      site: site,
+                      result: item.result,
+                    ),
+                    QuickCheckDashboardResult() => QuickCheckCard(
+                      site: site,
+                      result: item.result,
+                    ),
+                  };
                 },
               ),
 
             // All Results button
-            if (allResults.isNotEmpty)
+            if (recentResults.isNotEmpty)
               Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 16,

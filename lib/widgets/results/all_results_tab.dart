@@ -9,6 +9,7 @@ import '../../providers/site_provider.dart';
 import '../../utils/date_formatter.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../screens/broken_links_screen.dart';
+import '../monitoring/quick_check_card.dart';
 
 // Unified result type for Quick Check and Full Scan
 sealed class UnifiedResult {
@@ -90,7 +91,10 @@ class AllResultsTab extends StatelessWidget {
             );
 
             return switch (item) {
-              QuickCheckResult() => _buildQuickCheckCard(context, item, site),
+              QuickCheckResult() => QuickCheckCard(
+                site: site,
+                result: item.result,
+              ),
               FullScanResult() => _buildFullScanCard(
                 context,
                 item,
@@ -101,130 +105,6 @@ class AllResultsTab extends StatelessWidget {
           },
         );
       },
-    );
-  }
-
-  Widget _buildQuickCheckCard(
-    BuildContext context,
-    QuickCheckResult item,
-    Site site,
-  ) {
-    final result = item.result;
-    final isUp = result.isUp;
-
-    return Card(
-      margin: const EdgeInsets.only(bottom: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                CircleAvatar(
-                  radius: 16,
-                  backgroundColor: isUp
-                      ? Colors.green.shade100
-                      : Colors.red.shade100,
-                  child: Icon(
-                    isUp ? Icons.check_circle : Icons.error,
-                    size: 18,
-                    color: isUp ? Colors.green.shade700 : Colors.red.shade700,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Text(
-                            site.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.blue.shade200),
-                            ),
-                            child: Text(
-                              'Quick Check',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Colors.blue.shade700,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      Text(
-                        site.url,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-            const Divider(),
-            const SizedBox(height: 8),
-
-            // Stats
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildStatItem(
-                  Icons.speed,
-                  '${result.responseTime}ms',
-                  'Response',
-                  result.responseTime < 1000 ? Colors.green : Colors.orange,
-                ),
-                _buildStatItem(
-                  Icons.code,
-                  '${result.statusCode}',
-                  'Status',
-                  result.statusCode >= 200 && result.statusCode < 300
-                      ? Colors.green
-                      : Colors.orange,
-                ),
-                _buildStatItem(
-                  isUp ? Icons.check_circle : Icons.error,
-                  isUp ? 'UP' : 'DOWN',
-                  'Status',
-                  isUp ? Colors.green : Colors.red,
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 8),
-
-            // Timestamp
-            Text(
-              DateFormatter.formatRelativeTime(result.timestamp),
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-            ),
-          ],
-        ),
-      ),
     );
   }
 
