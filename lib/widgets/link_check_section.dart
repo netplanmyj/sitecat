@@ -33,7 +33,6 @@ class LinkCheckSection extends StatelessWidget {
       builder: (context, linkChecker, _) {
         final state = linkChecker.getCheckState(site.id);
         final result = linkChecker.getCachedResult(site.id);
-        final brokenLinks = linkChecker.getCachedBrokenLinks(site.id);
         final progress = linkChecker.getProgress(site.id);
         final externalLinksProgress = linkChecker.getExternalLinksProgress(
           site.id,
@@ -77,13 +76,7 @@ class LinkCheckSection extends StatelessWidget {
 
                 // Results (when available)
                 if (result != null) ...[
-                  LinkCheckResults(
-                    result: result,
-                    site: site,
-                    brokenLinks: brokenLinks,
-                    onViewBrokenLinks: () =>
-                        onViewBrokenLinks(site, brokenLinks, result),
-                  ),
+                  LinkCheckResults(result: result, site: site),
                 ],
 
                 // No results yet

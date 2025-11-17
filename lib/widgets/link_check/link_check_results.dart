@@ -1,23 +1,14 @@
 import 'package:flutter/material.dart';
 import '../../models/broken_link.dart';
 import '../../models/site.dart';
-import '../../screens/link_check_history_screen.dart';
 import 'link_stat_card.dart';
 
 /// Widget to display link check results summary
 class LinkCheckResults extends StatelessWidget {
   final LinkCheckResult result;
   final Site site;
-  final List<BrokenLink> brokenLinks;
-  final VoidCallback onViewBrokenLinks;
 
-  const LinkCheckResults({
-    super.key,
-    required this.result,
-    required this.site,
-    required this.brokenLinks,
-    required this.onViewBrokenLinks,
-  });
+  const LinkCheckResults({super.key, required this.result, required this.site});
 
   @override
   Widget build(BuildContext context) {
@@ -128,44 +119,6 @@ class LinkCheckResults extends StatelessWidget {
               ),
             ),
           ],
-        ),
-
-        // View broken links button
-        if (brokenLinks.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: onViewBrokenLinks,
-              icon: const Icon(Icons.list_alt),
-              label: Text('View Broken Links (${brokenLinks.length})'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: Colors.red,
-                side: const BorderSide(color: Colors.red),
-              ),
-            ),
-          ),
-        ],
-
-        // View history button
-        const SizedBox(height: 8),
-        SizedBox(
-          width: double.infinity,
-          child: OutlinedButton.icon(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => LinkCheckHistoryScreen(site: site),
-                ),
-              );
-            },
-            icon: const Icon(Icons.history, size: 18),
-            label: const Text('View History'),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Theme.of(context).primaryColor,
-            ),
-          ),
         ),
       ],
     );
