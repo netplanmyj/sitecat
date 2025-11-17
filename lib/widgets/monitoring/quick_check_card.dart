@@ -7,8 +7,14 @@ import '../../utils/date_formatter.dart';
 class QuickCheckCard extends StatelessWidget {
   final Site site;
   final MonitoringResult result;
+  final bool compact;
 
-  const QuickCheckCard({super.key, required this.site, required this.result});
+  const QuickCheckCard({
+    super.key,
+    required this.site,
+    required this.result,
+    this.compact = false,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +27,7 @@ class QuickCheckCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header
+            // Header with timestamp
             Row(
               children: [
                 CircleAvatar(
@@ -42,43 +48,61 @@ class QuickCheckCard extends StatelessWidget {
                     children: [
                       Row(
                         children: [
+                          Expanded(
+                            child: Text(
+                              site.name,
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          const SizedBox(width: 8),
                           Text(
-                            site.name,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                            DateFormatter.formatRelativeTime(result.timestamp),
+                            style: TextStyle(
+                              fontSize: 11,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              site.url,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade600,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                           const SizedBox(width: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
+                              horizontal: 6,
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
                               color: Colors.blue.shade50,
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(10),
                               border: Border.all(color: Colors.blue.shade200),
                             ),
                             child: Text(
                               'Quick Check',
                               style: TextStyle(
-                                fontSize: 10,
+                                fontSize: 9,
                                 color: Colors.blue.shade700,
                                 fontWeight: FontWeight.w500,
                               ),
                             ),
                           ),
                         ],
-                      ),
-                      Text(
-                        site.url,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey.shade600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -87,8 +111,8 @@ class QuickCheckCard extends StatelessWidget {
             ),
 
             const SizedBox(height: 12),
-            const Divider(),
-            const SizedBox(height: 8),
+            const Divider(height: 1),
+            const SizedBox(height: 12),
 
             // Stats
             Row(
@@ -97,13 +121,13 @@ class QuickCheckCard extends StatelessWidget {
                 _buildStatItem(
                   Icons.speed,
                   '${result.responseTime}ms',
-                  'Response',
+                  null,
                   result.responseTime < 1000 ? Colors.green : Colors.orange,
                 ),
                 _buildStatItem(
                   Icons.code,
                   '${result.statusCode}',
-                  'Status',
+                  null,
                   result.statusCode >= 200 && result.statusCode < 300
                       ? Colors.green
                       : Colors.orange,
@@ -111,18 +135,10 @@ class QuickCheckCard extends StatelessWidget {
                 _buildStatItem(
                   isUp ? Icons.check_circle : Icons.error,
                   isUp ? 'UP' : 'DOWN',
-                  'Status',
+                  null,
                   isUp ? Colors.green : Colors.red,
                 ),
               ],
-            ),
-
-            const SizedBox(height: 8),
-
-            // Timestamp
-            Text(
-              DateFormatter.formatRelativeTime(result.timestamp),
-              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
             ),
           ],
         ),
@@ -133,7 +149,7 @@ class QuickCheckCard extends StatelessWidget {
   Widget _buildStatItem(
     IconData icon,
     String value,
-    String label,
+    String? label,
     Color color,
   ) {
     return Column(
@@ -148,10 +164,11 @@ class QuickCheckCard extends StatelessWidget {
             color: color,
           ),
         ),
-        Text(
-          label,
-          style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
-        ),
+        if (label != null)
+          Text(
+            label,
+            style: TextStyle(fontSize: 10, color: Colors.grey.shade600),
+          ),
       ],
     );
   }

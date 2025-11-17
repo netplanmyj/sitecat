@@ -8,7 +8,8 @@ import '../../providers/monitoring_provider.dart';
 import '../../providers/site_provider.dart';
 import '../common/empty_state.dart';
 import '../monitoring/quick_check_card.dart';
-import 'result_card.dart';
+import '../link_check/full_scan_card.dart';
+import '../../screens/broken_links_screen.dart';
 
 // Unified result type for Quick Check and Full Scan
 sealed class UnifiedDashboardResult {
@@ -58,9 +59,9 @@ class RecentActivitySection extends StatelessWidget {
           );
         }
 
-        // Sort by timestamp (newest first) and take 5
+        // Sort by timestamp (newest first) and take 3
         allResults.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-        final recentResults = allResults.take(5).toList();
+        final recentResults = allResults.take(3).toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,9 +108,25 @@ class RecentActivitySection extends StatelessWidget {
                   );
 
                   return switch (item) {
-                    FullScanDashboardResult() => DashboardResultCard(
+                    FullScanDashboardResult() => FullScanCard(
                       site: site,
                       result: item.result,
+                      onTap: () async {
+                        final brokenLinks = await linkChecker
+                            .getBrokenLinksForResult(site.id, item.result.id!);
+                        if (context.mounted) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => BrokenLinksScreen(
+                                site: site,
+                                brokenLinks: brokenLinks,
+                                result: item.result,
+                              ),
+                            ),
+                          );
+                        }
+                      },
                     ),
                     QuickCheckDashboardResult() => QuickCheckCard(
                       site: site,

@@ -52,6 +52,21 @@ class MonitoringProvider extends ChangeNotifier {
     return allResults;
   }
 
+  /// Initialize monitoring for all sites
+  Future<void> initialize(List<String> siteIds) async {
+    for (final siteId in siteIds) {
+      listenToSiteResults(siteId);
+    }
+  }
+
+  /// Initialize monitoring from SiteProvider
+  void initializeFromSites(dynamic siteProvider) {
+    final sites = siteProvider.sites as List;
+    for (final site in sites) {
+      listenToSiteResults(site.id);
+    }
+  }
+
   @override
   void dispose() {
     _subscriptions?.forEach((key, subscription) {

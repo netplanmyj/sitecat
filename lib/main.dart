@@ -109,6 +109,7 @@ class AuthenticatedHome extends StatefulWidget {
 
 class _AuthenticatedHomeState extends State<AuthenticatedHome> {
   int _currentIndex = 0;
+  bool _monitoringInitialized = false;
 
   late final List<Widget> _screens;
 
@@ -144,6 +145,17 @@ class _AuthenticatedHomeState extends State<AuthenticatedHome> {
 
   @override
   Widget build(BuildContext context) {
+    // Initialize monitoring when sites are available
+    final siteProvider = context.watch<SiteProvider>();
+    if (siteProvider.sites.isNotEmpty && !_monitoringInitialized) {
+      _monitoringInitialized = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          context.read<MonitoringProvider>().initializeFromSites(siteProvider);
+        }
+      });
+    }
+
     return Scaffold(
       body: _screens[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
