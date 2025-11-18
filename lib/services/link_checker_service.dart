@@ -404,7 +404,7 @@ class LinkCheckerService {
                 allUrls.addAll(childUrls);
 
                 // Limit total URLs to avoid excessive processing
-                if (allUrls.length >= 100) {
+                if (allUrls.length >= 200) {
                   break;
                 }
               } catch (e) {
