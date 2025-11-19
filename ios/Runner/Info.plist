@@ -56,7 +56,9 @@
 				</array>
 			</dict>
 		</array>
-		<key>UIStatusBarHidden</key>
-		<false/>
-	</dict>
+	<key>UIStatusBarHidden</key>
+	<false/>
+	<key>UIUserInterfaceStyle</key>
+	<string>Light</string>
+</dict>
 </plist>
