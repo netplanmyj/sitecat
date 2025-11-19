@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
@@ -13,14 +14,21 @@ import 'screens/profile_screen.dart';
 import 'screens/login_screen.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
+
+  // Preserve the splash screen
+  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
 
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
     runApp(const SiteCatApp());
+
+    // Remove splash screen after app is ready
+    FlutterNativeSplash.remove();
   } catch (e) {
+    FlutterNativeSplash.remove();
     // Firebase initialization failed
     runApp(
       MaterialApp(
