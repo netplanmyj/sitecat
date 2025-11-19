@@ -87,6 +87,11 @@ class MonitoringService {
           _logger.e('Firestore update() failed', error: error);
         });
 
+    // Cleanup old monitoring results (keep only latest 10 per site)
+    _cleanupOldResults(site.id).catchError((error) {
+      _logger.e('Failed to cleanup old monitoring results', error: error);
+    });
+
     return result.copyWith(id: docRef.id);
   }
 
@@ -155,5 +160,35 @@ class MonitoringService {
     }
 
     await _resultsCollection(_currentUserId!).doc(resultId).delete();
+  }
+
+  /// Cleanup old monitoring results for a site (keep only latest 10)
+  Future<void> _cleanupOldResults(String siteId) async {
+    if (_currentUserId == null) return;
+
+    try {
+      // Get results older than the 10th newest
+      final querySnapshot = await _resultsCollection(_currentUserId!)
+          .where('siteId', isEqualTo: siteId)
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      // If we have 10 or fewer results, no cleanup needed
+      if (querySnapshot.docs.length <= 10) return;
+
+      // Delete results beyond the 10th
+      final batch = _firestore.batch();
+      for (int i = 10; i < querySnapshot.docs.length; i++) {
+        batch.delete(querySnapshot.docs[i].reference);
+      }
+
+      await batch.commit();
+      _logger.i(
+        'Cleaned up ${querySnapshot.docs.length - 10} old monitoring results for site $siteId',
+      );
+    } catch (e) {
+      _logger.e('Error during cleanup of old monitoring results', error: e);
+      rethrow;
+    }
   }
 }
