@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:html/parser.dart' as html_parser;
+import 'package:logger/logger.dart';
 import 'package:xml/xml.dart' as xml;
 import '../models/broken_link.dart';
 import '../models/site.dart';
@@ -13,6 +14,7 @@ class LinkCheckerService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final http.Client _httpClient = http.Client();
+  final Logger _logger = Logger();
 
   // Get current user ID
   String? get _currentUserId => _auth.currentUser?.uid;
@@ -283,6 +285,12 @@ class LinkCheckerService {
 
     // Save broken links as subcollection under this result
     await _saveBrokenLinks(resultId, allBrokenLinks);
+
+    // Cleanup old link check results (keep only latest 10 per site)
+    _cleanupOldResults(site.id).catchError((error) {
+      // Log error but don't throw - cleanup failure shouldn't block the scan result
+      _logger.e('Failed to cleanup old link check results', error: error);
+    });
 
     // Return result with the Firestore document ID
     return LinkCheckResult(
@@ -678,5 +686,46 @@ class LinkCheckerService {
 
     // Delete the result document
     await _resultsCollection(_currentUserId!).doc(resultId).delete();
+  }
+
+  /// Cleanup old link check results for a site (keep only latest 10)
+  Future<void> _cleanupOldResults(String siteId) async {
+    if (_currentUserId == null) return;
+
+    try {
+      // Get results older than the 10th newest
+      final querySnapshot = await _resultsCollection(_currentUserId!)
+          .where('siteId', isEqualTo: siteId)
+          .orderBy('timestamp', descending: true)
+          .get();
+
+      // If we have 10 or fewer results, no cleanup needed
+      if (querySnapshot.docs.length <= 10) return;
+
+      // Delete results beyond the 10th (including their broken links subcollections)
+      final batch = _firestore.batch();
+      for (int i = 10; i < querySnapshot.docs.length; i++) {
+        final docRef = querySnapshot.docs[i].reference;
+
+        // Delete broken links subcollection
+        final brokenLinksSnapshot = await docRef
+            .collection('brokenLinks')
+            .get();
+        for (final brokenLinkDoc in brokenLinksSnapshot.docs) {
+          batch.delete(brokenLinkDoc.reference);
+        }
+
+        // Delete the result document itself
+        batch.delete(docRef);
+      }
+
+      await batch.commit();
+      _logger.i(
+        'Cleaned up ${querySnapshot.docs.length - 10} old link check results for site $siteId',
+      );
+    } catch (e) {
+      _logger.e('Error during cleanup of old link check results', error: e);
+      rethrow;
+    }
   }
 }
