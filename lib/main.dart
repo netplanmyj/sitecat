@@ -19,41 +19,33 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
     runApp(const SiteCatApp());
   } catch (e) {
-    runApp(_FirebaseErrorApp(error: e.toString()));
-  }
-}
-
-/// Firebase初期化エラー画面
-class _FirebaseErrorApp extends StatelessWidget {
-  const _FirebaseErrorApp({required this.error});
-
-  final String error;
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Padding(
-            padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                const SizedBox(height: 16),
-                const Text(
-                  'Failed to initialize app',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                Text(
-                  'Error: $error',
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                  textAlign: TextAlign.center,
-                ),
-              ],
+    // Firebase initialization failed
+    runApp(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Failed to initialize app',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Error: $e',
+                    style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -68,63 +60,42 @@ class SiteCatApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
-      providers: _buildProviders(),
+      providers: [
+        ChangeNotifierProvider(create: (context) => AuthProvider()),
+        ChangeNotifierProvider(create: (context) => SiteProvider()),
+        ChangeNotifierProvider(create: (context) => MonitoringProvider()),
+        ChangeNotifierProvider(create: (context) => LinkCheckerProvider()),
+      ],
       child: MaterialApp(
         title: 'SiteCat',
-        theme: _buildTheme(),
-        home: const _AuthRouter(),
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: Colors.blue,
+            brightness: Brightness.light,
+          ),
+          useMaterial3: true,
+          // フォントサイズを1段階大きく（デフォルト14px → 16px）
+          textTheme: ThemeData.light().textTheme.copyWith(
+            bodyLarge: const TextStyle(fontSize: 18), // 16 → 18
+            bodyMedium: const TextStyle(fontSize: 16), // 14 → 16
+            bodySmall: const TextStyle(fontSize: 14), // 12 → 14
+            labelLarge: const TextStyle(fontSize: 16), // 14 → 16 (ボタン)
+            labelMedium: const TextStyle(fontSize: 14), // 12 → 14
+            labelSmall: const TextStyle(fontSize: 12), // 11 → 12
+          ),
+        ),
+        home: Consumer<AuthProvider>(
+          builder: (context, authProvider, child) {
+            // 認証状態に基づいて画面を切り替え
+            if (authProvider.isAuthenticated) {
+              return const AuthenticatedHome();
+            } else {
+              return const LoginScreen();
+            }
+          },
+        ),
         debugShowCheckedModeBanner: false,
       ),
-    );
-  }
-
-  /// アプリ全体で使用するプロバイダーを構築
-  List<ChangeNotifierProvider> _buildProviders() {
-    return [
-      ChangeNotifierProvider(create: (_) => AuthProvider()),
-      ChangeNotifierProvider(create: (_) => SiteProvider()),
-      ChangeNotifierProvider(create: (_) => MonitoringProvider()),
-      ChangeNotifierProvider(create: (_) => LinkCheckerProvider()),
-    ];
-  }
-
-  /// アプリのテーマを構築
-  ThemeData _buildTheme() {
-    return ThemeData(
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: Colors.blue,
-        brightness: Brightness.light,
-      ),
-      useMaterial3: true,
-      textTheme: _buildTextTheme(),
-    );
-  }
-
-  /// カスタムテキストテーマを構築（フォントサイズを1段階大きく）
-  TextTheme _buildTextTheme() {
-    return ThemeData.light().textTheme.copyWith(
-      bodyLarge: const TextStyle(fontSize: 18), // 16 → 18
-      bodyMedium: const TextStyle(fontSize: 16), // 14 → 16
-      bodySmall: const TextStyle(fontSize: 14), // 12 → 14
-      labelLarge: const TextStyle(fontSize: 16), // 14 → 16 (ボタン)
-      labelMedium: const TextStyle(fontSize: 14), // 12 → 14
-      labelSmall: const TextStyle(fontSize: 12), // 11 → 12
-    );
-  }
-}
-
-/// 認証状態に応じた画面ルーティング
-class _AuthRouter extends StatelessWidget {
-  const _AuthRouter();
-
-  @override
-  Widget build(BuildContext context) {
-    return Consumer<AuthProvider>(
-      builder: (context, authProvider, _) {
-        return authProvider.isAuthenticated
-            ? const AuthenticatedHome()
-            : const LoginScreen();
-      },
     );
   }
 }
@@ -146,16 +117,26 @@ class _AuthenticatedHomeState extends State<AuthenticatedHome> {
   @override
   void initState() {
     super.initState();
-    _screens = _buildScreens();
-    _initializeProviders();
-  }
 
-  /// タブ画面のリストを構築
-  List<Widget> _buildScreens() {
-    return [
+    // Initialize providers
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<SiteProvider>().initialize();
+      }
+    });
+
+    _screens = [
       DashboardScreen(
-        onNavigateToSites: () => _navigateToTab(1),
-        onNavigateToResults: () => _navigateToTab(2),
+        onNavigateToSites: () {
+          setState(() {
+            _currentIndex = 1; // Switch to Sites tab
+          });
+        },
+        onNavigateToResults: () {
+          setState(() {
+            _currentIndex = 2; // Switch to Results tab
+          });
+        },
       ),
       const SitesScreen(),
       const ResultsScreen(),
@@ -163,24 +144,10 @@ class _AuthenticatedHomeState extends State<AuthenticatedHome> {
     ];
   }
 
-  /// 指定したタブに遷移
-  void _navigateToTab(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
-  }
-
-  /// プロバイダーの初期化
-  void _initializeProviders() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        context.read<SiteProvider>().initialize();
-      }
-    });
-  }
-
-  /// サイトが登録されたら監視を開始
-  void _initializeMonitoringIfNeeded(SiteProvider siteProvider) {
+  @override
+  Widget build(BuildContext context) {
+    // Initialize monitoring when sites are available
+    final siteProvider = context.watch<SiteProvider>();
     if (siteProvider.sites.isNotEmpty && !_monitoringInitialized) {
       _monitoringInitialized = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -189,34 +156,30 @@ class _AuthenticatedHomeState extends State<AuthenticatedHome> {
         }
       });
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final siteProvider = context.watch<SiteProvider>();
-    _initializeMonitoringIfNeeded(siteProvider);
 
     return Scaffold(
       body: _screens[_currentIndex],
-      bottomNavigationBar: _buildBottomNavigationBar(),
-    );
-  }
-
-  /// ボトムナビゲーションバーを構築
-  BottomNavigationBar _buildBottomNavigationBar() {
-    return BottomNavigationBar(
-      currentIndex: _currentIndex,
-      onTap: _navigateToTab,
-      type: BottomNavigationBarType.fixed,
-      items: const [
-        BottomNavigationBarItem(
-          icon: Icon(Icons.dashboard),
-          label: 'Dashboard',
-        ),
-        BottomNavigationBarItem(icon: Icon(Icons.web), label: 'Sites'),
-        BottomNavigationBarItem(icon: Icon(Icons.assessment), label: 'Results'),
-        BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
-      ],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        type: BottomNavigationBarType.fixed,
+        items: const [
+          BottomNavigationBarItem(
+            icon: Icon(Icons.dashboard),
+            label: 'Dashboard',
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.web), label: 'Sites'),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.assessment),
+            label: 'Results',
+          ),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
+        ],
+      ),
     );
   }
 }
