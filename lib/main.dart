@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter_native_splash/flutter_native_splash.dart';
-import 'package:logger/logger.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
@@ -14,41 +12,16 @@ import 'screens/results_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/login_screen.dart';
 
-final _logger = Logger();
-
 void main() async {
-  final startTime = DateTime.now();
-  _logger.i('App initialization started');
-
-  final widgetsBinding = WidgetsFlutterBinding.ensureInitialized();
-
-  // Preserve the splash screen
-  FlutterNativeSplash.preserve(widgetsBinding: widgetsBinding);
+  WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    final firebaseStartTime = DateTime.now();
-    _logger.i('Firebase initialization started');
-
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    final firebaseEndTime = DateTime.now();
-    final firebaseDuration = firebaseEndTime.difference(firebaseStartTime);
-    _logger.i(
-      'Firebase initialization completed in ${firebaseDuration.inMilliseconds}ms',
-    );
-
     runApp(const SiteCatApp());
-
-    // Remove splash screen after app is ready
-    FlutterNativeSplash.remove();
-
-    final totalDuration = DateTime.now().difference(startTime);
-    _logger.i('Total initialization time: ${totalDuration.inMilliseconds}ms');
   } catch (e) {
-    _logger.e('Initialization failed', error: e);
-    FlutterNativeSplash.remove();
     // Firebase initialization failed
     runApp(
       MaterialApp(

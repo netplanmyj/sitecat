@@ -40,7 +40,7 @@ class LoginScreen extends StatelessWidget {
 class _Logo extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Icon(Icons.pets, size: 100, color: Theme.of(context).primaryColor);
+    return Image.asset('assets/splash_icon.png', width: 150, height: 150);
   }
 }
 
