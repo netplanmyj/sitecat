@@ -1,3 +1,9 @@
+---
+title: "Terms of Service - SiteCat"
+description: "Terms of Service for SiteCat mobile application"
+lastUpdated: 2025-11-21
+---
+
 # Terms of Service for SiteCat
 
 **Last Updated: November 21, 2025**

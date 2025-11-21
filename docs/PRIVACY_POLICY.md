@@ -1,3 +1,9 @@
+---
+title: "Privacy Policy - SiteCat"
+description: "Privacy Policy for SiteCat mobile application"
+lastUpdated: 2025-11-21
+---
+
 # Privacy Policy for SiteCat
 
 **Last Updated: November 21, 2025**

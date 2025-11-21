@@ -1,3 +1,9 @@
+---
+title: "Support - SiteCat"
+description: "Support and FAQ for SiteCat mobile application"
+lastUpdated: 2025-11-21
+---
+
 # SiteCat Support
 
 Welcome to SiteCat Support! We're here to help you get the most out of your website monitoring experience.
