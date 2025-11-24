@@ -11,8 +11,20 @@ echo "========================================="
 
 # 1. 環境変数確認
 echo "\n[1/7] 環境変数確認"
-echo "CI_WORKSPACE: $CI_WORKSPACE"
-echo "CI_PRIMARY_REPOSITORY_PATH: $CI_PRIMARY_REPOSITORY_PATH"
+echo "CI_WORKSPACE: '$CI_WORKSPACE'"
+echo "CI_PRIMARY_REPOSITORY_PATH: '$CI_PRIMARY_REPOSITORY_PATH'"
+echo "PWD: '$PWD'"
+
+# CI_WORKSPACEが設定されていない場合のフォールバック
+if [ -z "$CI_WORKSPACE" ]; then
+    echo "警告: CI_WORKSPACE が設定されていません。推測値を使用します"
+    export CI_WORKSPACE="$HOME"
+fi
+
+if [ -z "$CI_PRIMARY_REPOSITORY_PATH" ]; then
+    echo "警告: CI_PRIMARY_REPOSITORY_PATH が設定されていません。推測値を使用します"
+    export CI_PRIMARY_REPOSITORY_PATH="$PWD"
+fi
 
 # 2. Flutter SDKインストール
 echo "\n[2/7] Flutter SDKインストール"
