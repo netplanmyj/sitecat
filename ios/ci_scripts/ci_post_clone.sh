@@ -26,7 +26,7 @@ export PATH="$CI_WORKSPACE/flutter/bin/cache/dart-sdk/bin:$PATH"
 
 # Flutter バージョン確認
 echo "\nFlutter バージョン:"
-flutter --version
+$CI_WORKSPACE/flutter/bin/flutter --version
 
 # 4. Firebase設定ファイル注入
 echo "\n[3/7] Firebase設定ファイル注入"
@@ -48,11 +48,11 @@ fi
 
 # 5. Flutter依存関係インストール
 echo "\n[4/7] Flutter依存関係インストール"
-flutter pub get
+$CI_WORKSPACE/flutter/bin/flutter pub get
 
 # 6. iOSエンジンプリキャッシュ
 echo "\n[5/7] iOSエンジンプリキャッシュ"
-flutter precache --ios
+$CI_WORKSPACE/flutter/bin/flutter precache --ios
 
 # 7. CocoaPods依存関係インストール
 echo "\n[6/7] CocoaPods依存関係インストール"
@@ -60,9 +60,9 @@ cd ios
 pod install
 cd ..
 
-# 8. Flutter Generated.xcconfig 生成
-echo "\n[7/7] Flutter 依存関係のプリキャッシュ"
-flutter precache --ios
+# 8. Flutter 依存関係のプリキャッシュ（重複だが念のため）
+echo "\n[7/7] 最終確認"
+echo "Flutter SDK: $CI_WORKSPACE/flutter/bin/flutter"
 
 echo "\n========================================="
 echo "ビルド前準備完了！"
