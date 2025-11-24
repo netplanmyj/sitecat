@@ -61,13 +61,8 @@ pod install
 cd ..
 
 # 8. Flutter Generated.xcconfig 生成
-echo "\n[7/8] Flutter Generated.xcconfig 生成"
+echo "\n[7/7] Flutter 依存関係のプリキャッシュ"
 flutter precache --ios
-flutter build ios-framework --release
-
-# 9. Flutter事前ビルド（Xcode Cloudのビルドエラー対策）
-echo "\n[8/8] Flutter事前ビルド"
-flutter build ios --release --no-codesign
 
 echo "\n========================================="
 echo "ビルド前準備完了！"
