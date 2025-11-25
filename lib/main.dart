@@ -153,7 +153,12 @@ class _AuthenticatedHomeState extends State<AuthenticatedHome> {
   Widget build(BuildContext context) {
     // Initialize monitoring when sites are available
     final siteProvider = context.watch<SiteProvider>();
-    if (siteProvider.sites.isNotEmpty && !_monitoringInitialized) {
+    final authProvider = context.watch<AuthProvider>();
+    final isDemoMode = authProvider.isDemoMode;
+
+    if (siteProvider.sites.isNotEmpty &&
+        !_monitoringInitialized &&
+        !isDemoMode) {
       _monitoringInitialized = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {

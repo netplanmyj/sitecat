@@ -143,6 +143,11 @@ class LinkCheckerProvider extends ChangeNotifier {
     bool checkExternalLinks = false,
     bool continueFromLastScan = false,
   }) async {
+    // Disable checking in demo mode
+    if (_isDemoMode) {
+      throw Exception('Link checking is not available in demo mode');
+    }
+
     final siteId = site.id;
 
     // Don't start a new check if already checking
