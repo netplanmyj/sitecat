@@ -4,14 +4,14 @@ import 'package:sitecat/constants/app_constants.dart';
 void main() {
   group('Site Limit Constants Tests', () {
     test('site limit constant is set correctly', () {
-      expect(AppConstants.freePlanSiteLimit, equals(1));
+      expect(AppConstants.freePlanSiteLimit, equals(3));
       expect(AppConstants.siteLimitMessage, isNotEmpty);
       expect(AppConstants.siteLimitReachedMessage, isNotEmpty);
     });
 
     test('site limit message contains the limit number', () {
       final message = AppConstants.siteLimitMessage;
-      expect(message, contains('1'));
+      expect(message, contains('3'));
       expect(message, contains('個'));
     });
 
