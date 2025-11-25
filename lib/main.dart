@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
-import 'package:logger/logger.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/site_provider.dart';
@@ -14,72 +13,25 @@ import 'screens/profile_screen.dart';
 import 'screens/login_screen.dart';
 
 void main() async {
+  // Flutter binding の初期化
   WidgetsFlutterBinding.ensureInitialized();
 
-  final logger = Logger();
-  String debugInfo = '';
-
+  // Firebase の初期化（必ず runApp より前に完了させる）
   try {
-    // Debug: Collect Firebase apps state
-    debugInfo += 'Firebase.apps.length: ${Firebase.apps.length}\n';
-    debugInfo += 'Firebase.apps.isEmpty: ${Firebase.apps.isEmpty}\n';
-
-    // Check if Firebase is already initialized before attempting
-    if (Firebase.apps.isEmpty) {
-      debugInfo += 'Attempting Firebase initialization...\n';
-      await Firebase.initializeApp(
-        options: DefaultFirebaseOptions.currentPlatform,
-      );
-      debugInfo += 'Firebase initialized successfully\n';
-      debugInfo += 'Firebase.apps.length after init: ${Firebase.apps.length}\n';
-      logger.i('Firebase initialized successfully');
-    } else {
-      debugInfo += 'Firebase already initialized, skipping\n';
-      debugInfo +=
-          'Existing apps: ${Firebase.apps.map((app) => app.name).toList()}\n';
-      logger.w('Firebase already initialized, skipping initialization');
-    }
-
-    runApp(const SiteCatApp());
-  } catch (e, stackTrace) {
-    // Firebase initialization failed - show debug info in UI
-    debugInfo += '\nERROR: $e\n';
-    debugInfo += '\nStack trace:\n$stackTrace';
-    logger.e('Firebase initialization error: $e');
-
-    runApp(
-      MaterialApp(
-        home: Scaffold(
-          body: Center(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.error_outline, size: 64, color: Colors.red),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Failed to initialize app',
-                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    debugInfo,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                      fontFamily: 'monospace',
-                    ),
-                    textAlign: TextAlign.left,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
     );
+  } catch (e) {
+    // If duplicate-app error occurs, it means Firebase is already initialized at native layer
+    // This is expected behavior in some environments (e.g., TestFlight)
+    if (!e.toString().contains('duplicate-app') &&
+        !e.toString().contains('already exists')) {
+      // For other errors, rethrow
+      rethrow;
+    }
   }
+
+  runApp(const SiteCatApp());
 }
 
 class SiteCatApp extends StatelessWidget {
