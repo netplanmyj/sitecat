@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
+import '../services/demo_service.dart';
 
 /// 認証状態管理Provider
 /// ChangeNotifierを継承し、認証状態の変更をUIに通知する
@@ -10,11 +11,13 @@ class AuthProvider extends ChangeNotifier {
   User? _user;
   bool _isLoading = false;
   String? _errorMessage;
+  bool _isDemoMode = false;
 
   // Getters
   User? get user => _user;
   bool get isLoading => _isLoading;
-  bool get isAuthenticated => _user != null;
+  bool get isAuthenticated => _user != null || _isDemoMode;
+  bool get isDemoMode => _isDemoMode;
   String? get errorMessage => _errorMessage;
 
   /// 初期化
@@ -23,7 +26,11 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// 初期化処理
-  void _init() {
+  void _init() async {
+    // Check if demo mode was previously enabled
+    _isDemoMode = await DemoService.isDemoMode();
+    notifyListeners();
+
     // 認証状態の変更を監視
     _authService.authStateChanges.listen((User? user) {
       _user = user;
@@ -76,8 +83,43 @@ class AuthProvider extends ChangeNotifier {
     _clearError();
 
     try {
-      await _authService.signOut();
-      _user = null;
+      // If in demo mode, exit demo mode
+      if (_isDemoMode) {
+        await exitDemoMode();
+      } else {
+        await _authService.signOut();
+        _user = null;
+      }
+    } catch (e) {
+      _setError(e.toString());
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// デモモード開始
+  Future<void> enterDemoMode() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      await DemoService.enableDemoMode();
+      _isDemoMode = true;
+    } catch (e) {
+      _setError(e.toString());
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  /// デモモード終了
+  Future<void> exitDemoMode() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      await DemoService.disableDemoMode();
+      _isDemoMode = false;
     } catch (e) {
       _setError(e.toString());
     } finally {

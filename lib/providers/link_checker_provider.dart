@@ -3,6 +3,7 @@ import '../models/broken_link.dart';
 import '../models/site.dart';
 import '../services/link_checker_service.dart';
 import '../services/site_service.dart';
+import '../services/demo_service.dart';
 import '../utils/url_utils.dart';
 
 /// State for link checking operation
@@ -12,6 +13,7 @@ enum LinkCheckState { idle, checking, completed, error }
 class LinkCheckerProvider extends ChangeNotifier {
   final LinkCheckerService _linkCheckerService = LinkCheckerService();
   final SiteService _siteService = SiteService();
+  bool _isDemoMode = false;
 
   // Minimum interval between checks (1 minute for debugging)
   static const Duration minimumCheckInterval = Duration(minutes: 1);
@@ -41,12 +43,24 @@ class LinkCheckerProvider extends ChangeNotifier {
 
   /// Get cached result for a site
   LinkCheckResult? getCachedResult(String siteId) {
+    if (_isDemoMode) {
+      final results = DemoService.getLinkCheckResults(siteId);
+      return results.isNotEmpty ? results.first : null;
+    }
     return _resultCache[siteId];
   }
 
   /// Get cached broken links for a site
   List<BrokenLink> getCachedBrokenLinks(String siteId) {
+    if (_isDemoMode) {
+      return DemoService.getBrokenLinks(siteId);
+    }
     return _brokenLinksCache[siteId] ?? [];
+  }
+
+  /// Initialize with demo mode flag
+  void initialize({bool isDemoMode = false}) {
+    _isDemoMode = isDemoMode;
   }
 
   /// Get error message for a site
