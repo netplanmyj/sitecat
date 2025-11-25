@@ -42,7 +42,7 @@ class MySitesSection extends StatelessWidget {
                 itemCount: sites.length,
                 itemBuilder: (context, index) {
                   final site = sites[index];
-                  return DashboardSiteCard(site: site);
+                  return SiteCard(site: site);
                 },
               ),
 
