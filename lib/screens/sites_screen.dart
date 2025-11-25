@@ -3,8 +3,8 @@ import 'package:provider/provider.dart';
 import '../providers/site_provider.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
+import '../widgets/dashboard/site_card.dart';
 import 'site_form_screen.dart';
-import 'site_detail_screen.dart';
 
 class SitesScreen extends StatefulWidget {
   const SitesScreen({super.key});
@@ -234,71 +234,34 @@ class _SitesScreenState extends State<SitesScreen> {
     Site site,
     SiteProvider siteProvider,
   ) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 8),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: Colors.blue.shade100,
-          child: Icon(Icons.language, color: Colors.blue.shade700),
-        ),
-        title: Text(
-          site.name,
-          style: const TextStyle(fontWeight: FontWeight.w500),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              site.displayUrl,
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 4),
-            Row(
+    return SiteCard(
+      site: site,
+      showLastChecked: true,
+      trailing: PopupMenuButton<String>(
+        onSelected: (value) =>
+            _handleMenuAction(context, value, site, siteProvider),
+        itemBuilder: (context) => [
+          const PopupMenuItem(
+            value: 'edit',
+            child: Row(
               children: [
-                Icon(Icons.access_time, size: 14, color: Colors.grey.shade500),
-                const SizedBox(width: 4),
-                Text(
-                  'Last: ${site.lastCheckedDisplay}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                ),
+                Icon(Icons.edit, size: 20),
+                SizedBox(width: 8),
+                Text('Edit'),
               ],
             ),
-          ],
-        ),
-        trailing: PopupMenuButton<String>(
-          onSelected: (value) =>
-              _handleMenuAction(context, value, site, siteProvider),
-          itemBuilder: (context) => [
-            const PopupMenuItem(
-              value: 'edit',
-              child: Row(
-                children: [
-                  Icon(Icons.edit, size: 20),
-                  SizedBox(width: 8),
-                  Text('Edit'),
-                ],
-              ),
+          ),
+          const PopupMenuItem(
+            value: 'delete',
+            child: Row(
+              children: [
+                Icon(Icons.delete, size: 20, color: Colors.red),
+                SizedBox(width: 8),
+                Text('Delete', style: TextStyle(color: Colors.red)),
+              ],
             ),
-            const PopupMenuItem(
-              value: 'delete',
-              child: Row(
-                children: [
-                  Icon(Icons.delete, size: 20, color: Colors.red),
-                  SizedBox(width: 8),
-                  Text('Delete', style: TextStyle(color: Colors.red)),
-                ],
-              ),
-            ),
-          ],
-        ),
-        onTap: () {
-          // Navigate to site detail screen
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => SiteDetailScreen(site: site),
-            ),
-          );
-        },
+          ),
+        ],
       ),
     );
   }
