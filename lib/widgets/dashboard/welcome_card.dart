@@ -6,6 +6,23 @@ class WelcomeCard extends StatelessWidget {
 
   const WelcomeCard({super.key, required this.user});
 
+  /// ユーザー表示名を取得
+  /// displayName があればそれを使用、なければメールアドレスの@より前を使用
+  String _getDisplayName(dynamic user) {
+    if (user?.displayName != null && user!.displayName!.isNotEmpty) {
+      return user.displayName!;
+    }
+
+    // displayName がない場合、メールアドレスから生成
+    if (user?.email != null) {
+      final email = user!.email as String;
+      final username = email.split('@').first;
+      return username;
+    }
+
+    return 'User';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -32,7 +49,7 @@ class WelcomeCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   Text(
-                    user?.displayName ?? 'User',
+                    _getDisplayName(user),
                     style: Theme.of(context).textTheme.titleLarge,
                   ),
                 ],

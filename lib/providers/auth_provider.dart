@@ -51,6 +51,25 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
+  /// Apple Sign-In実行
+  Future<void> signInWithApple() async {
+    _setLoading(true);
+    _clearError();
+
+    try {
+      final userCredential = await _authService.signInWithApple();
+
+      if (userCredential != null) {
+        // 認証成功
+        _user = userCredential.user;
+      }
+    } catch (e) {
+      _setError(e.toString());
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   /// サインアウト実行
   Future<void> signOut() async {
     _setLoading(true);
