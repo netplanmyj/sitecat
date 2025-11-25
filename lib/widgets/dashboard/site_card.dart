@@ -79,7 +79,7 @@ class SiteCard extends StatelessWidget {
 }
 
 /// Legacy name for backward compatibility
-@Deprecated('Use SiteCard instead')
+@Deprecated('Use SiteCard instead. This class will be removed in v2.0.0')
 class DashboardSiteCard extends SiteCard {
   const DashboardSiteCard({super.key, required super.site});
 }

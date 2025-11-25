@@ -12,12 +12,14 @@ class AuthProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
   bool _isDemoMode = false;
+  bool _isInitialized = false;
 
   // Getters
   User? get user => _user;
   bool get isLoading => _isLoading;
   bool get isAuthenticated => _user != null || _isDemoMode;
   bool get isDemoMode => _isDemoMode;
+  bool get isInitialized => _isInitialized;
   String? get errorMessage => _errorMessage;
 
   /// 初期化
@@ -26,9 +28,10 @@ class AuthProvider extends ChangeNotifier {
   }
 
   /// 初期化処理
-  void _init() async {
+  Future<void> _init() async {
     // Check if demo mode was previously enabled
     _isDemoMode = await DemoService.isDemoMode();
+    _isInitialized = true;
     notifyListeners();
 
     // 認証状態の変更を監視
