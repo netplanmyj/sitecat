@@ -255,13 +255,6 @@ class _SitesScreenState extends State<SitesScreen> {
             const SizedBox(height: 4),
             Row(
               children: [
-                Icon(Icons.schedule, size: 14, color: Colors.grey.shade500),
-                const SizedBox(width: 4),
-                Text(
-                  'Every ${site.checkIntervalDisplay}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
-                ),
-                const SizedBox(width: 12),
                 Icon(Icons.access_time, size: 14, color: Colors.grey.shade500),
                 const SizedBox(width: 4),
                 Text(
