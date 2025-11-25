@@ -16,11 +16,19 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   try {
-    // Check if Firebase is already initialized
-    if (Firebase.apps.isEmpty) {
+    // Safely initialize Firebase by catching any duplicate app errors
+    try {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+    } catch (e) {
+      // If Firebase is already initialized, get the existing app
+      if (e.toString().contains('duplicate-app') ||
+          e.toString().contains('already exists')) {
+        // Firebase is already initialized, continue
+      } else {
+        rethrow;
+      }
     }
 
     runApp(const SiteCatApp());
