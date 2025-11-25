@@ -21,14 +21,14 @@ void main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
-  } catch (e) {
+  } on FirebaseException catch (e) {
     // If duplicate-app error occurs, it means Firebase is already initialized at native layer
     // This is expected behavior in some environments (e.g., TestFlight)
-    if (!e.toString().contains('duplicate-app') &&
-        !e.toString().contains('already exists')) {
+    if (e.code != 'duplicate-app') {
       // For other errors, rethrow
       rethrow;
     }
+    // Firebase already initialized at native layer
   }
 
   runApp(const SiteCatApp());
