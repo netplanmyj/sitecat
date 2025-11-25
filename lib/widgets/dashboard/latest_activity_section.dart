@@ -33,10 +33,10 @@ class FullScanDashboardResult extends UnifiedDashboardResult {
     : super(timestamp: result.timestamp);
 }
 
-class RecentActivitySection extends StatelessWidget {
+class LatestActivitySection extends StatelessWidget {
   final VoidCallback? onNavigateToResults;
 
-  const RecentActivitySection({super.key, this.onNavigateToResults});
+  const LatestActivitySection({super.key, this.onNavigateToResults});
 
   @override
   Widget build(BuildContext context) {
@@ -59,9 +59,9 @@ class RecentActivitySection extends StatelessWidget {
           );
         }
 
-        // Sort by timestamp (newest first) and take 3
+        // Sort by timestamp (newest first) and take 1 (latest only)
         allResults.sort((a, b) => b.timestamp.compareTo(a.timestamp));
-        final recentResults = allResults.take(3).toList();
+        final recentResults = allResults.take(1).toList();
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -69,13 +69,13 @@ class RecentActivitySection extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               child: Text(
-                'Recent Activity',
+                'Latest Activity',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
             ),
             const SizedBox(height: 16),
 
-            // Results list (max 5)
+            // Latest result (max 1)
             if (recentResults.isEmpty)
               const Center(
                 child: Padding(

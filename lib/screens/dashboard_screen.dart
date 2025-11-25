@@ -4,7 +4,7 @@ import '../providers/auth_provider.dart';
 import '../providers/link_checker_provider.dart';
 import '../widgets/dashboard/welcome_card.dart';
 import '../widgets/dashboard/my_sites_section.dart';
-import '../widgets/dashboard/recent_activity_section.dart';
+import '../widgets/dashboard/latest_activity_section.dart';
 import '../widgets/demo_mode_badge.dart';
 
 /// ダッシュボード画面
@@ -65,8 +65,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                       const SizedBox(height: 24),
 
-                      // Recent Activity Section
-                      RecentActivitySection(
+                      // Latest Activity Section
+                      LatestActivitySection(
                         onNavigateToResults: widget.onNavigateToResults,
                       ),
                     ],
