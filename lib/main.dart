@@ -24,6 +24,7 @@ void main() async {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+      logger.i('Firebase initialized successfully');
     } else {
       logger.w('Firebase already initialized, skipping initialization');
     }
