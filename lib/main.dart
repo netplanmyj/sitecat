@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
+import 'package:logger/logger.dart';
 import 'firebase_options.dart';
 import 'providers/auth_provider.dart';
 import 'providers/site_provider.dart';
@@ -15,20 +16,16 @@ import 'screens/login_screen.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  final logger = Logger();
+
   try {
-    // Safely initialize Firebase by catching any duplicate app errors
-    try {
+    // Check if Firebase is already initialized before attempting
+    if (Firebase.apps.isEmpty) {
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
-    } catch (e) {
-      // If Firebase is already initialized, get the existing app
-      if (e.toString().contains('duplicate-app') ||
-          e.toString().contains('already exists')) {
-        // Firebase is already initialized, continue
-      } else {
-        rethrow;
-      }
+    } else {
+      logger.w('Firebase already initialized, skipping initialization');
     }
 
     runApp(const SiteCatApp());
