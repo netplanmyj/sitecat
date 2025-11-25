@@ -17,26 +17,41 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final logger = Logger();
+  String debugInfo = '';
 
   try {
+    // Debug: Collect Firebase apps state
+    debugInfo += 'Firebase.apps.length: ${Firebase.apps.length}\n';
+    debugInfo += 'Firebase.apps.isEmpty: ${Firebase.apps.isEmpty}\n';
+
     // Check if Firebase is already initialized before attempting
     if (Firebase.apps.isEmpty) {
+      debugInfo += 'Attempting Firebase initialization...\n';
       await Firebase.initializeApp(
         options: DefaultFirebaseOptions.currentPlatform,
       );
+      debugInfo += 'Firebase initialized successfully\n';
+      debugInfo += 'Firebase.apps.length after init: ${Firebase.apps.length}\n';
       logger.i('Firebase initialized successfully');
     } else {
+      debugInfo += 'Firebase already initialized, skipping\n';
+      debugInfo +=
+          'Existing apps: ${Firebase.apps.map((app) => app.name).toList()}\n';
       logger.w('Firebase already initialized, skipping initialization');
     }
 
     runApp(const SiteCatApp());
-  } catch (e) {
-    // Firebase initialization failed
+  } catch (e, stackTrace) {
+    // Firebase initialization failed - show debug info in UI
+    debugInfo += '\nERROR: $e\n';
+    debugInfo += '\nStack trace:\n$stackTrace';
+    logger.e('Firebase initialization error: $e');
+
     runApp(
       MaterialApp(
         home: Scaffold(
           body: Center(
-            child: Padding(
+            child: SingleChildScrollView(
               padding: const EdgeInsets.all(24),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -49,9 +64,13 @@ void main() async {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'Error: $e',
-                    style: const TextStyle(fontSize: 14, color: Colors.grey),
-                    textAlign: TextAlign.center,
+                    debugInfo,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                      fontFamily: 'monospace',
+                    ),
+                    textAlign: TextAlign.left,
                   ),
                 ],
               ),
