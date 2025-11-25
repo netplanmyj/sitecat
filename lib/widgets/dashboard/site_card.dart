@@ -2,11 +2,21 @@ import 'package:flutter/material.dart';
 import '../../models/site.dart';
 import '../../screens/site_detail_screen.dart';
 
-/// Card widget displaying site information in Dashboard
-class DashboardSiteCard extends StatelessWidget {
+/// Card widget displaying site information
+/// Can be used in both Dashboard and Sites screen
+class SiteCard extends StatelessWidget {
   final Site site;
+  final bool showLastChecked;
+  final Widget? trailing;
+  final VoidCallback? onTap;
 
-  const DashboardSiteCard({super.key, required this.site});
+  const SiteCard({
+    super.key,
+    required this.site,
+    this.showLastChecked = false,
+    this.trailing,
+    this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -21,35 +31,55 @@ class DashboardSiteCard extends StatelessWidget {
           site.name,
           style: const TextStyle(fontWeight: FontWeight.w500),
         ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              site.displayUrl,
-              style: TextStyle(color: Colors.grey.shade600),
-            ),
-            const SizedBox(height: 4),
-            Row(
-              children: [
-                Icon(Icons.schedule, size: 14, color: Colors.grey.shade500),
-                const SizedBox(width: 4),
-                Text(
-                  'Every ${site.checkIntervalDisplay}',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+        subtitle: showLastChecked
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    site.displayUrl,
+                    style: TextStyle(color: Colors.grey.shade600),
+                  ),
+                  const SizedBox(height: 4),
+                  Row(
+                    children: [
+                      Icon(
+                        Icons.access_time,
+                        size: 14,
+                        color: Colors.grey.shade500,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Last: ${site.lastCheckedDisplay}',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: Colors.grey.shade500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              )
+            : Text(
+                site.displayUrl,
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+        trailing: trailing ?? const Icon(Icons.chevron_right),
+        onTap:
+            onTap ??
+            () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => SiteDetailScreen(site: site),
                 ),
-              ],
-            ),
-          ],
-        ),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => SiteDetailScreen(site: site),
-            ),
-          );
-        },
+              );
+            },
       ),
     );
   }
+}
+
+/// Legacy name for backward compatibility
+@Deprecated('Use SiteCard instead')
+class DashboardSiteCard extends SiteCard {
+  const DashboardSiteCard({super.key, required super.site});
 }

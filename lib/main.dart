@@ -119,9 +119,14 @@ class _AuthenticatedHomeState extends State<AuthenticatedHome> {
     super.initState();
 
     // Initialize providers
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (mounted) {
-        context.read<SiteProvider>().initialize();
+        final authProvider = context.read<AuthProvider>();
+        final isDemoMode = authProvider.isDemoMode;
+
+        // Initialize providers with demo mode flag
+        context.read<SiteProvider>().initialize(isDemoMode: isDemoMode);
+        context.read<LinkCheckerProvider>().initialize(isDemoMode: isDemoMode);
       }
     });
 
@@ -148,7 +153,12 @@ class _AuthenticatedHomeState extends State<AuthenticatedHome> {
   Widget build(BuildContext context) {
     // Initialize monitoring when sites are available
     final siteProvider = context.watch<SiteProvider>();
-    if (siteProvider.sites.isNotEmpty && !_monitoringInitialized) {
+    final authProvider = context.watch<AuthProvider>();
+    final isDemoMode = authProvider.isDemoMode;
+
+    if (siteProvider.sites.isNotEmpty &&
+        !_monitoringInitialized &&
+        !isDemoMode) {
       _monitoringInitialized = true;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {

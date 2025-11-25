@@ -4,7 +4,7 @@ class AppConstants {
   AppConstants._();
 
   /// サイト登録制限
-  static const int freePlanSiteLimit = 1;
+  static const int freePlanSiteLimit = 3;
 
   /// ページクローリング制限
   static const int freePlanPageLimit = 100;

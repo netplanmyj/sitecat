@@ -6,6 +6,7 @@ import '../services/monitoring_service.dart';
 
 class MonitoringProvider extends ChangeNotifier {
   final MonitoringService _monitoringService = MonitoringService();
+  bool _isDemoMode = false;
 
   // Minimum interval between checks (1 minute for debugging)
   static const Duration minimumCheckInterval = Duration(minutes: 1);
@@ -53,7 +54,13 @@ class MonitoringProvider extends ChangeNotifier {
   }
 
   /// Initialize monitoring for all sites
-  Future<void> initialize(List<String> siteIds) async {
+  Future<void> initialize(
+    List<String> siteIds, {
+    bool isDemoMode = false,
+  }) async {
+    _isDemoMode = isDemoMode;
+    if (_isDemoMode) return; // Skip initialization in demo mode
+
     for (final siteId in siteIds) {
       listenToSiteResults(siteId);
     }
@@ -123,6 +130,12 @@ class MonitoringProvider extends ChangeNotifier {
 
   /// Perform a manual check on a site
   Future<bool> checkSite(Site site) async {
+    // Disable checking in demo mode
+    if (_isDemoMode) {
+      _setError('Site monitoring is not available in demo mode');
+      return false;
+    }
+
     try {
       _clearError();
 

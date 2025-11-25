@@ -106,6 +106,25 @@ class _SignInSection extends StatelessWidget {
               ),
             ],
 
+            // Demo Mode Button
+            const SizedBox(height: 24),
+            OutlinedButton.icon(
+              onPressed: authProvider.isLoading
+                  ? null
+                  : () => authProvider.enterDemoMode(),
+              icon: const Icon(Icons.preview),
+              label: const Text('Try Demo Mode'),
+              style: OutlinedButton.styleFrom(
+                minimumSize: const Size(double.infinity, 50),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Experience the app without signing in',
+              style: Theme.of(context).textTheme.bodySmall,
+              textAlign: TextAlign.center,
+            ),
+
             // Error message display
             if (authProvider.errorMessage != null) ...[
               const SizedBox(height: 16),

@@ -4,7 +4,8 @@ import '../providers/auth_provider.dart';
 import '../providers/link_checker_provider.dart';
 import '../widgets/dashboard/welcome_card.dart';
 import '../widgets/dashboard/my_sites_section.dart';
-import '../widgets/dashboard/recent_activity_section.dart';
+import '../widgets/dashboard/latest_activity_section.dart';
+import '../widgets/demo_mode_badge.dart';
 
 /// ダッシュボード画面
 class DashboardScreen extends StatefulWidget {
@@ -42,25 +43,37 @@ class _DashboardScreenState extends State<DashboardScreen> {
         builder: (context, authProvider, child) {
           final user = authProvider.user;
 
-          return SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Welcome Card
-                WelcomeCard(user: user),
-                const SizedBox(height: 24),
+          return Column(
+            children: [
+              // Demo Mode Badge
+              const DemoModeBadge(),
 
-                // My Sites Section
-                MySitesSection(onNavigateToSites: widget.onNavigateToSites),
-                const SizedBox(height: 24),
+              // Main Content
+              Expanded(
+                child: SingleChildScrollView(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Welcome Card
+                      WelcomeCard(user: user),
+                      const SizedBox(height: 24),
 
-                // Recent Activity Section
-                RecentActivitySection(
-                  onNavigateToResults: widget.onNavigateToResults,
+                      // My Sites Section
+                      MySitesSection(
+                        onNavigateToSites: widget.onNavigateToSites,
+                      ),
+                      const SizedBox(height: 24),
+
+                      // Latest Activity Section
+                      LatestActivitySection(
+                        onNavigateToResults: widget.onNavigateToResults,
+                      ),
+                    ],
+                  ),
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         },
       ),

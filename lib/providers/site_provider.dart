@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/site.dart';
 import '../services/site_service.dart';
+import '../services/demo_service.dart';
 import '../constants/app_constants.dart';
 
 class SiteProvider extends ChangeNotifier {
@@ -12,21 +13,29 @@ class SiteProvider extends ChangeNotifier {
   bool _isLoading = false;
   String? _error;
   StreamSubscription<List<Site>>? _sitesSubscription;
+  bool _isDemoMode = false;
 
   // Getters
-  List<Site> get sites => _sites;
+  List<Site> get sites => _isDemoMode ? DemoService.getSites() : _sites;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  int get siteCount => _sites.length;
+  int get siteCount => sites.length;
   List<Site> get monitoringSites =>
-      _sites.where((site) => site.monitoringEnabled).toList();
+      sites.where((site) => site.monitoringEnabled).toList();
 
   /// サイトを追加可能かチェック（無料プランの制限）
-  bool get canAddSite => _sites.length < AppConstants.freePlanSiteLimit;
+  bool get canAddSite => sites.length < AppConstants.freePlanSiteLimit;
 
   // Initialize and start listening to sites
-  void initialize() {
-    _listenToSites();
+  void initialize({bool isDemoMode = false}) async {
+    _isDemoMode = isDemoMode;
+    if (!_isDemoMode) {
+      _listenToSites();
+    } else {
+      // Load demo data
+      _setLoading(false);
+      notifyListeners();
+    }
   }
 
   // Clean up subscriptions
