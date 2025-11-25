@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'dart:io' show Platform;
 import '../providers/auth_provider.dart';
 
 /// 未認証ユーザー向けログイン画面
@@ -70,6 +72,7 @@ class _SignInSection extends StatelessWidget {
       builder: (context, authProvider, child) {
         return Column(
           children: [
+            // Google Sign-In Button
             ElevatedButton.icon(
               onPressed: authProvider.isLoading
                   ? null
@@ -90,6 +93,18 @@ class _SignInSection extends StatelessWidget {
                 minimumSize: const Size(double.infinity, 50),
               ),
             ),
+
+            // Apple Sign-In Button (iOS/macOS only)
+            if (Platform.isIOS || Platform.isMacOS) ...[
+              const SizedBox(height: 16),
+              SignInWithAppleButton(
+                onPressed: authProvider.isLoading
+                    ? () {}
+                    : () => authProvider.signInWithApple(),
+                style: SignInWithAppleButtonStyle.black,
+                height: 50,
+              ),
+            ],
 
             // Error message display
             if (authProvider.errorMessage != null) ...[
