@@ -120,14 +120,17 @@ class _AuthenticatedHomeState extends State<AuthenticatedHome> {
 
     // Initialize providers
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (mounted) {
-        final authProvider = context.read<AuthProvider>();
-        final isDemoMode = authProvider.isDemoMode;
+      if (!mounted) return;
 
-        // Initialize providers with demo mode flag
-        context.read<SiteProvider>().initialize(isDemoMode: isDemoMode);
-        context.read<LinkCheckerProvider>().initialize(isDemoMode: isDemoMode);
-      }
+      final authProvider = context.read<AuthProvider>();
+      final isDemoMode = authProvider.isDemoMode;
+      final siteProvider = context.read<SiteProvider>();
+      final linkCheckerProvider = context.read<LinkCheckerProvider>();
+
+      // Initialize providers with demo mode flag
+      await siteProvider.initialize(isDemoMode: isDemoMode);
+      if (!mounted) return;
+      linkCheckerProvider.initialize(isDemoMode: isDemoMode);
     });
 
     _screens = [

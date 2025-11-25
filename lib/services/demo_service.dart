@@ -7,7 +7,6 @@ import 'package:sitecat/models/demo_data.dart';
 /// Service for managing demo mode data
 class DemoService {
   static const String _demoModeKey = 'demo_mode_enabled';
-  static const String _demoInitializedKey = 'demo_initialized';
 
   /// Check if demo mode is enabled
   static Future<bool> isDemoMode() async {
@@ -19,25 +18,12 @@ class DemoService {
   static Future<void> enableDemoMode() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_demoModeKey, true);
-
-    // Initialize demo data on first use
-    final initialized = prefs.getBool(_demoInitializedKey) ?? false;
-    if (!initialized) {
-      await _initializeDemoData();
-      await prefs.setBool(_demoInitializedKey, true);
-    }
   }
 
   /// Disable demo mode
   static Future<void> disableDemoMode() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(_demoModeKey, false);
-  }
-
-  /// Initialize demo data (called once on first demo mode use)
-  static Future<void> _initializeDemoData() async {
-    // Demo data is generated on-the-fly via DemoData class
-    // No need to persist it in SharedPreferences
   }
 
   /// Get demo sites
@@ -73,6 +59,5 @@ class DemoService {
   static Future<void> clearDemoData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_demoModeKey);
-    await prefs.remove(_demoInitializedKey);
   }
 }

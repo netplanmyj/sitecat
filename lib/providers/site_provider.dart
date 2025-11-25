@@ -27,7 +27,7 @@ class SiteProvider extends ChangeNotifier {
   bool get canAddSite => sites.length < AppConstants.freePlanSiteLimit;
 
   // Initialize and start listening to sites
-  void initialize({bool isDemoMode = false}) async {
+  Future<void> initialize({bool isDemoMode = false}) async {
     _isDemoMode = isDemoMode;
     if (!_isDemoMode) {
       _listenToSites();
