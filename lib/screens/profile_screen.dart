@@ -263,13 +263,12 @@ class _AccountSettingsSection extends StatelessWidget {
 
   Future<void> _deleteAccount(BuildContext context) async {
     // Store navigator before showing dialog
-    final navigator = Navigator.of(context, rootNavigator: true);
+    final navigator = Navigator.of(context);
 
     // Show loading dialog
     showDialog(
       context: context,
       barrierDismissible: false,
-      useRootNavigator: true,
       builder: (context) => Semantics(
         label: 'Deleting account, please wait',
         child: Center(
