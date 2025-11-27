@@ -271,8 +271,8 @@ class _AccountSettingsSection extends StatelessWidget {
       barrierDismissible: false,
       builder: (context) => Semantics(
         label: 'Deleting account, please wait',
-        child: const Center(
-          child: Card(
+        child: Center(
+          child: const Card(
             child: Padding(
               padding: EdgeInsets.all(24),
               child: Column(
@@ -306,7 +306,7 @@ class _AccountSettingsSection extends StatelessWidget {
             title: const Text('Error'),
             content: Text(
               e is Exception
-                  ? e.toString().replaceFirst('Exception: ', '')
+                  ? e.toString().replaceFirst(RegExp(r'^Exception:\s*'), '')
                   : 'An unexpected error occurred',
             ),
             actions: [
