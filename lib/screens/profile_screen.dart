@@ -107,8 +107,6 @@ class _SignOutButton extends StatelessWidget {
         icon: const Icon(Icons.logout),
         label: const Text('Sign Out'),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.red,
-          foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 12),
         ),
       ),
