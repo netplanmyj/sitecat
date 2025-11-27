@@ -262,6 +262,9 @@ class _AccountSettingsSection extends StatelessWidget {
   }
 
   Future<void> _deleteAccount(BuildContext context) async {
+    // Store navigator before showing dialog
+    final navigator = Navigator.of(context);
+
     // Show loading dialog
     showDialog(
       context: context,
@@ -288,16 +291,12 @@ class _AccountSettingsSection extends StatelessWidget {
 
     try {
       await authProvider.deleteAccount();
-      // Close loading dialog on success using root navigator
-      if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
+      // Close loading dialog using stored navigator
+      navigator.pop();
       // Navigation to login screen will happen automatically via auth state change
     } catch (e) {
-      // Close loading dialog using root navigator
-      if (context.mounted) {
-        Navigator.of(context, rootNavigator: true).pop();
-      }
+      // Close loading dialog using stored navigator
+      navigator.pop();
 
       // Show error dialog
       if (context.mounted) {
