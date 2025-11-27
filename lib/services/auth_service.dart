@@ -146,6 +146,8 @@ class AuthService {
   }
 
   /// アカウント削除
+  /// ユーザーの全データ（プロフィール、サイト、監視履歴）を削除し、
+  /// Firebase Authenticationからアカウントを削除する
   Future<void> deleteAccount() async {
     final user = currentUser;
     if (user == null) {
@@ -153,16 +155,46 @@ class AuthService {
     }
 
     try {
-      // Firestoreからユーザードキュメントを削除
-      await _firestore.collection('users').doc(user.uid).delete();
+      final userId = user.uid;
 
-      // Firebase Authenticationからユーザーを削除
+      // 1. ユーザーが登録したすべてのサイトを削除
+      final sitesSnapshot = await _firestore
+          .collection('sites')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      for (final doc in sitesSnapshot.docs) {
+        await doc.reference.delete();
+      }
+
+      // 2. すべての監視履歴を削除
+      final monitoringSnapshot = await _firestore
+          .collection('monitoring')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      for (final doc in monitoringSnapshot.docs) {
+        await doc.reference.delete();
+      }
+
+      // 3. ユーザードキュメントを削除
+      await _firestore.collection('users').doc(userId).delete();
+
+      // 4. Firebase Authenticationからユーザーを削除
       await user.delete();
 
-      // Google Sign-Inからもサインアウト
+      // 5. Google Sign-Inからもサインアウト
       await _googleSignIn.signOut();
+    } on FirebaseAuthException catch (e) {
+      // 再認証が必要な場合のエラー処理
+      if (e.code == 'requires-recent-login') {
+        throw Exception(
+          'セキュリティのため、アカウント削除には再ログインが必要です。一度サインアウトして再度サインインしてください。',
+        );
+      }
+      throw Exception('アカウント削除に失敗しました: ${e.message}');
     } catch (e) {
-      throw Exception('Account deletion failed: $e');
+      throw Exception('アカウント削除に失敗しました: $e');
     }
   }
 
