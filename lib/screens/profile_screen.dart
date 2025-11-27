@@ -107,8 +107,6 @@ class _SignOutButton extends StatelessWidget {
         icon: const Icon(Icons.logout),
         label: const Text('Sign Out'),
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.red,
-          foregroundColor: Colors.white,
           padding: const EdgeInsets.symmetric(vertical: 12),
         ),
       ),
@@ -131,7 +129,6 @@ class _SignOutButton extends StatelessWidget {
               Navigator.of(context).pop();
               authProvider.signOut();
             },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
             child: const Text('Sign Out'),
           ),
         ],
@@ -291,7 +288,11 @@ class _AccountSettingsSection extends StatelessWidget {
 
     try {
       await authProvider.deleteAccount();
-      // Success - navigation will happen automatically via auth state change
+      // Close loading dialog on success
+      if (context.mounted) {
+        Navigator.of(context).pop();
+      }
+      // Navigation to login screen will happen automatically via auth state change
     } catch (e) {
       // Close loading dialog
       if (context.mounted) {
