@@ -292,6 +292,8 @@ class _AccountSettingsSection extends StatelessWidget {
       if (context.mounted) {
         Navigator.of(context).pop();
       }
+      // Add small delay to ensure dialog is closed before auth state change navigation
+      await Future.delayed(const Duration(milliseconds: 100));
       // Navigation to login screen will happen automatically via auth state change
     } catch (e) {
       // Close loading dialog
