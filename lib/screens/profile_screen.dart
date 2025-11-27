@@ -269,17 +269,20 @@ class _AccountSettingsSection extends StatelessWidget {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: Card(
-          child: Padding(
-            padding: EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(height: 16),
-                Text('Deleting account...'),
-              ],
+      builder: (context) => Semantics(
+        label: 'Deleting account, please wait',
+        child: const Center(
+          child: Card(
+            child: Padding(
+              padding: EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  CircularProgressIndicator(),
+                  SizedBox(height: 16),
+                  Text('Deleting account...'),
+                ],
+              ),
             ),
           ),
         ),
@@ -301,7 +304,11 @@ class _AccountSettingsSection extends StatelessWidget {
           context: context,
           builder: (context) => AlertDialog(
             title: const Text('Error'),
-            content: Text(e.toString()),
+            content: Text(
+              e is Exception
+                  ? e.toString().replaceFirst('Exception: ', '')
+                  : 'An unexpected error occurred',
+            ),
             actions: [
               TextButton(
                 onPressed: () => Navigator.of(context).pop(),

@@ -148,6 +148,10 @@ class AuthService {
   /// アカウント削除
   /// ユーザーの全データ（プロフィール、サイト、監視履歴）を削除し、
   /// Firebase Authenticationからアカウントを削除する
+  ///
+  /// 注意: Firebase Authenticationの削除は最後に実行されます。
+  /// これにより、途中でエラーが発生した場合でも、ユーザーは再度
+  /// ログインして削除を再試行できます。
   Future<void> deleteAccount() async {
     final user = currentUser;
     if (user == null) {
@@ -156,45 +160,59 @@ class AuthService {
 
     try {
       final userId = user.uid;
+      final userDocRef = _firestore.collection('users').doc(userId);
 
-      // 1. ユーザーが登録したすべてのサイトを削除
-      final sitesSnapshot = await _firestore
-          .collection('sites')
-          .where('userId', isEqualTo: userId)
+      // Phase 1: Firestoreからすべてのユーザーデータを削除
+      // この段階で失敗した場合、ユーザーは再ログインして再試行できる
+
+      // 1. ユーザードキュメント配下のすべてのサブコレクションを削除
+
+      // サイト情報を削除
+      final sitesSnapshot = await userDocRef.collection('sites').get();
+      await _batchDelete(sitesSnapshot.docs);
+
+      // linkCheckResultsとそのbrokenLinksサブコレクションを削除
+      final linkCheckSnapshot = await userDocRef
+          .collection('linkCheckResults')
           .get();
-
-      for (final doc in sitesSnapshot.docs) {
-        await doc.reference.delete();
+      for (final doc in linkCheckSnapshot.docs) {
+        // brokenLinksサブコレクションを先に削除
+        final brokenLinksSnapshot = await doc.reference
+            .collection('brokenLinks')
+            .get();
+        await _batchDelete(brokenLinksSnapshot.docs);
       }
+      // linkCheckResultsドキュメント自体を削除
+      await _batchDelete(linkCheckSnapshot.docs);
 
-      // 2. すべての監視履歴を削除
-      final monitoringSnapshot = await _firestore
-          .collection('monitoring')
-          .where('userId', isEqualTo: userId)
+      // monitoringResultsサブコレクションを削除
+      final monitoringSnapshot = await userDocRef
+          .collection('monitoringResults')
           .get();
+      await _batchDelete(monitoringSnapshot.docs);
 
-      for (final doc in monitoringSnapshot.docs) {
-        await doc.reference.delete();
-      }
+      // 2. ユーザードキュメントを削除
+      await userDocRef.delete();
 
-      // 3. ユーザードキュメントを削除
-      await _firestore.collection('users').doc(userId).delete();
-
-      // 4. Firebase Authenticationからユーザーを削除
+      // Phase 2: Firebase Authenticationからユーザーを削除
+      // 重要: Firestoreデータの削除が成功した後に実行
+      // これにより、エラー時にユーザーが再試行できる
       await user.delete();
 
-      // 5. Google Sign-Inからもサインアウト
+      // Phase 3: クリーンアップ
       await _googleSignIn.signOut();
     } on FirebaseAuthException catch (e) {
       // 再認証が必要な場合のエラー処理
       if (e.code == 'requires-recent-login') {
         throw Exception(
-          'セキュリティのため、アカウント削除には再ログインが必要です。一度サインアウトして再度サインインしてください。',
+          'For security reasons, account deletion requires recent login. Please sign out and sign in again.',
         );
       }
-      throw Exception('アカウント削除に失敗しました: ${e.message}');
+      throw Exception('Account deletion failed: ${e.message}');
     } catch (e) {
-      throw Exception('アカウント削除に失敗しました: $e');
+      // Firestoreデータ削除中にエラーが発生した場合
+      // Firebase Authアカウントは残るため、ユーザーは再試行できる
+      throw Exception('Account deletion failed: $e');
     }
   }
 
@@ -255,6 +273,32 @@ class AuthService {
         return 'リクエストが多すぎます。しばらく待ってから再試行してください。';
       default:
         return '認証エラーが発生しました: ${e.message}';
+    }
+  }
+
+  /// バッチ削除ヘルパー
+  /// Firestoreの制限により、1バッチあたり最大500操作まで
+  Future<void> _batchDelete(List<QueryDocumentSnapshot> docs) async {
+    if (docs.isEmpty) return;
+
+    WriteBatch batch = _firestore.batch();
+    int operationCount = 0;
+
+    for (final doc in docs) {
+      batch.delete(doc.reference);
+      operationCount++;
+
+      // Firestoreのバッチ制限は500操作
+      if (operationCount == 500) {
+        await batch.commit();
+        batch = _firestore.batch();
+        operationCount = 0;
+      }
+    }
+
+    // 残りの操作をコミット
+    if (operationCount > 0) {
+      await batch.commit();
     }
   }
 }
