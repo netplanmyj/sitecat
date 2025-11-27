@@ -145,9 +145,13 @@ class AuthService {
     }
   }
 
-  /// アカウント削除
-  /// ユーザーの全データ（プロフィール、サイト、監視履歴）を削除し、
-  /// Firebase Authenticationからアカウントを削除する
+  /// Delete account
+  /// Deletes all user data (profile, sites, monitoring history) and
+  /// removes the account from Firebase Authentication.
+  ///
+  /// Note: The Firebase Authentication account deletion is performed last.
+  /// This allows the user to log in again and retry the deletion if an
+  /// error occurs during the process.
   Future<void> deleteAccount() async {
     final user = currentUser;
     if (user == null) {
@@ -156,45 +160,59 @@ class AuthService {
 
     try {
       final userId = user.uid;
+      final userDocRef = _firestore.collection('users').doc(userId);
 
-      // 1. ユーザーが登録したすべてのサイトを削除
-      final sitesSnapshot = await _firestore
-          .collection('sites')
-          .where('userId', isEqualTo: userId)
+      // Phase 1: Delete all user data from Firestore
+      // If this phase fails, the user can log in again and retry
+
+      // 1. Delete all subcollections under the user document
+
+      // Delete site information
+      final sitesSnapshot = await userDocRef.collection('sites').get();
+      await _batchDelete(sitesSnapshot.docs);
+
+      // Delete linkCheckResults and its brokenLinks subcollection
+      final linkCheckSnapshot = await userDocRef
+          .collection('linkCheckResults')
           .get();
-
-      for (final doc in sitesSnapshot.docs) {
-        await doc.reference.delete();
+      for (final doc in linkCheckSnapshot.docs) {
+        // Delete brokenLinks subcollection first
+        final brokenLinksSnapshot = await doc.reference
+            .collection('brokenLinks')
+            .get();
+        await _batchDelete(brokenLinksSnapshot.docs);
       }
+      // Delete linkCheckResults documents themselves
+      await _batchDelete(linkCheckSnapshot.docs);
 
-      // 2. すべての監視履歴を削除
-      final monitoringSnapshot = await _firestore
-          .collection('monitoring')
-          .where('userId', isEqualTo: userId)
+      // Delete monitoringResults subcollection
+      final monitoringSnapshot = await userDocRef
+          .collection('monitoringResults')
           .get();
+      await _batchDelete(monitoringSnapshot.docs);
 
-      for (final doc in monitoringSnapshot.docs) {
-        await doc.reference.delete();
-      }
+      // 2. Delete user document
+      await userDocRef.delete();
 
-      // 3. ユーザードキュメントを削除
-      await _firestore.collection('users').doc(userId).delete();
-
-      // 4. Firebase Authenticationからユーザーを削除
+      // Phase 2: Delete user from Firebase Authentication
+      // Important: Executed after successful Firestore data deletion
+      // This allows the user to retry on error
       await user.delete();
 
-      // 5. Google Sign-Inからもサインアウト
+      // Phase 3: Cleanup
       await _googleSignIn.signOut();
     } on FirebaseAuthException catch (e) {
-      // 再認証が必要な場合のエラー処理
+      // Handle error when re-authentication is required
       if (e.code == 'requires-recent-login') {
         throw Exception(
-          'セキュリティのため、アカウント削除には再ログインが必要です。一度サインアウトして再度サインインしてください。',
+          'For security reasons, account deletion requires recent login. Please sign out and sign in again.',
         );
       }
-      throw Exception('アカウント削除に失敗しました: ${e.message}');
+      throw Exception('Account deletion failed: ${e.message}');
     } catch (e) {
-      throw Exception('アカウント削除に失敗しました: $e');
+      // If error occurs during Firestore data deletion
+      // Firebase Auth account remains, so user can retry
+      throw Exception('Account deletion failed: $e');
     }
   }
 
@@ -255,6 +273,32 @@ class AuthService {
         return 'リクエストが多すぎます。しばらく待ってから再試行してください。';
       default:
         return '認証エラーが発生しました: ${e.message}';
+    }
+  }
+
+  /// Batch delete helper
+  /// Due to Firestore limitations, maximum 500 operations per batch
+  Future<void> _batchDelete(List<QueryDocumentSnapshot> docs) async {
+    if (docs.isEmpty) return;
+
+    WriteBatch batch = _firestore.batch();
+    int operationCount = 0;
+
+    for (final doc in docs) {
+      batch.delete(doc.reference);
+      operationCount++;
+
+      // Firestore batch limit is 500 operations
+      if (operationCount == 500) {
+        await batch.commit();
+        batch = _firestore.batch();
+        operationCount = 0;
+      }
+    }
+
+    // Commit remaining operations
+    if (operationCount > 0) {
+      await batch.commit();
     }
   }
 }
