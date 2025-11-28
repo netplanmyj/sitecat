@@ -28,7 +28,7 @@ if [ -z "$CI_PRIMARY_REPOSITORY_PATH" ]; then
     export CI_PRIMARY_REPOSITORY_PATH="$(cd "$(dirname "$0")/../.." && pwd)"
 fi
 
-echo "リポジトリルート: $CI_PRIMARY_REPOSITORY_PATH"
+echo "リポジトリルート: '$CI_PRIMARY_REPOSITORY_PATH'"
 
 # 2. Flutter SDKインストール
 echo "\n[2/7] Flutter SDKインストール"
