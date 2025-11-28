@@ -9,9 +9,9 @@ import 'dart:io' show Platform;
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final GoogleSignIn _googleSignIn = GoogleSignIn(
-    // iOSのクライアントIDを明示的に指定
+    // iOSのクライアントIDを明示的に指定（sitecat-prod）
     clientId:
-        '974974534435-acs3q36ciqdm67u3ba5ea2ruk2ov9mo3.apps.googleusercontent.com',
+        '775763766826-st83dsn9npb5i4r74g4i930ceii7flq5.apps.googleusercontent.com',
   );
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
