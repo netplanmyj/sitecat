@@ -9,8 +9,8 @@ echo "========================================="
 echo "SiteCat - Xcode Cloud Post-Clone Script"
 echo "========================================="
 
-# 1. 環境変数確認
-echo "\n[1/7] 環境変数確認"
+# 1. 環境変数確認とパス設定
+echo "\n[1/7] 環境変数確認とパス設定"
 echo "CI_WORKSPACE: '$CI_WORKSPACE'"
 echo "CI_PRIMARY_REPOSITORY_PATH: '$CI_PRIMARY_REPOSITORY_PATH'"
 echo "PWD: '$PWD'"
@@ -21,10 +21,14 @@ if [ -z "$CI_WORKSPACE" ]; then
     export CI_WORKSPACE="$HOME"
 fi
 
+# リポジトリルートパスの設定（このスクリプトは ios/ci_scripts/ にあります）
 if [ -z "$CI_PRIMARY_REPOSITORY_PATH" ]; then
     echo "警告: CI_PRIMARY_REPOSITORY_PATH が設定されていません。推測値を使用します"
-    export CI_PRIMARY_REPOSITORY_PATH="$PWD"
+    # このスクリプトの場所から2階層上がリポジトリルート
+    export CI_PRIMARY_REPOSITORY_PATH="$(cd "$(dirname "$0")/../.." && pwd)"
 fi
+
+echo "リポジトリルート: '$CI_PRIMARY_REPOSITORY_PATH'"
 
 # 2. Flutter SDKインストール
 echo "\n[2/7] Flutter SDKインストール"
