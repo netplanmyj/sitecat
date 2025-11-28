@@ -49,9 +49,10 @@ if [ ! -f "ios/Runner/GoogleService-Info.plist" ]; then
     echo "エラー: ios/Runner/GoogleService-Info.plist が見つかりません"
     exit 1
 fi
-echo "GoogleService-Info.plist 確認完了（sitecat-prod設定を使用）"
+echo "GoogleService-Info.plist の存在を確認しました"
 
-# firebase_options.dartは不要（ネイティブ設定ファイルを使用）
+# firebase_options.dartは不要（以前はexampleからコピーして使用していましたが、現在はネイティブ設定ファイルのみを使用）
+# 今後はfirebase_options.dartの管理は不要です
 
 # 5. Flutter依存関係インストール
 echo "\n[4/7] Flutter依存関係インストール"
