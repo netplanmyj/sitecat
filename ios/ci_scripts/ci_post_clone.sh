@@ -32,7 +32,7 @@ echo "リポジトリルート: '$CI_PRIMARY_REPOSITORY_PATH'"
 
 # 2. Flutter SDKインストール
 echo "\n[2/7] Flutter SDKインストール"
-cd $CI_WORKSPACE
+cd "$CI_WORKSPACE" || { echo "エラー: CI_WORKSPACEに移動できません"; exit 1; }
 git clone https://github.com/flutter/flutter.git -b stable --depth 1
 echo "Flutter SDKインストール完了"
 
@@ -46,7 +46,10 @@ $CI_WORKSPACE/flutter/bin/flutter --version
 
 # 4. Firebase設定ファイル確認
 echo "\n[3/7] Firebase設定ファイル確認"
-cd $CI_PRIMARY_REPOSITORY_PATH
+cd "$CI_PRIMARY_REPOSITORY_PATH" || { echo "エラー: リポジトリルートに移動できません"; exit 1; }
+echo "現在のディレクトリ: $(pwd)"
+echo "ディレクトリ内容:"
+ls -la ios/Runner/ || echo "ios/Runner/ ディレクトリが見つかりません"
 
 # iOS用 GoogleService-Info.plist（リポジトリに含まれているものを使用）
 if [ ! -f "ios/Runner/GoogleService-Info.plist" ]; then
@@ -68,7 +71,7 @@ $CI_WORKSPACE/flutter/bin/flutter precache --ios
 
 # 7. CocoaPods依存関係インストール
 echo "\n[6/7] CocoaPods依存関係インストール"
-cd ios
+cd ios || { echo "エラー: iosディレクトリに移動できません"; exit 1; }
 pod install
 cd ..
 
