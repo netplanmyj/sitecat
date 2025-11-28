@@ -40,23 +40,19 @@ export PATH="$CI_WORKSPACE/flutter/bin/cache/dart-sdk/bin:$PATH"
 echo "\nFlutter バージョン:"
 $CI_WORKSPACE/flutter/bin/flutter --version
 
-# 4. Firebase設定ファイル注入
-echo "\n[3/7] Firebase設定ファイル注入"
+# 4. Firebase設定ファイル確認
+echo "\n[3/7] Firebase設定ファイル確認"
 cd $CI_PRIMARY_REPOSITORY_PATH
 
-# iOS用 GoogleService-Info.plist
-if [ -z "$IOS_GOOGLE_SERVICE_INFO_PLIST" ]; then
-    echo "エラー: IOS_GOOGLE_SERVICE_INFO_PLIST 環境変数が設定されていません"
+# iOS用 GoogleService-Info.plist（リポジトリに含まれているものを使用）
+if [ ! -f "ios/Runner/GoogleService-Info.plist" ]; then
+    echo "エラー: ios/Runner/GoogleService-Info.plist が見つかりません"
     exit 1
 fi
-echo "$IOS_GOOGLE_SERVICE_INFO_PLIST" | base64 --decode > ios/Runner/GoogleService-Info.plist
-echo "GoogleService-Info.plist 作成完了"
+echo "GoogleService-Info.plist の存在を確認しました"
 
-# firebase_options.dart（例から作成）
-if [ ! -f "lib/firebase_options.dart" ]; then
-    echo "firebase_options.dart をサンプルからコピー"
-    cp lib/firebase_options.dart.example lib/firebase_options.dart
-fi
+# firebase_options.dartは不要（以前はexampleからコピーして使用していましたが、現在はネイティブ設定ファイルのみを使用）
+# 今後はfirebase_options.dartの管理は不要です
 
 # 5. Flutter依存関係インストール
 echo "\n[4/7] Flutter依存関係インストール"
