@@ -4,7 +4,7 @@ import '../models/site.dart';
 import '../models/broken_link.dart';
 import '../providers/link_checker_provider.dart';
 import 'link_check/link_check_progress.dart';
-import 'link_check/link_check_results.dart';
+import 'link_check/full_scan_card.dart';
 
 /// Widget for link check results display (read-only)
 /// Link checking is initiated from the "Full Scan" button in the parent screen
@@ -74,9 +74,20 @@ class LinkCheckSection extends StatelessWidget {
                   ),
                 ],
 
-                // Results (when available)
+                // Results (when available) - Use FullScanCard for consistency
                 if (result != null) ...[
-                  LinkCheckResults(result: result, site: site),
+                  const SizedBox(height: 16),
+                  FullScanCard(
+                    site: site,
+                    result: result,
+                    onTap: () async {
+                      final brokenLinks = await linkChecker
+                          .getBrokenLinksForResult(site.id, result.id!);
+                      if (context.mounted) {
+                        onViewBrokenLinks(site, brokenLinks, result);
+                      }
+                    },
+                  ),
                 ],
 
                 // No results yet
