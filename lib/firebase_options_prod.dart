@@ -63,7 +63,8 @@ class DefaultFirebaseOptions {
     messagingSenderId: '775763766826',
     projectId: 'sitecat-prod',
     storageBucket: 'sitecat-prod.firebasestorage.app',
-    iosClientId: '775763766826-st83dsn9npb5i4r74g4i930ceii7flq5.apps.googleusercontent.com',
+    iosClientId:
+        '775763766826-st83dsn9npb5i4r74g4i930ceii7flq5.apps.googleusercontent.com',
     iosBundleId: 'jp.netplan.sitecat',
   );
 }
