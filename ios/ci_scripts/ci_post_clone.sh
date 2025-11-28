@@ -46,7 +46,10 @@ $CI_WORKSPACE/flutter/bin/flutter --version
 
 # 4. Firebase設定ファイル確認
 echo "\n[3/7] Firebase設定ファイル確認"
-cd $CI_PRIMARY_REPOSITORY_PATH
+cd "$CI_PRIMARY_REPOSITORY_PATH" || { echo "エラー: リポジトリルートに移動できません"; exit 1; }
+echo "現在のディレクトリ: $(pwd)"
+echo "ディレクトリ内容:"
+ls -la ios/Runner/ || echo "ios/Runner/ ディレクトリが見つかりません"
 
 # iOS用 GoogleService-Info.plist（リポジトリに含まれているものを使用）
 if [ ! -f "ios/Runner/GoogleService-Info.plist" ]; then
