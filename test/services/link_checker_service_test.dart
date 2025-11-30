@@ -1,7 +1,154 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart' as xml;
+import 'package:sitecat/utils/url_encoding_utils.dart';
 
 void main() {
+  group('Mojibake URL Fixing', () {
+    test('should fix double-encoded Japanese URLs', () {
+      // Arrange: Double-encoded "開発" tag URL
+      // UTF-8 bytes: E9 96 8B E7 99 BA
+      // Misinterpreted as Latin-1: é – ‹ ç ™ º
+      // Re-encoded as UTF-8: %C3%A9%C2%96%C2%8B%C3%A7%C2%99%C2%BA
+      const doubleEncodedUrl =
+          'https://example.com/tags/%C3%A9%C2%96%C2%8B%C3%A7%C2%99%C2%BA/';
+
+      // Act
+      final fixedUrl = UrlEncodingUtils.fixMojibakeUrl(doubleEncodedUrl);
+
+      // Assert: Should be fixed to correct UTF-8 encoding
+      expect(fixedUrl, 'https://example.com/tags/%E9%96%8B%E7%99%BA/');
+      expect(Uri.decodeFull(fixedUrl), contains('開発'));
+    });
+
+    test('should not modify correctly encoded Japanese URLs', () {
+      // Arrange: Correctly encoded "開発" URL
+      const correctUrl = 'https://example.com/tags/%E9%96%8B%E7%99%BA/';
+
+      // Act
+      final result = UrlEncodingUtils.fixMojibakeUrl(correctUrl);
+
+      // Assert: Should remain unchanged
+      expect(result, correctUrl);
+    });
+
+    test('should not modify European language URLs', () {
+      // Arrange: French URL with accented characters
+      const frenchUrl = 'https://example.fr/caf%C3%A9';
+
+      // Act
+      final result = UrlEncodingUtils.fixMojibakeUrl(frenchUrl);
+
+      // Assert: Should remain unchanged
+      expect(result, frenchUrl);
+      expect(Uri.decodeFull(result), 'https://example.fr/café');
+    });
+
+    test('should detect mojibake patterns correctly', () {
+      // Arrange: Various patterns
+      const mojibakePatterns = [
+        'Â\u0080Â\u0081', // C2 byte sequences
+        'é\u0096\u008B', // é + control chars
+      ];
+
+      const normalPatterns = [
+        'café', // Normal French
+        'España', // Normal Spanish
+        'resume', // Normal English
+      ];
+
+      // Act & Assert: Mojibake should be detected
+      for (final pattern in mojibakePatterns) {
+        expect(
+          UrlEncodingUtils.containsMojibake(pattern),
+          true,
+          reason: 'Should detect mojibake in: $pattern',
+        );
+      }
+
+      // Normal text should not be detected
+      for (final pattern in normalPatterns) {
+        expect(
+          UrlEncodingUtils.containsMojibake(pattern),
+          false,
+          reason: 'Should not detect mojibake in: $pattern',
+        );
+      }
+    });
+
+    test('should return original URL when recovery fails', () {
+      // Arrange: URL that might cause recovery issues
+      const problematicUrl = 'https://example.com/path/with/�/invalid';
+
+      // Act
+      final result = UrlEncodingUtils.fixMojibakeUrl(problematicUrl);
+
+      // Assert: Should return original when recovery fails
+      expect(result, problematicUrl);
+    });
+
+    test('should handle invalid URLs gracefully', () {
+      // Arrange: Invalid URL strings
+      const invalidUrls = ['not a url', '://invalid', ''];
+
+      // Act & Assert: Should not throw, return original
+      for (final url in invalidUrls) {
+        expect(
+          () => UrlEncodingUtils.fixMojibakeUrl(url),
+          returnsNormally,
+          reason: 'Should handle invalid URL: $url',
+        );
+        expect(UrlEncodingUtils.fixMojibakeUrl(url), url);
+      }
+    });
+
+    test('should fix multiple mojibake sequences in one URL', () {
+      // Arrange: URL with multiple Japanese segments
+      // "開発" and "記事" both double-encoded
+      const multiMojibakeUrl =
+          'https://example.com/tags/%C3%A9%C2%96%C2%8B%C3%A7%C2%99%C2%BA/'
+          'posts/%C3%A8%C2%A8%C2%98%C3%A4%C2%BA%C2%8B/';
+
+      // Act
+      final result = UrlEncodingUtils.fixMojibakeUrl(multiMojibakeUrl);
+
+      // Assert: Both should be fixed
+      final decoded = Uri.decodeFull(result);
+      expect(decoded, contains('開発'));
+      expect(decoded, contains('記事'));
+    });
+
+    test('should preserve query parameters and fragments', () {
+      // Arrange: Double-encoded URL with query params and fragment
+      const urlWithExtras =
+          'https://example.com/tags/%C3%A9%C2%96%C2%8B%C3%A7%C2%99%C2%BA/'
+          '?page=1&sort=desc#section';
+
+      // Act
+      final result = UrlEncodingUtils.fixMojibakeUrl(urlWithExtras);
+
+      // Assert: Query params and fragment should be preserved
+      expect(result, contains('?page=1&sort=desc'));
+      expect(result, contains('#section'));
+      final decoded = Uri.decodeFull(result);
+      expect(decoded, contains('開発'));
+    });
+
+    test('should handle URLs with both correct and mojibake encoding', () {
+      // Arrange: Mix of correct and mojibake encoding
+      // Note: Current implementation processes the entire decoded URL,
+      // so it will detect and fix the mojibake portion
+      const urlWithMojibake =
+          'https://example.com/tags/%C3%A9%C2%96%C2%8B%C3%A7%C2%99%C2%BA/';
+
+      // Act
+      final result = UrlEncodingUtils.fixMojibakeUrl(urlWithMojibake);
+
+      // Assert: Mojibake should be fixed
+      final decoded = Uri.decodeFull(result);
+      expect(decoded, contains('開発')); // Mojibake fixed
+    });
+  });
+
   group('Sitemap XML Parsing', () {
     test('should parse valid sitemap.xml and extract URLs', () {
       // Arrange

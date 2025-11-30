@@ -8,6 +8,7 @@ import '../models/broken_link.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
 import '../utils/url_helper.dart';
+import '../utils/url_encoding_utils.dart';
 
 /// Service for checking broken links on websites
 class LinkCheckerService {
@@ -500,7 +501,9 @@ class LinkCheckerService {
         // Resolve relative URLs
         final uri = baseUrl.resolve(href);
         if (uri.scheme == 'http' || uri.scheme == 'https') {
-          links.add(uri);
+          // Fix mojibake in URL before adding to list
+          final fixedUrl = UrlEncodingUtils.fixMojibakeUrl(uri.toString());
+          links.add(Uri.parse(fixedUrl));
         }
       } catch (e) {
         // Invalid URL, skip
