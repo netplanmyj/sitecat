@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../models/broken_link.dart';
 import '../../utils/date_formatter.dart';
@@ -9,13 +10,64 @@ class BrokenLinksList extends StatelessWidget {
 
   /// Decode URL-encoded string for better readability
   /// Uses Uri.decodeFull() to preserve URL structure (/, ?, #)
+  /// Also attempts to fix double-encoding issues
   String _decodeUrl(String url) {
     try {
-      return Uri.decodeFull(url);
+      String decoded = Uri.decodeFull(url);
+
+      // Check if the result contains mojibake patterns (Latin-1 misinterpretation)
+      // Common patterns: é, ã, ¢, º, etc. in sequences
+      // If detected, try to recover the original UTF-8 string
+      if (_containsMojibake(decoded)) {
+        try {
+          // Convert string back to Latin-1 bytes, then decode as UTF-8
+          final latin1Bytes = decoded.codeUnits;
+          final utf8String = utf8.decode(latin1Bytes, allowMalformed: true);
+
+          // Only use the recovered string if it doesn't contain replacement characters
+          if (!utf8String.contains('�')) {
+            return utf8String;
+          }
+        } catch (e) {
+          // Recovery failed, use the first decoded result
+        }
+      }
+
+      return decoded;
     } catch (e) {
       // If decoding fails, return original URL
       return url;
     }
+  }
+
+  /// Check if a string contains mojibake (garbled text) patterns
+  /// Specifically detects Japanese text that was double-encoded (UTF-8 → Latin-1 → UTF-8)
+  bool _containsMojibake(String text) {
+    // Japanese UTF-8 bytes when misinterpreted as Latin-1 create specific patterns:
+    // Common Japanese chars start with bytes E3-E9, which become é, ã, etc. in Latin-1
+    // When re-encoded to UTF-8, these become multi-byte sequences starting with C3
+    //
+    // Example: 開発 (U+958B U+767A)
+    //   UTF-8:     E9 96 8B E7 99 BA
+    //   As Latin-1: é  –  ‹  ç  ™  º
+    //   Re-encoded: C3 A9 C2 96 C2 8B C3 A7 C2 99 C2 BA
+    //
+    // Pattern: é (E9→C3A9) followed by –‹ (96 8B→C296 C28B)
+    //          ç (E7→C3A7) followed by ™º (99 BA→C299 C2BA)
+
+    // Very specific pattern for double-encoded Japanese:
+    // - Multiple C2 bytes (Â) which shouldn't appear in normal European text
+    // - é or ç followed by Latin-1 control/extended chars that form Japanese patterns
+    final japaneseOnlyPatterns = [
+      RegExp(
+        r'Â[\x80-\xBF]Â[\x80-\xBF]',
+      ), // C2xx C2xx pattern (UTF-8 continuation bytes)
+      RegExp(
+        r'é[\x80-\x9F][\x80-\x9F]',
+      ), // é + two control chars (not in European names)
+    ];
+
+    return japaneseOnlyPatterns.any((pattern) => pattern.hasMatch(text));
   }
 
   @override
