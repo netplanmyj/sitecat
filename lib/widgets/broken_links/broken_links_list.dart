@@ -49,7 +49,7 @@ class BrokenLinksList extends StatelessWidget {
     //
     // Example: 開発 (U+958B U+767A)
     //   UTF-8:     E9 96 8B E7 99 BA
-    //   As Latin-1: é  –  ‹  ç  ™  º
+    //   As Latin-1: 0xE9 0x96 0x8B 0xE7 0x99 0xBA  (é – ‹ ç ™ º)
     //   Re-encoded: C3 A9 C2 96 C2 8B C3 A7 C2 99 C2 BA
     //
     // Pattern: é (E9→C3A9) followed by –‹ (96 8B→C296 C28B)

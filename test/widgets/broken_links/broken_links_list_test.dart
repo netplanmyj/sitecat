@@ -166,7 +166,9 @@ void main() {
           siteId: 'site1',
           userId: 'user1',
           timestamp: DateTime.now(),
-          // Double-encoded "開発" appears as éçº in decoded form
+          // Double-encoded "開発" (U+958B U+767A)
+          // UTF-8 bytes E9 96 8B E7 99 BA → misinterpreted as Latin-1 → re-encoded
+          // Results in: é (E9) + control chars (96 8B) + ç (E7) + control chars (99 BA)
           url:
               'https://netplan.co.jp/posts/tags/%C3%A9%C2%96%C2%8B%C3%A7%C2%99%C2%BA/',
           foundOn: 'https://netplan.co.jp/posts/',
@@ -197,8 +199,9 @@ void main() {
           siteId: 'site1',
           userId: 'user1',
           timestamp: DateTime.now(),
-          // French URL with é should not be modified
-          url: 'https://example.fr/café',
+          // French URL with é (properly percent-encoded as %C3%A9)
+          // Should decode to 'café' and stay as 'café' (not treated as mojibake)
+          url: 'https://example.fr/caf%C3%A9',
           foundOn: 'https://example.fr/',
           statusCode: 404,
           error: 'Not Found',
