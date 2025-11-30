@@ -15,8 +15,13 @@ echo "\n[1/7] 環境変数確認とパス設定"
 # CI_WORKSPACEが設定されていない場合のフォールバック
 if [ -z "$CI_WORKSPACE" ]; then
     # Xcode Cloud環境では通常 /Volumes/workspace が使用される
-    export CI_WORKSPACE="/Volumes/workspace"
-    echo "CI_WORKSPACE を設定: '$CI_WORKSPACE'"
+    if [ -d "/Volumes/workspace" ]; then
+        export CI_WORKSPACE="/Volumes/workspace"
+        echo "CI_WORKSPACE を設定: '$CI_WORKSPACE' (Xcode Cloud環境)"
+    else
+        export CI_WORKSPACE="$HOME"
+        echo "CI_WORKSPACE を設定: '$CI_WORKSPACE' (ローカル/その他の環境)"
+    fi
 else
     echo "CI_WORKSPACE: '$CI_WORKSPACE'"
 fi
