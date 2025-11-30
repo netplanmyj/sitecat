@@ -52,8 +52,8 @@ class BrokenLinksList extends StatelessWidget {
     //   As Latin-1: 0xE9 0x96 0x8B 0xE7 0x99 0xBA  (é – ‹ ç ™ º)
     //   Re-encoded: C3 A9 C2 96 C2 8B C3 A7 C2 99 C2 BA
     //
-    // Pattern: é (E9→C3A9) followed by –‹ (96 8B→C296 C28B)
-    //          ç (E7→C3A7) followed by ™º (99 BA→C299 C2BA)
+    // Pattern: é (E9→C3A9) followed by 0x96 0x8B → C2 96 C2 8B
+    //          ç (E7→C3A7) followed by 0x99 0xBA → C2 99 C2 BA
 
     // Very specific pattern for double-encoded Japanese:
     // - Multiple C2 bytes (Â) which shouldn't appear in normal European text
