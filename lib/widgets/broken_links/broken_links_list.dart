@@ -21,7 +21,7 @@ class BrokenLinksList extends StatelessWidget {
       if (_containsMojibake(decoded)) {
         try {
           // Convert string back to Latin-1 bytes, then decode as UTF-8
-          final latin1Bytes = decoded.codeUnits;
+          final latin1Bytes = latin1.encode(decoded);
           final utf8String = utf8.decode(latin1Bytes, allowMalformed: true);
 
           // Only use the recovered string if it doesn't contain replacement characters
@@ -59,12 +59,10 @@ class BrokenLinksList extends StatelessWidget {
     // - Multiple C2 bytes (Â) which shouldn't appear in normal European text
     // - é or ç followed by Latin-1 control/extended chars that form Japanese patterns
     final japaneseOnlyPatterns = [
-      RegExp(
-        r'Â[\x80-\xBF]Â[\x80-\xBF]',
-      ), // C2xx C2xx pattern (UTF-8 continuation bytes)
-      RegExp(
-        r'é[\x80-\x9F][\x80-\x9F]',
-      ), // é + two control chars (not in European names)
+      // C2xx C2xx pattern (UTF-8 continuation bytes)
+      RegExp('Â[\u0080-\u00BF]Â[\u0080-\u00BF]'),
+      // é + two control chars (not in European names)
+      RegExp('é[\u0080-\u009F][\u0080-\u009F]'),
     ];
 
     return japaneseOnlyPatterns.any((pattern) => pattern.hasMatch(text));

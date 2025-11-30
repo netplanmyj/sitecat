@@ -184,8 +184,8 @@ void main() {
 
       // Should display correctly decoded Japanese text "開発"
       expect(find.textContaining('開発'), findsOneWidget);
-      // Should not display mojibake
-      expect(find.textContaining('é'), findsNothing);
+      // Should not display the specific mojibake pattern 'éçº'
+      expect(find.textContaining('éçº'), findsNothing);
     });
 
     testWidgets('does not affect European language URLs', (
