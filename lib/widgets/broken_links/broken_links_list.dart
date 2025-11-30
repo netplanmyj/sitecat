@@ -8,9 +8,10 @@ class BrokenLinksList extends StatelessWidget {
   const BrokenLinksList({super.key, required this.links});
 
   /// Decode URL-encoded string for better readability
+  /// Uses Uri.decodeFull() to preserve URL structure (/, ?, #)
   String _decodeUrl(String url) {
     try {
-      return Uri.decodeComponent(url);
+      return Uri.decodeFull(url);
     } catch (e) {
       // If decoding fails, return original URL
       return url;
