@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
@@ -9,6 +8,7 @@ import '../models/broken_link.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
 import '../utils/url_helper.dart';
+import '../utils/url_encoding_utils.dart';
 
 /// Service for checking broken links on websites
 class LinkCheckerService {
@@ -502,7 +502,7 @@ class LinkCheckerService {
         final uri = baseUrl.resolve(href);
         if (uri.scheme == 'http' || uri.scheme == 'https') {
           // Fix mojibake in URL before adding to list
-          final fixedUrl = _fixMojibakeUrl(uri.toString());
+          final fixedUrl = UrlEncodingUtils.fixMojibakeUrl(uri.toString());
           links.add(Uri.parse(fixedUrl));
         }
       } catch (e) {
@@ -730,45 +730,5 @@ class LinkCheckerService {
       _logger.e('Error during cleanup of old link check results', error: e);
       rethrow;
     }
-  }
-
-  /// Fix mojibake in URLs caused by double-encoding
-  /// Detects Japanese double-encoding patterns and attempts recovery
-  String _fixMojibakeUrl(String url) {
-    try {
-      // Decode URL first
-      final decoded = Uri.decodeFull(url);
-
-      // Check for mojibake patterns (Japanese double-encoding)
-      if (!_containsMojibake(decoded)) {
-        return url; // No mojibake detected, return original
-      }
-
-      // Attempt recovery: treat decoded string as Latin-1, re-decode as UTF-8
-      final latin1Bytes = latin1.encode(decoded);
-      final utf8String = utf8.decode(latin1Bytes, allowMalformed: true);
-
-      // Validate recovery (no replacement character �)
-      if (utf8String.contains('�')) {
-        return url; // Recovery failed, return original
-      }
-
-      // Recovery successful, re-encode properly
-      return Uri.encodeFull(utf8String);
-    } catch (e) {
-      return url; // Error during processing, return original
-    }
-  }
-
-  /// Check if a decoded URL contains mojibake patterns
-  bool _containsMojibake(String decoded) {
-    // Pattern 1: Â followed by 0x80-0xBF (C2 byte sequences from UTF-8 continuation bytes)
-    // Pattern 2: é followed by control characters 0x80-0x9F (E9 from 開発)
-    final patterns = [
-      RegExp('Â[\u0080-\u00BF]Â[\u0080-\u00BF]'), // C2 sequences
-      RegExp('é[\u0080-\u009F][\u0080-\u009F]'), // é + control chars
-    ];
-
-    return patterns.any((pattern) => pattern.hasMatch(decoded));
   }
 }
