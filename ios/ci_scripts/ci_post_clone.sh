@@ -11,23 +11,31 @@ echo "========================================="
 
 # 1. 環境変数確認とパス設定
 echo "\n[1/7] 環境変数確認とパス設定"
-echo "CI_WORKSPACE: '$CI_WORKSPACE'"
-echo "CI_PRIMARY_REPOSITORY_PATH: '$CI_PRIMARY_REPOSITORY_PATH'"
-echo "PWD: '$PWD'"
 
 # CI_WORKSPACEが設定されていない場合のフォールバック
 if [ -z "$CI_WORKSPACE" ]; then
-    echo "警告: CI_WORKSPACE が設定されていません。推測値を使用します"
-    export CI_WORKSPACE="$HOME"
+    # Xcode Cloud環境では通常 /Volumes/workspace が使用される
+    if [ -d "/Volumes/workspace" ]; then
+        export CI_WORKSPACE="/Volumes/workspace"
+        echo "CI_WORKSPACE を設定: '$CI_WORKSPACE' (Xcode Cloud環境)"
+    else
+        export CI_WORKSPACE="$HOME"
+        echo "CI_WORKSPACE を設定: '$CI_WORKSPACE' (ローカル/その他の環境)"
+    fi
+else
+    echo "CI_WORKSPACE: '$CI_WORKSPACE'"
 fi
 
 # リポジトリルートパスの設定（このスクリプトは ios/ci_scripts/ にあります）
 if [ -z "$CI_PRIMARY_REPOSITORY_PATH" ]; then
-    echo "警告: CI_PRIMARY_REPOSITORY_PATH が設定されていません。推測値を使用します"
     # このスクリプトの場所から2階層上がリポジトリルート
     export CI_PRIMARY_REPOSITORY_PATH="$(cd "$(dirname "$0")/../.." && pwd)"
+    echo "CI_PRIMARY_REPOSITORY_PATH を設定: '$CI_PRIMARY_REPOSITORY_PATH'"
+else
+    echo "CI_PRIMARY_REPOSITORY_PATH: '$CI_PRIMARY_REPOSITORY_PATH'"
 fi
 
+echo "PWD: '$PWD'"
 echo "リポジトリルート: '$CI_PRIMARY_REPOSITORY_PATH'"
 
 # 2. Flutter SDKインストール
