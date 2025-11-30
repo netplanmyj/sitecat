@@ -7,6 +7,16 @@ class BrokenLinksList extends StatelessWidget {
 
   const BrokenLinksList({super.key, required this.links});
 
+  /// Decode URL-encoded string for better readability
+  String _decodeUrl(String url) {
+    try {
+      return Uri.decodeComponent(url);
+    } catch (e) {
+      // If decoding fails, return original URL
+      return url;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (links.isEmpty) {
@@ -45,13 +55,13 @@ class BrokenLinksList extends StatelessWidget {
               ),
             ),
             title: Text(
-              link.url,
+              _decodeUrl(link.url),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 14),
             ),
             subtitle: Text(
-              'Found on: ${link.foundOn}',
+              'Found on: ${_decodeUrl(link.foundOn)}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontSize: 12),
@@ -62,9 +72,9 @@ class BrokenLinksList extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildDetailRow('URL', link.url),
+                    _buildDetailRow('URL', _decodeUrl(link.url)),
                     const SizedBox(height: 8),
-                    _buildDetailRow('Found On', link.foundOn),
+                    _buildDetailRow('Found On', _decodeUrl(link.foundOn)),
                     const SizedBox(height: 8),
                     _buildDetailRow('Status Code', link.statusCode.toString()),
                     if (link.error != null) ...[
