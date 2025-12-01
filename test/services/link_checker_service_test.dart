@@ -2,6 +2,47 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart' as xml;
 import 'package:sitecat/utils/url_encoding_utils.dart';
 
+/// Helper method to extract and normalize URLs from sitemap XML
+/// Simulates the behavior of _extractUrlsFromSitemapDocument
+List<Uri> _extractNormalizedUrlsFromSitemap(String sitemapXml) {
+  final document = xml.XmlDocument.parse(sitemapXml);
+  final urlElements = document.findAllElements('url');
+  final normalizedUrls = <String, Uri>{};
+
+  for (final urlElement in urlElements) {
+    final locElement = urlElement.findElements('loc').firstOrNull;
+    if (locElement != null) {
+      final urlString = locElement.innerText.trim();
+      if (urlString.isNotEmpty) {
+        try {
+          final uri = Uri.parse(urlString);
+          if (uri.scheme == 'http' || uri.scheme == 'https') {
+            // Normalize: remove fragment, scheme/host to lowercase, trailing slash
+            final uriWithoutFragment = uri.removeFragment();
+            final normalizedScheme = uriWithoutFragment.scheme.toLowerCase();
+            final normalizedHost = uriWithoutFragment.host.toLowerCase();
+            String path = uriWithoutFragment.path;
+            if (path.length > 1 && path.endsWith('/')) {
+              path = path.substring(0, path.length - 1);
+            }
+            final normalized = uriWithoutFragment.replace(
+              scheme: normalizedScheme,
+              host: normalizedHost,
+              path: path,
+            );
+            // Map handles deduplication automatically
+            normalizedUrls[normalized.toString()] = normalized;
+          }
+        } catch (e) {
+          // Skip invalid URLs
+        }
+      }
+    }
+  }
+
+  return normalizedUrls.values.toList();
+}
+
 void main() {
   group('Mojibake URL Fixing', () {
     test('should fix double-encoded Japanese URLs', () {
@@ -506,6 +547,92 @@ ${urlElements.join('\n')}
           );
         }
       }
+    });
+  });
+
+  group('URL Normalization in Sitemap Parsing', () {
+    test('should deduplicate URLs with fragments and trailing slashes', () {
+      // Arrange: Sitemap with duplicate URLs in various forms
+      // Tests: fragment removal, trailing slash normalization, root path preservation
+      const sitemapXml = '''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://example.com/</loc></url>
+  <url><loc>https://example.com/#top</loc></url>
+  <url><loc>https://example.com/page1</loc></url>
+  <url><loc>https://example.com/page1/</loc></url>
+  <url><loc>https://example.com/page1#section</loc></url>
+  <url><loc>https://example.com/page1/#anchor</loc></url>
+  <url><loc>https://example.com/page2</loc></url>
+  <url><loc>https://example.com/page2/</loc></url>
+</urlset>''';
+
+      // Act
+      final urls = _extractNormalizedUrlsFromSitemap(sitemapXml);
+
+      // Assert: 8 URLs → 3 unique (root, page1, page2)
+      expect(urls.length, 3);
+      expect(urls.map((u) => u.toString()).toSet(), {
+        'https://example.com/',
+        'https://example.com/page1',
+        'https://example.com/page2',
+      });
+    });
+
+    test('should preserve query parameters during normalization', () {
+      // Arrange: Sitemap with query parameters, trailing slash, and fragment
+      const sitemapXml = '''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://example.com/search?q=test&amp;page=1</loc></url>
+  <url><loc>https://example.com/search/?q=test&amp;page=1#results</loc></url>
+</urlset>''';
+
+      // Act
+      final urls = _extractNormalizedUrlsFromSitemap(sitemapXml);
+
+      // Assert: Should deduplicate to 1 URL with query parameters preserved
+      expect(urls.length, 1);
+      expect(urls[0].toString(), 'https://example.com/search?q=test&page=1');
+      expect(urls[0].queryParameters['q'], 'test');
+      expect(urls[0].queryParameters['page'], '1');
+    });
+
+    test('should handle Japanese URLs with normalization', () {
+      // Arrange: Japanese "開発" tag with trailing slash and fragment
+      const sitemapXml = '''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://example.com/tags/%E9%96%8B%E7%99%BA</loc></url>
+  <url><loc>https://example.com/tags/%E9%96%8B%E7%99%BA/</loc></url>
+  <url><loc>https://example.com/tags/%E9%96%8B%E7%99%BA/#content</loc></url>
+</urlset>''';
+
+      // Act
+      final urls = _extractNormalizedUrlsFromSitemap(sitemapXml);
+
+      // Assert: Should deduplicate to 1 URL
+      expect(urls.length, 1);
+      expect(urls[0].toString(), 'https://example.com/tags/%E9%96%8B%E7%99%BA');
+      expect(Uri.decodeFull(urls[0].toString()), contains('開発'));
+    });
+
+    test('should normalize scheme and host to lowercase (RFC 3986)', () {
+      // Arrange: URLs with mixed case in scheme and host
+      const sitemapXml = '''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://example.com/page</loc></url>
+  <url><loc>HTTPS://example.com/page</loc></url>
+  <url><loc>https://Example.com/page</loc></url>
+  <url><loc>HTTPS://EXAMPLE.COM/page</loc></url>
+  <url><loc>https://example.com/page/</loc></url>
+</urlset>''';
+
+      // Act
+      final urls = _extractNormalizedUrlsFromSitemap(sitemapXml);
+
+      // Assert: Should deduplicate to 1 URL with lowercase scheme and host
+      expect(urls.length, 1);
+      expect(urls[0].scheme, 'https');
+      expect(urls[0].host, 'example.com');
+      expect(urls[0].toString(), 'https://example.com/page');
     });
   });
 }

@@ -462,7 +462,8 @@ class LinkCheckerService {
   /// Extract URLs from a parsed sitemap XML document
   List<Uri> _extractUrlsFromSitemapDocument(xml.XmlDocument document) {
     final urlElements = document.findAllElements('url');
-    final urls = <Uri>[];
+    final normalizedUrls =
+        <String, Uri>{}; // Use Map to deduplicate by normalized key
 
     for (final urlElement in urlElements) {
       final locElement = urlElement.findElements('loc').firstOrNull;
@@ -472,7 +473,12 @@ class LinkCheckerService {
           try {
             final uri = Uri.parse(urlString);
             if (uri.scheme == 'http' || uri.scheme == 'https') {
-              urls.add(uri);
+              // Normalize URL: remove fragment, lowercase scheme/host, and remove trailing slash
+              final normalizedUri = _normalizeSitemapUrl(uri);
+              final normalizedKey = normalizedUri.toString();
+
+              // Store only unique URLs (Map handles deduplication automatically)
+              normalizedUrls[normalizedKey] = normalizedUri;
             }
           } catch (e) {
             // Skip invalid URLs
@@ -481,7 +487,30 @@ class LinkCheckerService {
       }
     }
 
-    return urls;
+    return normalizedUrls.values.toList();
+  }
+
+  /// Normalize sitemap URL by removing fragment, normalizing scheme/host to lowercase, and removing trailing slash
+  Uri _normalizeSitemapUrl(Uri uri) {
+    // Remove fragment (#section)
+    final uriWithoutFragment = uri.removeFragment();
+
+    // Normalize scheme and host to lowercase (case-insensitive per RFC 3986)
+    final normalizedScheme = uriWithoutFragment.scheme.toLowerCase();
+    final normalizedHost = uriWithoutFragment.host.toLowerCase();
+
+    // Remove trailing slash from path (but keep "/" for root)
+    String path = uriWithoutFragment.path;
+    if (path.length > 1 && path.endsWith('/')) {
+      path = path.substring(0, path.length - 1);
+    }
+
+    // Reconstruct URI with normalized components
+    return uriWithoutFragment.replace(
+      scheme: normalizedScheme,
+      host: normalizedHost,
+      path: path,
+    );
   }
 
   /// Extract links from HTML content
