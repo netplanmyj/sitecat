@@ -508,4 +508,157 @@ ${urlElements.join('\n')}
       }
     });
   });
+
+  group('URL Normalization', () {
+    test('should remove fragment from URL', () {
+      // Arrange
+      final uri = Uri.parse('https://example.com/page#section');
+
+      // Act
+      final normalized = uri.removeFragment();
+
+      // Assert
+      expect(normalized.toString(), 'https://example.com/page');
+      expect(normalized.fragment, isEmpty);
+    });
+
+    test('should remove trailing slash from path', () {
+      // Arrange
+      final uri = Uri.parse('https://example.com/page/');
+
+      // Act
+      final uriWithoutFragment = uri.removeFragment();
+      String path = uriWithoutFragment.path;
+      if (path.length > 1 && path.endsWith('/')) {
+        path = path.substring(0, path.length - 1);
+      }
+      final normalized = uriWithoutFragment.replace(path: path);
+
+      // Assert
+      expect(normalized.toString(), 'https://example.com/page');
+    });
+
+    test('should keep root slash for domain root', () {
+      // Arrange
+      final uri = Uri.parse('https://example.com/');
+
+      // Act
+      final uriWithoutFragment = uri.removeFragment();
+      String path = uriWithoutFragment.path;
+      if (path.length > 1 && path.endsWith('/')) {
+        path = path.substring(0, path.length - 1);
+      }
+      final normalized = uriWithoutFragment.replace(path: path);
+
+      // Assert
+      expect(normalized.toString(), 'https://example.com/');
+      expect(normalized.path, '/');
+    });
+
+    test('should normalize URLs with both fragment and trailing slash', () {
+      // Arrange
+      final uri = Uri.parse('https://example.com/page/#section');
+
+      // Act
+      final uriWithoutFragment = uri.removeFragment();
+      String path = uriWithoutFragment.path;
+      if (path.length > 1 && path.endsWith('/')) {
+        path = path.substring(0, path.length - 1);
+      }
+      final normalized = uriWithoutFragment.replace(path: path);
+
+      // Assert
+      expect(normalized.toString(), 'https://example.com/page');
+    });
+
+    test('should deduplicate URLs in sitemap', () {
+      // Arrange: Sitemap with duplicate URLs (with/without trailing slash and fragments)
+      const sitemapXml = '''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://example.com/page1</loc></url>
+  <url><loc>https://example.com/page1/</loc></url>
+  <url><loc>https://example.com/page1#section</loc></url>
+  <url><loc>https://example.com/page2</loc></url>
+  <url><loc>https://example.com/page2/</loc></url>
+</urlset>''';
+
+      final document = xml.XmlDocument.parse(sitemapXml);
+
+      // Act: Simulate _extractUrlsFromSitemapDocument logic
+      final urlElements = document.findAllElements('url');
+      final normalizedUrls = <String, Uri>{};
+
+      for (final urlElement in urlElements) {
+        final locElement = urlElement.findElements('loc').firstOrNull;
+        if (locElement != null) {
+          final urlString = locElement.innerText.trim();
+          if (urlString.isNotEmpty) {
+            final uri = Uri.parse(urlString);
+            if (uri.scheme == 'http' || uri.scheme == 'https') {
+              // Normalize
+              final uriWithoutFragment = uri.removeFragment();
+              String path = uriWithoutFragment.path;
+              if (path.length > 1 && path.endsWith('/')) {
+                path = path.substring(0, path.length - 1);
+              }
+              final normalized = uriWithoutFragment.replace(path: path);
+              final normalizedKey = normalized.toString();
+
+              if (!normalizedUrls.containsKey(normalizedKey)) {
+                normalizedUrls[normalizedKey] = normalized;
+              }
+            }
+          }
+        }
+      }
+
+      final urls = normalizedUrls.values.toList();
+
+      // Assert: Should only have 2 unique URLs
+      expect(urls.length, 2);
+      expect(urls.map((u) => u.toString()).toList(), [
+        'https://example.com/page1',
+        'https://example.com/page2',
+      ]);
+    });
+
+    test('should preserve query parameters during normalization', () {
+      // Arrange
+      final uri = Uri.parse('https://example.com/page/?id=123#section');
+
+      // Act
+      final uriWithoutFragment = uri.removeFragment();
+      String path = uriWithoutFragment.path;
+      if (path.length > 1 && path.endsWith('/')) {
+        path = path.substring(0, path.length - 1);
+      }
+      final normalized = uriWithoutFragment.replace(path: path);
+
+      // Assert
+      expect(normalized.toString(), 'https://example.com/page?id=123');
+      expect(normalized.queryParameters['id'], '123');
+    });
+
+    test('should handle Japanese URLs with normalization', () {
+      // Arrange
+      final uri = Uri.parse(
+        'https://example.com/tags/%E9%96%8B%E7%99%BA/#content',
+      );
+
+      // Act
+      final uriWithoutFragment = uri.removeFragment();
+      String path = uriWithoutFragment.path;
+      if (path.length > 1 && path.endsWith('/')) {
+        path = path.substring(0, path.length - 1);
+      }
+      final normalized = uriWithoutFragment.replace(path: path);
+
+      // Assert
+      expect(
+        normalized.toString(),
+        'https://example.com/tags/%E9%96%8B%E7%99%BA',
+      );
+      expect(Uri.decodeFull(normalized.toString()), contains('開発'));
+    });
+  });
 }

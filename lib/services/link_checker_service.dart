@@ -462,7 +462,8 @@ class LinkCheckerService {
   /// Extract URLs from a parsed sitemap XML document
   List<Uri> _extractUrlsFromSitemapDocument(xml.XmlDocument document) {
     final urlElements = document.findAllElements('url');
-    final urls = <Uri>[];
+    final normalizedUrls =
+        <String, Uri>{}; // Use Map to deduplicate by normalized key
 
     for (final urlElement in urlElements) {
       final locElement = urlElement.findElements('loc').firstOrNull;
@@ -472,7 +473,14 @@ class LinkCheckerService {
           try {
             final uri = Uri.parse(urlString);
             if (uri.scheme == 'http' || uri.scheme == 'https') {
-              urls.add(uri);
+              // Normalize URL: remove fragment and trailing slash
+              final normalizedUri = _normalizeUrl(uri);
+              final normalizedKey = normalizedUri.toString();
+
+              // Store only unique URLs (by normalized form)
+              if (!normalizedUrls.containsKey(normalizedKey)) {
+                normalizedUrls[normalizedKey] = normalizedUri;
+              }
             }
           } catch (e) {
             // Skip invalid URLs
@@ -481,7 +489,22 @@ class LinkCheckerService {
       }
     }
 
-    return urls;
+    return normalizedUrls.values.toList();
+  }
+
+  /// Normalize URL by removing fragment and trailing slash
+  Uri _normalizeUrl(Uri uri) {
+    // Remove fragment (#section)
+    final uriWithoutFragment = uri.removeFragment();
+
+    // Remove trailing slash from path (but keep "/" for root)
+    String path = uriWithoutFragment.path;
+    if (path.length > 1 && path.endsWith('/')) {
+      path = path.substring(0, path.length - 1);
+    }
+
+    // Reconstruct URI with normalized path
+    return uriWithoutFragment.replace(path: path);
   }
 
   /// Extract links from HTML content
