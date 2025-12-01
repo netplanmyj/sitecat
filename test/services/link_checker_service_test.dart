@@ -14,16 +14,20 @@ List<Uri> _extractNormalizedUrlsFromSitemap(String sitemapXml) {
     if (locElement != null) {
       final urlString = locElement.innerText.trim();
       if (urlString.isNotEmpty) {
-        final uri = Uri.parse(urlString);
-        if (uri.scheme == 'http' || uri.scheme == 'https') {
-          // Normalize: remove fragment and trailing slash
-          final uriWithoutFragment = uri.removeFragment();
-          String path = uriWithoutFragment.path;
-          if (path.length > 1 && path.endsWith('/')) {
-            path = path.substring(0, path.length - 1);
+        try {
+          final uri = Uri.parse(urlString);
+          if (uri.scheme == 'http' || uri.scheme == 'https') {
+            // Normalize: remove fragment and trailing slash
+            final uriWithoutFragment = uri.removeFragment();
+            String path = uriWithoutFragment.path;
+            if (path.length > 1 && path.endsWith('/')) {
+              path = path.substring(0, path.length - 1);
+            }
+            final normalized = uriWithoutFragment.replace(path: path);
+            normalizedUrls[normalized.toString()] = normalized;
           }
-          final normalized = uriWithoutFragment.replace(path: path);
-          normalizedUrls[normalized.toString()] = normalized;
+        } catch (e) {
+          // Skip invalid URLs
         }
       }
     }
