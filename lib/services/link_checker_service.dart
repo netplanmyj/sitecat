@@ -492,10 +492,14 @@ class LinkCheckerService {
     return normalizedUrls.values.toList();
   }
 
-  /// Normalize sitemap URL by removing fragment and trailing slash
+  /// Normalize sitemap URL by removing fragment, normalizing scheme/host to lowercase, and removing trailing slash
   Uri _normalizeSitemapUrl(Uri uri) {
     // Remove fragment (#section)
     final uriWithoutFragment = uri.removeFragment();
+
+    // Normalize scheme and host to lowercase (case-insensitive per RFC 3986)
+    final normalizedScheme = uriWithoutFragment.scheme.toLowerCase();
+    final normalizedHost = uriWithoutFragment.host.toLowerCase();
 
     // Remove trailing slash from path (but keep "/" for root)
     String path = uriWithoutFragment.path;
@@ -503,8 +507,12 @@ class LinkCheckerService {
       path = path.substring(0, path.length - 1);
     }
 
-    // Reconstruct URI with normalized path
-    return uriWithoutFragment.replace(path: path);
+    // Reconstruct URI with normalized components
+    return uriWithoutFragment.replace(
+      scheme: normalizedScheme,
+      host: normalizedHost,
+      path: path,
+    );
   }
 
   /// Extract links from HTML content

@@ -602,5 +602,26 @@ ${urlElements.join('\n')}
       expect(urls[0].toString(), 'https://example.com/tags/%E9%96%8B%E7%99%BA');
       expect(Uri.decodeFull(urls[0].toString()), contains('開発'));
     });
+
+    test('should normalize scheme and host to lowercase (RFC 3986)', () {
+      // Arrange: URLs with mixed case in scheme and host
+      const sitemapXml = '''<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://example.com/page</loc></url>
+  <url><loc>HTTPS://example.com/page</loc></url>
+  <url><loc>https://Example.com/page</loc></url>
+  <url><loc>HTTPS://EXAMPLE.COM/page</loc></url>
+  <url><loc>https://example.com/page/</loc></url>
+</urlset>''';
+
+      // Act
+      final urls = _extractNormalizedUrlsFromSitemap(sitemapXml);
+
+      // Assert: Should deduplicate to 1 URL with lowercase scheme and host
+      expect(urls.length, 1);
+      expect(urls[0].scheme, 'https');
+      expect(urls[0].host, 'example.com');
+      expect(urls[0].toString(), 'https://example.com/page');
+    });
   });
 }
