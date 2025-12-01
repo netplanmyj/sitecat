@@ -2,6 +2,36 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart' as xml;
 import 'package:sitecat/utils/url_encoding_utils.dart';
 
+/// Helper method to extract and normalize URLs from sitemap XML
+/// Simulates the behavior of _extractUrlsFromSitemapDocument
+List<Uri> _extractNormalizedUrlsFromSitemap(String sitemapXml) {
+  final document = xml.XmlDocument.parse(sitemapXml);
+  final urlElements = document.findAllElements('url');
+  final normalizedUrls = <String, Uri>{};
+
+  for (final urlElement in urlElements) {
+    final locElement = urlElement.findElements('loc').firstOrNull;
+    if (locElement != null) {
+      final urlString = locElement.innerText.trim();
+      if (urlString.isNotEmpty) {
+        final uri = Uri.parse(urlString);
+        if (uri.scheme == 'http' || uri.scheme == 'https') {
+          // Normalize: remove fragment and trailing slash
+          final uriWithoutFragment = uri.removeFragment();
+          String path = uriWithoutFragment.path;
+          if (path.length > 1 && path.endsWith('/')) {
+            path = path.substring(0, path.length - 1);
+          }
+          final normalized = uriWithoutFragment.replace(path: path);
+          normalizedUrls[normalized.toString()] = normalized;
+        }
+      }
+    }
+  }
+
+  return normalizedUrls.values.toList();
+}
+
 void main() {
   group('Mojibake URL Fixing', () {
     test('should fix double-encoded Japanese URLs', () {
@@ -525,37 +555,8 @@ ${urlElements.join('\n')}
   <url><loc>https://example.com/page2/</loc></url>
 </urlset>''';
 
-      final document = xml.XmlDocument.parse(sitemapXml);
-
-      // Act: Simulate _extractUrlsFromSitemapDocument logic
-      final urlElements = document.findAllElements('url');
-      final normalizedUrls = <String, Uri>{};
-
-      for (final urlElement in urlElements) {
-        final locElement = urlElement.findElements('loc').firstOrNull;
-        if (locElement != null) {
-          final urlString = locElement.innerText.trim();
-          if (urlString.isNotEmpty) {
-            final uri = Uri.parse(urlString);
-            if (uri.scheme == 'http' || uri.scheme == 'https') {
-              // Normalize: remove fragment and trailing slash
-              final uriWithoutFragment = uri.removeFragment();
-              String path = uriWithoutFragment.path;
-              if (path.length > 1 && path.endsWith('/')) {
-                path = path.substring(0, path.length - 1);
-              }
-              final normalized = uriWithoutFragment.replace(path: path);
-              final normalizedKey = normalized.toString();
-
-              if (!normalizedUrls.containsKey(normalizedKey)) {
-                normalizedUrls[normalizedKey] = normalized;
-              }
-            }
-          }
-        }
-      }
-
-      final urls = normalizedUrls.values.toList();
+      // Act
+      final urls = _extractNormalizedUrlsFromSitemap(sitemapXml);
 
       // Assert: 8 URLs → 3 unique (root, page1, page2)
       expect(urls.length, 3);
@@ -574,32 +575,8 @@ ${urlElements.join('\n')}
   <url><loc>https://example.com/search/?q=test&amp;page=1#results</loc></url>
 </urlset>''';
 
-      final document = xml.XmlDocument.parse(sitemapXml);
-
       // Act
-      final urlElements = document.findAllElements('url');
-      final normalizedUrls = <String, Uri>{};
-
-      for (final urlElement in urlElements) {
-        final locElement = urlElement.findElements('loc').firstOrNull;
-        if (locElement != null) {
-          final urlString = locElement.innerText.trim();
-          if (urlString.isNotEmpty) {
-            final uri = Uri.parse(urlString);
-            if (uri.scheme == 'http' || uri.scheme == 'https') {
-              final uriWithoutFragment = uri.removeFragment();
-              String path = uriWithoutFragment.path;
-              if (path.length > 1 && path.endsWith('/')) {
-                path = path.substring(0, path.length - 1);
-              }
-              final normalized = uriWithoutFragment.replace(path: path);
-              normalizedUrls[normalized.toString()] = normalized;
-            }
-          }
-        }
-      }
-
-      final urls = normalizedUrls.values.toList();
+      final urls = _extractNormalizedUrlsFromSitemap(sitemapXml);
 
       // Assert: Should deduplicate to 1 URL with query parameters preserved
       expect(urls.length, 1);
@@ -617,32 +594,8 @@ ${urlElements.join('\n')}
   <url><loc>https://example.com/tags/%E9%96%8B%E7%99%BA/#content</loc></url>
 </urlset>''';
 
-      final document = xml.XmlDocument.parse(sitemapXml);
-
       // Act
-      final urlElements = document.findAllElements('url');
-      final normalizedUrls = <String, Uri>{};
-
-      for (final urlElement in urlElements) {
-        final locElement = urlElement.findElements('loc').firstOrNull;
-        if (locElement != null) {
-          final urlString = locElement.innerText.trim();
-          if (urlString.isNotEmpty) {
-            final uri = Uri.parse(urlString);
-            if (uri.scheme == 'http' || uri.scheme == 'https') {
-              final uriWithoutFragment = uri.removeFragment();
-              String path = uriWithoutFragment.path;
-              if (path.length > 1 && path.endsWith('/')) {
-                path = path.substring(0, path.length - 1);
-              }
-              final normalized = uriWithoutFragment.replace(path: path);
-              normalizedUrls[normalized.toString()] = normalized;
-            }
-          }
-        }
-      }
-
-      final urls = normalizedUrls.values.toList();
+      final urls = _extractNormalizedUrlsFromSitemap(sitemapXml);
 
       // Assert: Should deduplicate to 1 URL
       expect(urls.length, 1);
