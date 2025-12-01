@@ -30,6 +30,7 @@ List<Uri> _extractNormalizedUrlsFromSitemap(String sitemapXml) {
               host: normalizedHost,
               path: path,
             );
+            // Map handles deduplication automatically
             normalizedUrls[normalized.toString()] = normalized;
           }
         } catch (e) {

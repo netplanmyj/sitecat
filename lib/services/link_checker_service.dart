@@ -473,14 +473,12 @@ class LinkCheckerService {
           try {
             final uri = Uri.parse(urlString);
             if (uri.scheme == 'http' || uri.scheme == 'https') {
-              // Normalize URL: remove fragment and trailing slash
+              // Normalize URL: remove fragment, lowercase scheme/host, and remove trailing slash
               final normalizedUri = _normalizeSitemapUrl(uri);
               final normalizedKey = normalizedUri.toString();
 
-              // Store only unique URLs (by normalized form)
-              if (!normalizedUrls.containsKey(normalizedKey)) {
-                normalizedUrls[normalizedKey] = normalizedUri;
-              }
+              // Store only unique URLs (Map handles deduplication automatically)
+              normalizedUrls[normalizedKey] = normalizedUri;
             }
           } catch (e) {
             // Skip invalid URLs
