@@ -132,7 +132,7 @@ class LinkCheckerService {
       final links = _extractLinks(htmlContent, page);
 
       for (final link in links) {
-        // Normalize the link to avoid counting duplicates
+        // Normalize the link to ensure consistent URL representation (remove fragments, trailing slashes, normalize case)
         final normalizedLink = _normalizeSitemapUrl(link);
         final linkUrl = normalizedLink.toString();
         allFoundLinks.add(normalizedLink);
@@ -262,9 +262,12 @@ class LinkCheckerService {
     final previousTotalLinks = previousResult?.totalLinks ?? 0;
     final previousInternalLinks = previousResult?.internalLinks ?? 0;
     final previousExternalLinks = previousResult?.externalLinks ?? 0;
+
+    // Total links = sum of internal and external link occurrences (including duplicates)
+    final totalLinksCount = totalInternalLinksCount + totalExternalLinksCount;
     final cumulativeTotalLinks = continueFromLastScan && previousResult != null
-        ? previousTotalLinks + allFoundLinks.length
-        : allFoundLinks.length;
+        ? previousTotalLinks + totalLinksCount
+        : totalLinksCount;
     final cumulativeInternalLinks =
         continueFromLastScan && previousResult != null
         ? previousInternalLinks + totalInternalLinksCount
