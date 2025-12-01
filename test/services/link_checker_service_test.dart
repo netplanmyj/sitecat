@@ -17,13 +17,19 @@ List<Uri> _extractNormalizedUrlsFromSitemap(String sitemapXml) {
         try {
           final uri = Uri.parse(urlString);
           if (uri.scheme == 'http' || uri.scheme == 'https') {
-            // Normalize: remove fragment and trailing slash
+            // Normalize: remove fragment, scheme/host to lowercase, trailing slash
             final uriWithoutFragment = uri.removeFragment();
+            final normalizedScheme = uriWithoutFragment.scheme.toLowerCase();
+            final normalizedHost = uriWithoutFragment.host.toLowerCase();
             String path = uriWithoutFragment.path;
             if (path.length > 1 && path.endsWith('/')) {
               path = path.substring(0, path.length - 1);
             }
-            final normalized = uriWithoutFragment.replace(path: path);
+            final normalized = uriWithoutFragment.replace(
+              scheme: normalizedScheme,
+              host: normalizedHost,
+              path: path,
+            );
             normalizedUrls[normalized.toString()] = normalized;
           }
         } catch (e) {
