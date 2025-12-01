@@ -21,26 +21,42 @@ class LinkCheckProgress extends StatelessWidget {
   Widget build(BuildContext context) {
     // Show links checking when there are links (keep display after completion)
     final showLinksChecking = externalLinksTotal > 0;
+    final pageProgress = total > 0 ? checked / total : 0.0;
+    final pagePercent = (pageProgress * 100).toInt();
 
     return Column(
       children: [
         const SizedBox(height: 16),
-        // Page scanning progress
+        // Page scanning progress with percentage
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              'Checking pages...',
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
+            Row(
+              children: [
+                const Icon(Icons.description, size: 16, color: Colors.grey),
+                const SizedBox(width: 6),
+                Text(
+                  'Pages: $checked/$total',
+                  style: const TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
             Text(
-              '$checked / $total',
-              style: const TextStyle(fontSize: 13, color: Colors.grey),
+              '$pagePercent%',
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade600,
+                fontWeight: FontWeight.bold,
+              ),
             ),
           ],
         ),
         const SizedBox(height: 12),
-        LinearProgressIndicator(value: total > 0 ? checked / total : null),
+        LinearProgressIndicator(value: total > 0 ? pageProgress : null),
 
         // Links checking progress (internal + external)
         if (showLinksChecking) ...[
@@ -48,13 +64,15 @@ class LinkCheckProgress extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text(
-                'Checking links...',
-                style: TextStyle(fontSize: 13, color: Colors.grey),
-              ),
-              Text(
-                '$externalLinksChecked / $externalLinksTotal',
-                style: const TextStyle(fontSize: 13, color: Colors.grey),
+              Row(
+                children: [
+                  const Icon(Icons.link, size: 16, color: Colors.orange),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Checking links: $externalLinksChecked/$externalLinksTotal',
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                ],
               ),
             ],
           ),

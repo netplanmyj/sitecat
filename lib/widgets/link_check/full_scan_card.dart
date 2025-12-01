@@ -131,22 +131,22 @@ class FullScanCard extends StatelessWidget {
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
                         _buildStatItem(
-                          Icons.link,
-                          '${result.totalLinks}',
-                          null,
+                          Icons.description,
+                          '${result.totalPagesInSitemap}',
+                          'Pages',
                           Colors.blue,
+                        ),
+                        _buildStatItem(
+                          Icons.link,
+                          '${result.internalLinks}/${result.externalLinks}',
+                          'Int/Ext',
+                          Colors.green,
                         ),
                         _buildStatItem(
                           Icons.link_off,
                           '${result.brokenLinks}',
-                          null,
+                          'Broken',
                           result.brokenLinks > 0 ? Colors.red : Colors.green,
-                        ),
-                        _buildStatItem(
-                          Icons.description,
-                          '${result.pagesScanned}/${result.totalPagesInSitemap}',
-                          null,
-                          result.scanCompleted ? Colors.green : Colors.orange,
                         ),
                       ],
                     ),
