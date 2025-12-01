@@ -474,7 +474,7 @@ class LinkCheckerService {
             final uri = Uri.parse(urlString);
             if (uri.scheme == 'http' || uri.scheme == 'https') {
               // Normalize URL: remove fragment and trailing slash
-              final normalizedUri = _normalizeUrl(uri);
+              final normalizedUri = _normalizeSitemapUrl(uri);
               final normalizedKey = normalizedUri.toString();
 
               // Store only unique URLs (by normalized form)
@@ -492,8 +492,8 @@ class LinkCheckerService {
     return normalizedUrls.values.toList();
   }
 
-  /// Normalize URL by removing fragment and trailing slash
-  Uri _normalizeUrl(Uri uri) {
+  /// Normalize sitemap URL by removing fragment and trailing slash
+  Uri _normalizeSitemapUrl(Uri uri) {
     // Remove fragment (#section)
     final uriWithoutFragment = uri.removeFragment();
 
