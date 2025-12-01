@@ -36,9 +36,9 @@ class BrokenLinksSummaryCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
                 _buildSummaryItem(
-                  'Total Links',
-                  result.totalLinks.toString(),
-                  Icons.link,
+                  'Pages',
+                  result.totalPagesInSitemap.toString(),
+                  Icons.description,
                   Colors.blue,
                 ),
                 _buildSummaryItem(

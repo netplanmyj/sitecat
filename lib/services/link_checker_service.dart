@@ -102,6 +102,10 @@ class LinkCheckerService {
     final linkSourceMap = <String, String>{}; // link -> foundOn
     final visitedPages = <String>{};
 
+    // Count total links found (including duplicates across pages)
+    int totalInternalLinksCount = 0;
+    int totalExternalLinksCount = 0;
+
     int pagesScanned = 0;
     for (final page in pagesToScan) {
       final pageUrl = page.toString();
@@ -128,8 +132,10 @@ class LinkCheckerService {
       final links = _extractLinks(htmlContent, page);
 
       for (final link in links) {
-        final linkUrl = link.toString();
-        allFoundLinks.add(link);
+        // Normalize the link to avoid counting duplicates
+        final normalizedLink = _normalizeSitemapUrl(link);
+        final linkUrl = normalizedLink.toString();
+        allFoundLinks.add(normalizedLink);
 
         // Record where this link was found
         if (!linkSourceMap.containsKey(linkUrl)) {
@@ -137,12 +143,14 @@ class LinkCheckerService {
         }
 
         // Categorize: internal or external (use original base URL for comparison)
-        if (_isSameDomain(link, originalBaseUrl)) {
+        if (_isSameDomain(normalizedLink, originalBaseUrl)) {
           // Internal link - mark for checking
-          internalLinks.add(link);
+          internalLinks.add(normalizedLink);
+          totalInternalLinksCount++; // Count each occurrence
         } else {
           // External link - mark for checking
-          externalLinks.add(link);
+          externalLinks.add(normalizedLink);
+          totalExternalLinksCount++; // Count each occurrence
         }
       }
     }
@@ -252,14 +260,19 @@ class LinkCheckerService {
 
     // Calculate cumulative statistics
     final previousTotalLinks = previousResult?.totalLinks ?? 0;
+    final previousInternalLinks = previousResult?.internalLinks ?? 0;
     final previousExternalLinks = previousResult?.externalLinks ?? 0;
     final cumulativeTotalLinks = continueFromLastScan && previousResult != null
         ? previousTotalLinks + allFoundLinks.length
         : allFoundLinks.length;
+    final cumulativeInternalLinks =
+        continueFromLastScan && previousResult != null
+        ? previousInternalLinks + totalInternalLinksCount
+        : totalInternalLinksCount;
     final cumulativeExternalLinks =
         continueFromLastScan && previousResult != null
-        ? previousExternalLinks + externalLinks.length
-        : externalLinks.length;
+        ? previousExternalLinks + totalExternalLinksCount
+        : totalExternalLinksCount;
 
     final result = LinkCheckResult(
       siteId: site.id,
@@ -268,8 +281,10 @@ class LinkCheckerService {
       timestamp: DateTime.now(),
       totalLinks: cumulativeTotalLinks,
       brokenLinks: allBrokenLinks.length,
-      internalLinks: endIndex, // Total pages scanned (cumulative)
-      externalLinks: cumulativeExternalLinks,
+      internalLinks:
+          cumulativeInternalLinks, // Total internal links found (cumulative, including duplicates)
+      externalLinks:
+          cumulativeExternalLinks, // Total external links found (cumulative, including duplicates)
       scanDuration: endTime.difference(startTime),
       pagesScanned: endIndex, // Total pages scanned so far
       totalPagesInSitemap: totalPagesInSitemap,
