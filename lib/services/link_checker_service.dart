@@ -54,7 +54,7 @@ class LinkCheckerService {
         // Build full sitemap URL (combine with base URL if relative path)
         final fullSitemapUrl = _buildFullUrl(baseUrl, site.sitemapUrl!);
         allInternalPages = await _fetchSitemapUrls(fullSitemapUrl);
-        
+
         // Filter out excluded paths
         if (site.excludedPaths.isNotEmpty) {
           allInternalPages = _filterExcludedPaths(
@@ -62,7 +62,7 @@ class LinkCheckerService {
             site.excludedPaths,
           );
         }
-        
+
         if (allInternalPages.isEmpty) {
           allInternalPages = [originalBaseUrl];
         }
@@ -827,19 +827,19 @@ class LinkCheckerService {
 
     return urls.where((url) {
       final path = url.path;
-      
+
       // Check if the path starts with any of the excluded paths
       for (final excludedPath in excludedPaths) {
         // Normalize the excluded path (ensure it starts with /)
         final normalizedExcludedPath = excludedPath.startsWith('/')
             ? excludedPath
             : '/$excludedPath';
-        
+
         if (path.startsWith(normalizedExcludedPath)) {
           return false; // Exclude this URL
         }
       }
-      
+
       return true; // Include this URL
     }).toList();
   }

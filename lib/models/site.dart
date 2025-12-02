@@ -13,7 +13,7 @@ class Site {
   final String? sitemapUrl; // Sitemap URL for link checking (optional)
   final int
   lastScannedPageIndex; // Last scanned page index for progressive scanning
-  
+
   /// Paths to exclude from scanning (e.g., ['tags/', 'categories/'])
   final List<String> excludedPaths;
 
@@ -49,7 +49,8 @@ class Site {
       lastChecked: (data['lastChecked'] as Timestamp?)?.toDate(),
       sitemapUrl: data['sitemapUrl'],
       lastScannedPageIndex: (data['lastScannedPageIndex'] as int?) ?? 0,
-      excludedPaths: (data['excludedPaths'] as List<dynamic>?)
+      excludedPaths:
+          (data['excludedPaths'] as List<dynamic>?)
               ?.map((e) => e.toString())
               .toList() ??
           [],
