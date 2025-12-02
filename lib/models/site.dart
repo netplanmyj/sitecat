@@ -14,6 +14,9 @@ class Site {
   final int
   lastScannedPageIndex; // Last scanned page index for progressive scanning
 
+  /// Paths to exclude from scanning (e.g., ['tags/', 'categories/'])
+  final List<String> excludedPaths;
+
   Site({
     required this.id,
     required this.userId,
@@ -26,6 +29,7 @@ class Site {
     this.lastChecked,
     this.sitemapUrl,
     this.lastScannedPageIndex = 0, // Default: 0 (start from beginning)
+    this.excludedPaths = const [], // Default: no excluded paths
   });
 
   // Factory constructor to create Site from Firestore document
@@ -45,6 +49,11 @@ class Site {
       lastChecked: (data['lastChecked'] as Timestamp?)?.toDate(),
       sitemapUrl: data['sitemapUrl'],
       lastScannedPageIndex: (data['lastScannedPageIndex'] as int?) ?? 0,
+      excludedPaths:
+          (data['excludedPaths'] as List<dynamic>?)
+              ?.map((e) => e.toString())
+              .toList() ??
+          [],
     );
   }
 
@@ -63,6 +72,7 @@ class Site {
           : null,
       'sitemapUrl': sitemapUrl,
       'lastScannedPageIndex': lastScannedPageIndex,
+      'excludedPaths': excludedPaths,
     };
   }
 
@@ -79,6 +89,7 @@ class Site {
     DateTime? lastChecked,
     String? sitemapUrl,
     int? lastScannedPageIndex,
+    List<String>? excludedPaths,
   }) {
     return Site(
       id: id ?? this.id,
@@ -92,6 +103,7 @@ class Site {
       lastChecked: lastChecked ?? this.lastChecked,
       sitemapUrl: sitemapUrl ?? this.sitemapUrl,
       lastScannedPageIndex: lastScannedPageIndex ?? this.lastScannedPageIndex,
+      excludedPaths: excludedPaths ?? this.excludedPaths,
     );
   }
 
