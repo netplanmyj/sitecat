@@ -682,4 +682,200 @@ ${urlElements.join('\n')}
       },
     );
   });
+
+  group('Excluded Paths Filtering', () {
+    /// Helper method to simulate _filterExcludedPaths behavior
+    List<Uri> _filterExcludedPaths(List<Uri> urls, List<String> excludedPaths) {
+      if (excludedPaths.isEmpty) return urls;
+
+      return urls.where((url) {
+        final path = url.path;
+        
+        // Check if the path starts with any of the excluded paths
+        for (final excludedPath in excludedPaths) {
+          // Normalize the excluded path (ensure it starts with /)
+          final normalizedExcludedPath = excludedPath.startsWith('/')
+              ? excludedPath
+              : '/$excludedPath';
+          
+          if (path.startsWith(normalizedExcludedPath)) {
+            return false; // Exclude this URL
+          }
+        }
+        
+        return true; // Include this URL
+      }).toList();
+    }
+
+    test('should filter URLs matching excluded paths', () {
+      // Arrange
+      final urls = [
+        Uri.parse('https://example.com/'),
+        Uri.parse('https://example.com/posts/article-1'),
+        Uri.parse('https://example.com/tags/tag-1'),
+        Uri.parse('https://example.com/tags/tag-2'),
+        Uri.parse('https://example.com/categories/cat-1'),
+        Uri.parse('https://example.com/about'),
+      ];
+      final excludedPaths = ['tags/', 'categories/'];
+
+      // Act
+      final filtered = _filterExcludedPaths(urls, excludedPaths);
+
+      // Assert
+      expect(filtered.length, 3);
+      expect(filtered.map((u) => u.toString()).toSet(), {
+        'https://example.com/',
+        'https://example.com/posts/article-1',
+        'https://example.com/about',
+      });
+    });
+
+    test('should handle excluded paths with leading slash', () {
+      // Arrange
+      final urls = [
+        Uri.parse('https://example.com/tags/tag-1'),
+        Uri.parse('https://example.com/posts/article-1'),
+      ];
+      final excludedPaths = ['/tags/']; // With leading slash
+
+      // Act
+      final filtered = _filterExcludedPaths(urls, excludedPaths);
+
+      // Assert
+      expect(filtered.length, 1);
+      expect(filtered[0].toString(), 'https://example.com/posts/article-1');
+    });
+
+    test('should handle excluded paths without trailing slash', () {
+      // Arrange
+      final urls = [
+        Uri.parse('https://example.com/tags/tag-1'),
+        Uri.parse('https://example.com/tags'),
+        Uri.parse('https://example.com/posts/article-1'),
+      ];
+      final excludedPaths = ['tags']; // No leading or trailing slash
+
+      // Act
+      final filtered = _filterExcludedPaths(urls, excludedPaths);
+
+      // Assert
+      expect(filtered.length, 1);
+      expect(filtered[0].toString(), 'https://example.com/posts/article-1');
+    });
+
+    test('should return all URLs when excluded paths is empty', () {
+      // Arrange
+      final urls = [
+        Uri.parse('https://example.com/tags/tag-1'),
+        Uri.parse('https://example.com/posts/article-1'),
+        Uri.parse('https://example.com/categories/cat-1'),
+      ];
+      final excludedPaths = <String>[];
+
+      // Act
+      final filtered = _filterExcludedPaths(urls, excludedPaths);
+
+      // Assert
+      expect(filtered.length, urls.length);
+      expect(filtered, urls);
+    });
+
+    test('should exclude nested paths correctly', () {
+      // Arrange
+      final urls = [
+        Uri.parse('https://example.com/tags/tag-1'),
+        Uri.parse('https://example.com/tags/tag-1/page-2'),
+        Uri.parse('https://example.com/tags/tag-1/page-2/nested'),
+        Uri.parse('https://example.com/posts/article-1'),
+      ];
+      final excludedPaths = ['tags/'];
+
+      // Act
+      final filtered = _filterExcludedPaths(urls, excludedPaths);
+
+      // Assert: All nested tag pages should be excluded
+      expect(filtered.length, 1);
+      expect(filtered[0].toString(), 'https://example.com/posts/article-1');
+    });
+
+    test('should handle multiple excluded paths', () {
+      // Arrange
+      final urls = [
+        Uri.parse('https://example.com/'),
+        Uri.parse('https://example.com/tags/tag-1'),
+        Uri.parse('https://example.com/categories/cat-1'),
+        Uri.parse('https://example.com/authors/author-1'),
+        Uri.parse('https://example.com/posts/article-1'),
+      ];
+      final excludedPaths = ['tags/', 'categories/', 'authors/'];
+
+      // Act
+      final filtered = _filterExcludedPaths(urls, excludedPaths);
+
+      // Assert
+      expect(filtered.length, 2);
+      expect(filtered.map((u) => u.toString()).toSet(), {
+        'https://example.com/',
+        'https://example.com/posts/article-1',
+      });
+    });
+
+    test('should not exclude partial path matches', () {
+      // Arrange
+      final urls = [
+        Uri.parse('https://example.com/tags/tag-1'),
+        Uri.parse('https://example.com/tagspage'),
+        Uri.parse('https://example.com/mytags'),
+      ];
+      final excludedPaths = ['tags/'];
+
+      // Act
+      final filtered = _filterExcludedPaths(urls, excludedPaths);
+
+      // Assert: Only exact path prefix matches should be excluded
+      expect(filtered.length, 2);
+      expect(filtered.map((u) => u.toString()).toSet(), {
+        'https://example.com/tagspage',
+        'https://example.com/mytags',
+      });
+    });
+
+    test('should handle root path correctly', () {
+      // Arrange
+      final urls = [
+        Uri.parse('https://example.com/'),
+        Uri.parse('https://example.com/tags/tag-1'),
+      ];
+      final excludedPaths = ['tags/'];
+
+      // Act
+      final filtered = _filterExcludedPaths(urls, excludedPaths);
+
+      // Assert: Root path should not be excluded
+      expect(filtered.length, 1);
+      expect(filtered[0].toString(), 'https://example.com/');
+    });
+
+    test('should handle Japanese paths correctly', () {
+      // Arrange
+      final urls = [
+        Uri.parse('https://example.com/'),
+        Uri.parse('https://example.com/tags/%E9%96%8B%E7%99%BA'),
+        Uri.parse('https://example.com/posts/article-1'),
+        Uri.parse('https://example.com/categories/%E8%A8%98%E4%BA%8B'),
+      ];
+      final excludedPaths = ['tags/', 'categories/'];
+
+      // Act
+      final filtered = _filterExcludedPaths(urls, excludedPaths);
+
+      // Assert: Japanese tag and category paths should be excluded
+      expect(filtered.length, 2);
+      expect(filtered.map((u) => u.toString()).toSet(), {
+        'https://example.com/',
+        'https://example.com/posts/article-1',
+      });
+    });
+  });
 }
