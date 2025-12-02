@@ -13,8 +13,9 @@ class Site {
   final String? sitemapUrl; // Sitemap URL for link checking (optional)
   final int
   lastScannedPageIndex; // Last scanned page index for progressive scanning
-  final List<String>
-  excludedPaths; // Paths to exclude from scanning (e.g., ['tags/', 'categories/'])
+  
+  /// Paths to exclude from scanning (e.g., ['tags/', 'categories/'])
+  final List<String> excludedPaths;
 
   Site({
     required this.id,

@@ -789,7 +789,39 @@ class LinkCheckerService {
   }
 
   /// Filter out URLs that match excluded paths
-  /// Excluded paths are matched against the URL path component
+  ///
+  /// This method filters URLs based on a list of excluded path prefixes.
+  /// Paths are matched against the URL's path component using prefix matching.
+  ///
+  /// **Path Normalization:**
+  /// - Excluded paths are automatically prefixed with '/' if not present
+  /// - Example: 'tags/' becomes '/tags/' for matching
+  ///
+  /// **Matching Behavior:**
+  /// - Uses prefix matching (startsWith) on the URL path
+  /// - Excludes all nested paths under the excluded prefix
+  /// - Example: Excluding '/tags/' will filter:
+  ///   - https://example.com/tags/tag-1
+  ///   - https://example.com/tags/tag-1/page-2
+  ///   - https://example.com/tags/anything/nested
+  ///
+  /// **Parameters:**
+  /// - [urls]: List of URLs to filter
+  /// - [excludedPaths]: List of path prefixes to exclude (e.g., ['tags/', 'categories/'])
+  ///
+  /// **Returns:**
+  /// A filtered list containing only URLs that don't match any excluded path prefix
+  ///
+  /// **Example:**
+  /// ```dart
+  /// final urls = [
+  ///   Uri.parse('https://example.com/posts/article-1'),
+  ///   Uri.parse('https://example.com/tags/tag-1'),
+  ///   Uri.parse('https://example.com/categories/cat-1'),
+  /// ];
+  /// final filtered = _filterExcludedPaths(urls, ['tags/', 'categories/']);
+  /// // Result: Only the posts URL remains
+  /// ```
   List<Uri> _filterExcludedPaths(List<Uri> urls, List<String> excludedPaths) {
     if (excludedPaths.isEmpty) return urls;
 
