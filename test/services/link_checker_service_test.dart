@@ -684,27 +684,23 @@ ${urlElements.join('\n')}
   });
 
   group('Excluded Paths Filtering', () {
-    /// Helper method to simulate filterExcludedPaths behavior
-    List<Uri> filterExcludedPaths(List<Uri> urls, List<String> excludedPaths) {
-      if (excludedPaths.isEmpty) return urls;
+    // Note: These tests verify the path filtering logic by testing the behavior
+    // through URL parsing and comparison, which matches the actual implementation
+    // in LinkCheckerService._filterExcludedPaths
 
-      return urls.where((url) {
-        final path = url.path;
+    bool shouldExcludeUrl(Uri url, List<String> excludedPaths) {
+      if (excludedPaths.isEmpty) return false;
 
-        // Check if the path starts with any of the excluded paths
-        for (final excludedPath in excludedPaths) {
-          // Normalize the excluded path (ensure it starts with /)
-          final normalizedExcludedPath = excludedPath.startsWith('/')
-              ? excludedPath
-              : '/$excludedPath';
-
-          if (path.startsWith(normalizedExcludedPath)) {
-            return false; // Exclude this URL
-          }
+      final path = url.path;
+      for (final excludedPath in excludedPaths) {
+        final normalizedExcludedPath = excludedPath.startsWith('/')
+            ? excludedPath
+            : '/$excludedPath';
+        if (path.startsWith(normalizedExcludedPath)) {
+          return true;
         }
-
-        return true; // Include this URL
-      }).toList();
+      }
+      return false;
     }
 
     test('should filter URLs matching excluded paths', () {
@@ -720,7 +716,9 @@ ${urlElements.join('\n')}
       final excludedPaths = ['tags/', 'categories/'];
 
       // Act
-      final filtered = filterExcludedPaths(urls, excludedPaths);
+      final filtered = urls
+          .where((url) => !shouldExcludeUrl(url, excludedPaths))
+          .toList();
 
       // Assert
       expect(filtered.length, 3);
@@ -740,7 +738,9 @@ ${urlElements.join('\n')}
       final excludedPaths = ['/tags/']; // With leading slash
 
       // Act
-      final filtered = filterExcludedPaths(urls, excludedPaths);
+      final filtered = urls
+          .where((url) => !shouldExcludeUrl(url, excludedPaths))
+          .toList();
 
       // Assert
       expect(filtered.length, 1);
@@ -757,7 +757,9 @@ ${urlElements.join('\n')}
       final excludedPaths = ['tags']; // No leading or trailing slash
 
       // Act
-      final filtered = filterExcludedPaths(urls, excludedPaths);
+      final filtered = urls
+          .where((url) => !shouldExcludeUrl(url, excludedPaths))
+          .toList();
 
       // Assert
       expect(filtered.length, 1);
@@ -774,7 +776,9 @@ ${urlElements.join('\n')}
       final excludedPaths = <String>[];
 
       // Act
-      final filtered = filterExcludedPaths(urls, excludedPaths);
+      final filtered = urls
+          .where((url) => !shouldExcludeUrl(url, excludedPaths))
+          .toList();
 
       // Assert
       expect(filtered.length, urls.length);
@@ -792,7 +796,9 @@ ${urlElements.join('\n')}
       final excludedPaths = ['tags/'];
 
       // Act
-      final filtered = filterExcludedPaths(urls, excludedPaths);
+      final filtered = urls
+          .where((url) => !shouldExcludeUrl(url, excludedPaths))
+          .toList();
 
       // Assert: All nested tag pages should be excluded
       expect(filtered.length, 1);
@@ -811,7 +817,9 @@ ${urlElements.join('\n')}
       final excludedPaths = ['tags/', 'categories/', 'authors/'];
 
       // Act
-      final filtered = filterExcludedPaths(urls, excludedPaths);
+      final filtered = urls
+          .where((url) => !shouldExcludeUrl(url, excludedPaths))
+          .toList();
 
       // Assert
       expect(filtered.length, 2);
@@ -831,7 +839,9 @@ ${urlElements.join('\n')}
       final excludedPaths = ['tags/'];
 
       // Act
-      final filtered = filterExcludedPaths(urls, excludedPaths);
+      final filtered = urls
+          .where((url) => !shouldExcludeUrl(url, excludedPaths))
+          .toList();
 
       // Assert: Only exact path prefix matches should be excluded
       expect(filtered.length, 2);
@@ -850,7 +860,9 @@ ${urlElements.join('\n')}
       final excludedPaths = ['tags/'];
 
       // Act
-      final filtered = filterExcludedPaths(urls, excludedPaths);
+      final filtered = urls
+          .where((url) => !shouldExcludeUrl(url, excludedPaths))
+          .toList();
 
       // Assert: Root path should not be excluded
       expect(filtered.length, 1);
@@ -868,7 +880,9 @@ ${urlElements.join('\n')}
       final excludedPaths = ['tags/', 'categories/'];
 
       // Act
-      final filtered = filterExcludedPaths(urls, excludedPaths);
+      final filtered = urls
+          .where((url) => !shouldExcludeUrl(url, excludedPaths))
+          .toList();
 
       // Assert: Japanese tag and category paths should be excluded
       expect(filtered.length, 2);

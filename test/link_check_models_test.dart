@@ -57,6 +57,98 @@ void main() {
     });
   });
 
+  group('Excluded Paths - Site Model Tests', () {
+    test('default excludedPaths is empty list', () {
+      final site = Site(
+        id: 'site_1',
+        userId: 'user_1',
+        url: 'https://example.com',
+        name: 'Test Site',
+        monitoringEnabled: true,
+        checkInterval: 60,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      expect(site.excludedPaths, isEmpty);
+    });
+
+    test('Site stores excludedPaths', () {
+      final site = Site(
+        id: 'site_1',
+        userId: 'user_1',
+        url: 'https://example.com',
+        name: 'Test Site',
+        monitoringEnabled: true,
+        checkInterval: 60,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        excludedPaths: ['tags/', 'categories/'],
+      );
+
+      expect(site.excludedPaths, equals(['tags/', 'categories/']));
+    });
+
+    test('Site.copyWith updates excludedPaths', () {
+      final original = Site(
+        id: 'site_1',
+        userId: 'user_1',
+        url: 'https://example.com',
+        name: 'Test Site',
+        monitoringEnabled: true,
+        checkInterval: 60,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        excludedPaths: [],
+      );
+
+      final updated = original.copyWith(
+        excludedPaths: ['tags/', 'categories/', 'authors/'],
+      );
+
+      expect(
+        updated.excludedPaths,
+        equals(['tags/', 'categories/', 'authors/']),
+      );
+      expect(original.excludedPaths, isEmpty); // Original unchanged
+    });
+
+    test('Site.toFirestore serializes excludedPaths', () {
+      final site = Site(
+        id: 'site_1',
+        userId: 'user_1',
+        url: 'https://example.com',
+        name: 'Test Site',
+        monitoringEnabled: true,
+        checkInterval: 60,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        excludedPaths: ['tags/', 'categories/'],
+      );
+
+      final firestore = site.toFirestore();
+
+      expect(firestore['excludedPaths'], equals(['tags/', 'categories/']));
+    });
+
+    test('Site.toFirestore serializes empty excludedPaths', () {
+      final site = Site(
+        id: 'site_1',
+        userId: 'user_1',
+        url: 'https://example.com',
+        name: 'Test Site',
+        monitoringEnabled: true,
+        checkInterval: 60,
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      final firestore = site.toFirestore();
+
+      expect(firestore['excludedPaths'], isEmpty);
+    });
+  });
+
   group('Progressive Scan - LinkCheckResult Tests', () {
     test('creates complete scan result', () {
       final result = LinkCheckResult(
