@@ -684,25 +684,25 @@ ${urlElements.join('\n')}
   });
 
   group('Excluded Paths Filtering', () {
-    /// Helper method to simulate _filterExcludedPaths behavior
-    List<Uri> _filterExcludedPaths(List<Uri> urls, List<String> excludedPaths) {
+    /// Helper method to simulate filterExcludedPaths behavior
+    List<Uri> filterExcludedPaths(List<Uri> urls, List<String> excludedPaths) {
       if (excludedPaths.isEmpty) return urls;
 
       return urls.where((url) {
         final path = url.path;
-        
+
         // Check if the path starts with any of the excluded paths
         for (final excludedPath in excludedPaths) {
           // Normalize the excluded path (ensure it starts with /)
           final normalizedExcludedPath = excludedPath.startsWith('/')
               ? excludedPath
               : '/$excludedPath';
-          
+
           if (path.startsWith(normalizedExcludedPath)) {
             return false; // Exclude this URL
           }
         }
-        
+
         return true; // Include this URL
       }).toList();
     }
@@ -720,7 +720,7 @@ ${urlElements.join('\n')}
       final excludedPaths = ['tags/', 'categories/'];
 
       // Act
-      final filtered = _filterExcludedPaths(urls, excludedPaths);
+      final filtered = filterExcludedPaths(urls, excludedPaths);
 
       // Assert
       expect(filtered.length, 3);
@@ -740,7 +740,7 @@ ${urlElements.join('\n')}
       final excludedPaths = ['/tags/']; // With leading slash
 
       // Act
-      final filtered = _filterExcludedPaths(urls, excludedPaths);
+      final filtered = filterExcludedPaths(urls, excludedPaths);
 
       // Assert
       expect(filtered.length, 1);
@@ -757,7 +757,7 @@ ${urlElements.join('\n')}
       final excludedPaths = ['tags']; // No leading or trailing slash
 
       // Act
-      final filtered = _filterExcludedPaths(urls, excludedPaths);
+      final filtered = filterExcludedPaths(urls, excludedPaths);
 
       // Assert
       expect(filtered.length, 1);
@@ -774,7 +774,7 @@ ${urlElements.join('\n')}
       final excludedPaths = <String>[];
 
       // Act
-      final filtered = _filterExcludedPaths(urls, excludedPaths);
+      final filtered = filterExcludedPaths(urls, excludedPaths);
 
       // Assert
       expect(filtered.length, urls.length);
@@ -792,7 +792,7 @@ ${urlElements.join('\n')}
       final excludedPaths = ['tags/'];
 
       // Act
-      final filtered = _filterExcludedPaths(urls, excludedPaths);
+      final filtered = filterExcludedPaths(urls, excludedPaths);
 
       // Assert: All nested tag pages should be excluded
       expect(filtered.length, 1);
@@ -811,7 +811,7 @@ ${urlElements.join('\n')}
       final excludedPaths = ['tags/', 'categories/', 'authors/'];
 
       // Act
-      final filtered = _filterExcludedPaths(urls, excludedPaths);
+      final filtered = filterExcludedPaths(urls, excludedPaths);
 
       // Assert
       expect(filtered.length, 2);
@@ -831,7 +831,7 @@ ${urlElements.join('\n')}
       final excludedPaths = ['tags/'];
 
       // Act
-      final filtered = _filterExcludedPaths(urls, excludedPaths);
+      final filtered = filterExcludedPaths(urls, excludedPaths);
 
       // Assert: Only exact path prefix matches should be excluded
       expect(filtered.length, 2);
@@ -850,7 +850,7 @@ ${urlElements.join('\n')}
       final excludedPaths = ['tags/'];
 
       // Act
-      final filtered = _filterExcludedPaths(urls, excludedPaths);
+      final filtered = filterExcludedPaths(urls, excludedPaths);
 
       // Assert: Root path should not be excluded
       expect(filtered.length, 1);
@@ -868,7 +868,7 @@ ${urlElements.join('\n')}
       final excludedPaths = ['tags/', 'categories/'];
 
       // Act
-      final filtered = _filterExcludedPaths(urls, excludedPaths);
+      final filtered = filterExcludedPaths(urls, excludedPaths);
 
       // Assert: Japanese tag and category paths should be excluded
       expect(filtered.length, 2);
