@@ -141,9 +141,10 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               onPressed: provider.isLoading
                   ? null
                   : () async {
+                      final messenger = ScaffoldMessenger.of(context);
                       final success = await provider.purchaseLifetime();
                       if (success && mounted) {
-                        ScaffoldMessenger.of(context).showSnackBar(
+                        messenger.showSnackBar(
                           const SnackBar(
                             content: Text('購入が完了しました！'),
                             backgroundColor: Colors.green,
@@ -168,17 +169,18 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               onPressed: provider.isLoading
                   ? null
                   : () async {
+                      final messenger = ScaffoldMessenger.of(context);
                       final success = await provider.restorePurchases();
                       if (mounted) {
                         if (success) {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          messenger.showSnackBar(
                             const SnackBar(
                               content: Text('購入履歴をリストアしました'),
                               backgroundColor: Colors.green,
                             ),
                           );
                         } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
+                          messenger.showSnackBar(
                             const SnackBar(
                               content: Text('リストアする購入履歴が見つかりませんでした'),
                             ),
