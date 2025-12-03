@@ -5,6 +5,8 @@ import 'providers/auth_provider.dart';
 import 'providers/site_provider.dart';
 import 'providers/monitoring_provider.dart';
 import 'providers/link_checker_provider.dart';
+import 'providers/subscription_provider.dart';
+import 'services/subscription_service.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/sites_screen.dart';
 import 'screens/results_screen.dart';
@@ -44,6 +46,9 @@ class SiteCatApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => SiteProvider()),
         ChangeNotifierProvider(create: (context) => MonitoringProvider()),
         ChangeNotifierProvider(create: (context) => LinkCheckerProvider()),
+        ChangeNotifierProvider(
+          create: (context) => SubscriptionProvider(SubscriptionService()),
+        ),
       ],
       child: MaterialApp(
         title: 'SiteCat',
