@@ -1,18 +1,21 @@
 # 開発ガイド - SiteCat
 
 > **対象読者**: 開発者  
-> **目的**: SiteCatの技術詳細、開発環境構築、アーキテクチャ、実装ガイド
+> **目的**: SiteCatの技術詳細、開発環境構築、アーキテクチャ、実装ガイド  
+> **最終更新**: 2025年12月3日  
+> **現在のバージョン**: v1.0.3 (Build 41) - App Store配信中
 
 ---
 
 ## 開発環境セットアップ
 
 ### 前提条件
-- Flutter SDK (最新安定版)
-- Dart SDK
-- Android Studio / Xcode (モバイル開発用)
-- Firebase CLI
-- Git
+- **Flutter SDK**: 3.38.3以上
+- **Dart SDK**: 3.10.1以上
+- **Xcode**: 15.0以上（iOS開発用、現在iOS専用アプリ）
+- **Firebase CLI**: 最新版
+- **Git**: バージョン管理
+- **CocoaPods**: iOS依存関係管理
 
 ### 初期セットアップ手順
 
@@ -55,32 +58,34 @@
 
 プロジェクトで使用しているパッケージの詳細は `pubspec.yaml` を参照してください。
 
-### 主要な依存関係
+### 主要な依存関係（v1.0.3時点）
 
 **Firebase関連:**
-- `firebase_core`: Firebase初期化
-- `firebase_auth`: ユーザー認証
-- `cloud_firestore`: NoSQLデータベース
-- `cloud_functions`: サーバーレス関数
+- `firebase_core: ^3.8.0`: Firebase初期化
+- `firebase_auth: ^5.3.3`: ユーザー認証
+- `cloud_firestore: ^5.5.0`: NoSQLデータベース
+- `cloud_functions: ^5.2.2`: サーバーレス関数（将来使用予定）
 
 **認証:**
-- `google_sign_in`: Google認証
+- `google_sign_in: ^6.2.2`: Google認証
+- `sign_in_with_apple: ^6.1.3`: Apple Sign-In
 
 **状態管理:**
-- `provider`: UI状態管理（Provider Pattern）
+- `provider: ^6.1.2`: UI状態管理（Provider Pattern）
 
 **HTTP通信:**
-- `http`: REST API通信、サイト監視
+- `http: ^1.2.2`: REST API通信、サイト監視
 
 **HTML/XML解析:**
-- `html`: HTMLパース（リンクチェック用）
-- `xml`: XMLパース（Sitemap解析用）
+- `html: ^0.15.4`: HTMLパース（リンクチェック用）
+- `xml: ^6.5.0`: XMLパース（Sitemap解析用）
 
 **UI/可視化:**
-- `fl_chart`: グラフ・チャート表示
+- `fl_chart: ^0.69.0`: グラフ・チャート表示
 
 **その他:**
-- `logger`: ログ出力
+- `intl: ^0.19.0`: 国際化・日時フォーマット
+- `url_launcher: ^6.3.1`: 外部URL起動
 
 ## プロジェクト構造
 
@@ -148,6 +153,7 @@ SiteCatはFirestore（NoSQLデータベース）を使用しています。以�
   name: string            // サイト名
   monitoringEnabled: boolean  // 監視有効/無効
   checkInterval: number   // 監視間隔（分）
+  excludedPaths: string[] // 除外パス（Phase 2で追加、Phase 3aでUI実装予定）
   createdAt: Timestamp    // 登録日時
   lastChecked: Timestamp  // 最終チェック日時
 }
@@ -504,122 +510,195 @@ SiteCatのアーキテクチャは以下のように整理されています：
 
 ## 開発ロードマップ
 
-### Phase 1: MVP完成 ✅ (完了)
+### Phase 1: MVP完成・App Storeリリース ✅ (完了)
+**期間**: 2025年10月～11月  
+**バージョン**: v1.0.0 - v1.0.3 (Build 41)
 
-**目標**: 簡易ツールとして最小限の機能を実装
+**目標**: iOS版アプリとして最小限の機能を実装し、App Storeでリリース
 
 **完了した機能:**
 - ✅ Firebase プロジェクト作成・設定
 - ✅ Flutter アプリにFirebase統合
 - ✅ Firebase Authentication 実装
-- ✅ ログイン・サインアップUI (Google認証)
-- ✅ サイト管理機能（追加・編集・削除）
+- ✅ ログイン・サインアップUI（Google Sign-In + Apple Sign-In）
+- ✅ サイト管理機能（追加・編集・削除、1サイト制限）
 - ✅ Firestore データ操作
 - ✅ サイト一覧UI
-- ✅ 手動監視機能（HTTP リクエスト）
+- ✅ Quick Check（手動監視、HTTP リクエスト）
 - ✅ 監視結果の保存・表示
 - ✅ 基本統計（稼働率、平均応答時間）
+- ✅ グラフ表示（fl_chart）
 - ✅ 監視頻度制限（5分間隔）
 - ✅ タイムアウト最適化（30秒→10秒）
 - ✅ 統計情報キャッシュ（5分間有効）
+- ✅ **App Store審査通過・配信開始（175カ国）**
+- ✅ **Xcode Cloud CI/CD設定**
 
 **成果物:**
+- iOS専用アプリとしてApp Store配信中
 - 死活監視の基本機能が動作
 - 手動チェックで即座に結果確認可能
 - 負荷軽減機能により対象サイトへの影響を最小化
 
 ---
 
-### Phase 2: リンク切れチェック実装 ✅ (完了)
+### Phase 2: リンク切れチェック強化 ✅ (完了)
+**期間**: 2025年11月～12月  
+**バージョン**: v1.0.3 - v1.0.4 (Build 42開発中)
 
-**目標**: サイト内のリンク切れを検出する機能を追加
+**目標**: サイト内のリンク切れを検出する機能を追加し、バックエンド基盤を整備
 
 **完了した機能:**
-- ✅ HTML解析機能（サイト内リンク抽出）
+- ✅ HTML/XMLサイトマップ解析機能
 - ✅ リンクの有効性チェック（HTTP HEAD/GET リクエスト）
 - ✅ 壊れたリンクのリスト表示（内部/外部リンク別）
 - ✅ リンクチェック結果の保存（Firestore）
 - ✅ チェック進捗表示（リアルタイム更新）
-- ✅ 外部リンク/内部リンクの区別
-- ✅ Full Scan機能（最大50ページ、中断・再開可能）
+- ✅ Full Scan機能（サイトマップベース、中断・再開UI）
 - ✅ Quick CheckとFull Scanのタブ分離
 - ✅ 独立したカウントダウンタイマー（各5分間隔）
 - ✅ UI大規模リファクタリング（13個の再利用可能ウィジェット作成）
+- ✅ **除外パス設定（バックエンド実装完了、PR #195マージ）**
+- ✅ **Flutter 3.38.3へのアップグレード（PR #196マージ）**
+- ✅ **168テスト成功**
 
 **実装された技術要素:**
-- `html` パッケージでHTMLパース
-- 並列リクエスト処理（効率的なリンクチェック）
+- `html`/`xml` パッケージでサイトマップ解析
+- Isolateでのバックグラウンド処理
 - Firestoreへの結果保存とキャッシュ機能
 - Provider Patternによる状態管理
 - TabController/TabViewによるUI分離
+- 除外パス機能（`Site`モデル、`LinkCheckerService`）
 
 **達成された効果:**
 - ウェブサイトのメンテナンス効率向上
 - SEO対策の支援
 - コードの可読性・保守性が大幅に向上（1,163行削減）
+- 有料化の技術基盤完成
 
 ---
 
-### Phase 3: リリース準備 (未着手)
+### Phase 3a: 買い切り有料版 🔄 (次のフェーズ)
+**予定**: 2025年12月～  
+**価格**: ¥1,220（一度の購入）  
+**バージョン**: v1.1.0予定
 
-**目標**: アプリストアへの公開準備
+**目標**: 買い切り型有料機能を実装し、収益化を開始
 
-**タスク:**
-- [ ] UI/UX 最終調整
-  - [ ] アイコン・スプラッシュ画面
-  - [ ] 各画面の操作性確認
-  - [ ] エラーメッセージの改善
-- [ ] テスト
-  - [ ] 全機能の統合テスト
-  - [ ] 実機テスト（複数デバイス）
-  - [ ] パフォーマンステスト
-- [ ] ドキュメント整備
-  - [ ] ユーザーマニュアル
-  - [ ] プライバシーポリシー
-  - [ ] 利用規約
-- [ ] ストア申請
-  - [ ] Google Play Store
-  - [ ] Apple App Store
-  - [ ] アプリ説明文・スクリーンショット
+**実装予定機能:**
+- [ ] **In-App Purchase統合**
+  - [ ] StoreKit 2対応
+  - [ ] 課金状態管理（Firestore `users/{userId}/subscription`）
+  - [ ] リストア機能
+  - [ ] 購入フロー実装
 
-**品質基準:**
-- クラッシュ率 < 0.1%
-- 主要機能のテストカバレッジ > 80%
-- 全プラットフォームで動作確認
+- [ ] **サイト数制限解除**
+  - [ ] 定数変更（1サイト → 無制限）
+  - [ ] UI側で課金状態チェック
+  - [ ] 無料版での制限表示
+
+- [ ] **除外パス設定UI** (#197)
+  - [ ] 設定画面実装
+  - [ ] パス入力・検証UI
+  - [ ] プレビュー機能
+  - [ ] バックエンド連携（実装済み）
+
+- [ ] **Full Scan中断・再開機能** (#193)
+  - [ ] Isolate管理の改善
+  - [ ] 一時停止・再開ロジック
+  - [ ] 進捗状態の永続化
+  - [ ] UI実装
+
+- [ ] **履歴表示拡張**
+  - [ ] Quick Check: 10件 → 50件
+  - [ ] Full Scan: 10件 → 50件
+  - [ ] クリーンアップロジック更新
+
+**技術的な実装:**
+```dart
+// 課金状態管理
+class SubscriptionService {
+  static const String LIFETIME_PRODUCT_ID = 'sitecat.lifetime.basic';
+  
+  Future<bool> hasLifetimeAccess() async {
+    // StoreKit 2で購入状態確認
+    // Firestoreに状態キャッシュ
+  }
+}
+
+// 履歴件数制御
+class HistoryService {
+  static const int FREE_HISTORY_LIMIT = 10;
+  static const int PAID_HISTORY_LIMIT = 50;
+  
+  Future<void> cleanupOldResults(String siteId) async {
+    await _cleanupByType(siteId, 'quick_check', PAID_HISTORY_LIMIT);
+    await _cleanupByType(siteId, 'full_scan', PAID_HISTORY_LIMIT);
+  }
+}
+```
 
 ---
 
-### Phase 4: 有料機能実装 (リリース後)
+### Phase 3b: サブスクリプション版 📅 (将来計画)
+**予定**: Phase 3a完了後（2026年Q1～）  
+**価格**: ¥490/月（買い切り機能すべて含む）  
+**バージョン**: v1.2.0予定
 
-**目標**: フリーミアムモデルで収益化
+**目標**: サブスクリプションで継続的収益を実現
 
-**無料版（現在の機能）:**
-- 手動監視
-- 基本統計
-- リンク切れチェック（手動）
+**実装予定機能:**
+- [ ] **Cloud Run定期実行**
+  - [ ] Cloud Scheduler設定
+  - [ ] 1日4回（6時間ごと）の自動監視
+  - [ ] 課金状態確認と実行制御
+  - [ ] エラーハンドリング
 
-**有料版追加機能:**
-- [ ] 詳細な監視履歴UI
-  - [ ] 時系列グラフ（レスポンス時間、稼働率）
-  - [ ] 詳細な統計レポート
-  - [ ] データエクスポート（CSV/PDF）
-- [ ] 自動監視（Cloud Functions）
-  - [ ] Cloud Scheduler で定期実行
-  - [ ] checkInterval 設定の活用
-  - [ ] バックグラウンド監視
-- [ ] プッシュ通知
-  - [ ] ダウンタイム検出時の通知
+- [ ] **プッシュ通知**
+  - [ ] Firebase Cloud Messaging統合
   - [ ] リンク切れ検出時の通知
-  - [ ] 通知設定のカスタマイズ
-- [ ] 高度な機能
-  - [ ] 複数サイトの一括監視
-  - [ ] チーム共有機能
-  - [ ] Slack/Discord 連携
-  - [ ] API エンドポイント監視
+  - [ ] ダウンタイム検出時の通知
+  - [ ] 通知設定UI
 
-**価格戦略:**
-- 無料版: 基本機能
-- 有料版: 月額 ¥500-1,000 程度
+- [ ] **詳細レポート機能**
+  - [ ] 推移グラフの強化
+  - [ ] 統計サマリー
+  - [ ] エクスポート機能（将来検討）
+
+**技術的な実装:**
+```dart
+class SubscriptionService {
+  static const String MONTHLY_PRODUCT_ID = 'sitecat.subscription.monthly';
+  
+  Future<bool> hasActiveSubscription() async {
+    // StoreKit 2でサブスク状態確認
+    // 自動更新のステータス管理
+  }
+  
+  Future<void> enableAutoMonitoring(String userId) async {
+    // Cloud Run Jobの有効化
+    // FCMトークン登録
+  }
+}
+```
+
+### Phase 4: 将来的な拡張 🚀 (2026年Q2～)
+**目標**: プラットフォーム拡張と高度な機能追加
+
+**検討中の機能:**
+- [ ] **Android版の開発**
+  - [ ] Flutterマルチプラットフォーム化
+  - [ ] Google Play Store配信
+
+- [ ] **高度な機能**
+  - [ ] チーム機能（複数ユーザーでのサイト共有）
+  - [ ] Slack/Discord連携
+  - [ ] API連携機能
+  - [ ] Enterprise プラン
+
+- [ ] **多言語対応**
+  - [ ] 英語対応
+  - [ ] l10nファイル整備
 
 ---
 
@@ -734,25 +813,13 @@ void main() {
 - **Firebase Crashlytics**: クラッシュレポート
 - **Firebase Performance Monitoring**: パフォーマンス監視
 
-## 今後の拡張予定
+## 関連ドキュメント
 
-### 短期（Phase 3 - リリース準備）
-- ✅ リンク切れチェック機能（完了）
-- UI/UX 改善
-- パフォーマンス最適化
-- ドキュメント整備（ユーザーマニュアル、プライバシーポリシー）
-- アプリストアリリース
+- **[PROJECT_CONCEPT.md](./PROJECT_CONCEPT.md)**: プロジェクト全体の概要、ビジネスモデル、開発状況
+- **[BUSINESS_MODEL.md](./BUSINESS_MODEL.md)**: ビジネスモデル、価格プラン、App Store審査対応
+- **[PRICING_STRATEGY.md](./PRICING_STRATEGY.md)**: 有料化戦略の詳細、実装ロードマップ
 
-### 中期（Phase 4 - 有料版）
-- 詳細な監視履歴UI（グラフ、レポート）
-- 自動監視（Cloud Functions + Cloud Scheduler）
-- プッシュ通知
-- データエクスポート（CSV/PDF）
+---
 
-### 長期（将来バージョン）
-- **多言語対応**: 英語・日本語
-- **ダークモード**: UI テーマ切り替え
-- **API監視**: REST API エンドポイント監視
-- **通知カスタマイズ**: 詳細な通知設定
-- **チーム機能**: 複数ユーザーでのサイト共有
-- **Slack/Discord連携**: 外部サービス統合
+**最終更新**: 2025年12月3日  
+**ドキュメントバージョン**: 2.0
