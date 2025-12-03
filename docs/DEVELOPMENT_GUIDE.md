@@ -11,7 +11,7 @@
 
 ### 前提条件
 - **Flutter SDK**: 3.27.3以上
-- **Dart SDK**: 3.9.0以上
+- **Dart SDK**: 3.10.1以上
 - **Xcode**: 15.0以上（iOS開発用、現在iOS専用アプリ）
 - **Firebase CLI**: 最新版
 - **Git**: バージョン管理
