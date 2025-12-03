@@ -51,7 +51,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             const Icon(Icons.check_circle, size: 80, color: Colors.green),
             const SizedBox(height: 24),
             const Text(
-              'You are using\nPremium Version',
+              'You are using\nPremium',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
@@ -241,8 +241,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             _buildFeatureRow(
               Icons.history,
               'History Display',
-              '10 items',
-              '50 items',
+              '10 each',
+              '50 each',
             ),
           ],
         ),
