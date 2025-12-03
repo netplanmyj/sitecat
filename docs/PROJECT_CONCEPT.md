@@ -51,7 +51,7 @@ SiteCatは、指定されたウェブサイトの死活監視とリンク切れ�
 
 ## 技術スタック
 
-- **フロントエンド**: Flutter 3.38.3 / Dart 3.10.1
+- **フロントエンド**: Flutter 3.27.3 / Dart 3.10.1
 - **バックエンド**: Firebase (Authentication, Firestore, Cloud Functions)
 - **監視**: HTTP Client, XML/HTML Parser
 - **グラフ**: fl_chart
