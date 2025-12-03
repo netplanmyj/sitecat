@@ -64,7 +64,6 @@ class SubscriptionService {
       if (doc.exists) {
         final data = doc.data();
         if (data != null && data['isActive'] == true) {
-          _logger.d('Lifetime access found in Firestore cache');
           return true;
         }
       }
@@ -189,7 +188,6 @@ class SubscriptionService {
     for (final purchaseDetails in purchaseDetailsList) {
       if (purchaseDetails.status == PurchaseStatus.pending) {
         // 購入処理中
-        _logger.d('Purchase pending: ${purchaseDetails.productID}');
       } else if (purchaseDetails.status == PurchaseStatus.error) {
         // 購入エラー
         _logger.e('Purchase error: ${purchaseDetails.error}');
@@ -217,21 +215,22 @@ class SubscriptionService {
     }
 
     try {
-      // Firestoreに購入情報を保存
-      await _firestore
+      final docRef = _firestore
           .collection('users')
           .doc(user.uid)
           .collection('subscription')
-          .doc('lifetime')
-          .set({
-            'productId': purchaseDetails.productID,
-            'purchaseDate': FieldValue.serverTimestamp(),
-            'isActive': true,
-            'platform': Platform.isIOS ? 'ios' : 'android',
-            'transactionId': purchaseDetails.purchaseID,
-            'verificationData':
-                purchaseDetails.verificationData.serverVerificationData,
-          });
+          .doc('lifetime');
+
+      // Firestoreに購入情報を保存
+      await docRef.set({
+        'productId': purchaseDetails.productID,
+        'purchaseDate': FieldValue.serverTimestamp(),
+        'isActive': true,
+        'platform': Platform.isIOS ? 'ios' : 'android',
+        'transactionId': purchaseDetails.purchaseID,
+        'verificationData':
+            purchaseDetails.verificationData.serverVerificationData,
+      });
 
       _logger.i('Purchase saved to Firestore: ${purchaseDetails.productID}');
     } catch (e) {
@@ -241,7 +240,7 @@ class SubscriptionService {
 
   /// 購入ストリーム完了時の処理
   void _onPurchaseDone() {
-    _logger.d('Purchase stream done');
+    // Purchase stream completed
   }
 
   /// 購入ストリームエラー時の処理

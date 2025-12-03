@@ -13,6 +13,9 @@ import 'screens/results_screen.dart';
 import 'screens/profile_screen.dart';
 import 'screens/login_screen.dart';
 
+// Global SubscriptionService instance
+late final SubscriptionService subscriptionService;
+
 void main() async {
   // Flutter binding の初期化
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,6 +35,10 @@ void main() async {
     // Firebase already initialized at native layer
   }
 
+  // Initialize SubscriptionService
+  subscriptionService = SubscriptionService();
+  await subscriptionService.initialize();
+
   runApp(const SiteCatApp());
 }
 
@@ -47,7 +54,7 @@ class SiteCatApp extends StatelessWidget {
         ChangeNotifierProvider(create: (context) => MonitoringProvider()),
         ChangeNotifierProvider(create: (context) => LinkCheckerProvider()),
         ChangeNotifierProvider(
-          create: (context) => SubscriptionProvider(SubscriptionService()),
+          create: (context) => SubscriptionProvider(subscriptionService),
         ),
       ],
       child: MaterialApp(

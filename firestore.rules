@@ -80,7 +80,8 @@ service cloud.firestore {
         // 自分のユーザーID配下のサブスクリプション情報のみアクセス可能
         allow read: if request.auth != null && request.auth.uid == userId;
         // 作成・更新は認証済みユーザーのみ（アプリからの購入処理）
-        allow create, update: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId;
         // 削除は禁止（購入履歴は保持）
         allow delete: if false;
       }
