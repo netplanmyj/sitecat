@@ -127,7 +127,9 @@ class SubscriptionProvider with ChangeNotifier {
 
   @override
   void dispose() {
-    _subscriptionService.dispose();
+    // Note: _subscriptionService is a global singleton shared across all provider instances.
+    // Do not dispose it here as it would cancel the purchase stream for all other instances.
+    // The service persists for the app's lifetime and is managed in main.dart.
     super.dispose();
   }
 }
