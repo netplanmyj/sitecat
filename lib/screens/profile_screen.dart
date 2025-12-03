@@ -71,14 +71,14 @@ class _PremiumUpgradeButton extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'プレミアム版',
+                          'Premium Version',
                           style: Theme.of(context).textTheme.titleMedium
                               ?.copyWith(
                                 fontWeight: FontWeight.bold,
                                 color: Colors.green.shade700,
                               ),
                         ),
-                        const Text('ご利用中'),
+                        const Text('Active'),
                       ],
                     ),
                   ),
@@ -105,11 +105,11 @@ class _PremiumUpgradeButton extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'プレミアム版にアップグレード',
+                            'Upgrade to Premium',
                             style: Theme.of(context).textTheme.titleMedium
                                 ?.copyWith(fontWeight: FontWeight.bold),
                           ),
-                          const Text('すべての機能を解放'),
+                          const Text('Unlock all features'),
                         ],
                       ),
                     ),
@@ -130,7 +130,7 @@ class _PremiumUpgradeButton extends StatelessWidget {
                       backgroundColor: Colors.blue,
                       foregroundColor: Colors.white,
                     ),
-                    child: const Text('詳細を見る'),
+                    child: const Text('View Details'),
                   ),
                 ),
               ],
