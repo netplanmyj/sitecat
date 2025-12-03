@@ -50,7 +50,7 @@
 - App Store審査・配信（175カ国）
 
 #### 技術スタック
-- Flutter 3.38.3 / Dart 3.10.1
+- Flutter 3.27.3 / Dart 3.10.1
 - Firebase: Auth, Firestore, Functions
 - CI/CD: Xcode Cloud
 - 現在のビルド番号: 41
