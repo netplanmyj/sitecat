@@ -50,6 +50,32 @@
 - `analysis_options.yaml`の設定を遵守
 - コメントは日本語でOK、変数名・関数名は英語
 
+**コード削除のポリシー:**
+- 不要になったコード・ファイルは**即座に削除**する
+- リファクタリング時に古い実装を残さない
+- 「後で削除」は禁止 - 削除タイミングを逃すと永久に残る
+- 大きな変更の場合は、以下を1つのコミットで実施：
+  1. 新しい実装の追加
+  2. 古い実装の削除
+  3. インポート文の整理
+- 削除理由をコミットメッセージに明記
+
+**例：機能移行時の削除フロー**
+```bash
+# ❌ 悪い例：新機能だけ追加して古いファイルを放置
+git add new_feature.dart
+git commit -m "Add new feature"
+
+# ✅ 良い例：新機能追加と同時に古いファイルを削除
+git add new_feature.dart
+git rm old_feature.dart
+git commit -m "Replace old feature with new implementation
+
+- Add: new_feature.dart with improved architecture
+- Remove: old_feature.dart (deprecated)
+- Update: Remove unused imports from 3 files"
+```
+
 ### 3. テスト戦略
 - **Unit Tests**: ビジネスロジックのテスト
 - **Widget Tests**: UI コンポーネントのテスト
