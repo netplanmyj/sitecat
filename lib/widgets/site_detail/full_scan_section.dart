@@ -121,7 +121,8 @@ class _FullScanSectionState extends State<FullScanSection> {
                       child: OutlinedButton.icon(
                         onPressed:
                             (isCheckingLinks ||
-                                currentSite.lastScannedPageIndex == 0)
+                                currentSite.lastScannedPageIndex == 0 ||
+                                (latestResult?.scanCompleted ?? false))
                             ? null
                             : widget.onContinueScan,
                         icon: const Icon(Icons.play_arrow, size: 20),

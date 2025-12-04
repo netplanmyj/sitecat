@@ -10,8 +10,8 @@ class AppConstants {
   /// ページクローリング制限
   static const int freePlanPageLimit = 200;
   static const int premiumPlanPageLimit = 1000;
-  static const int standardPlanPageLimit =
-      500; // Deprecated, use premiumPlanPageLimit
+  @Deprecated('Use premiumPlanPageLimit instead')
+  static const int standardPlanPageLimit = 500;
   static const int proPlanPageLimit = 5000; // Future use
 
   /// 履歴保持件数制限
