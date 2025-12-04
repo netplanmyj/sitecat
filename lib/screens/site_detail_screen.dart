@@ -54,6 +54,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.site.name),
+        backgroundColor: Colors.orange,
+        foregroundColor: Colors.white,
         actions: [
           // Excluded paths settings (Premium feature)
           IconButton(
