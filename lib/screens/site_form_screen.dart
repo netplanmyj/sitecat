@@ -375,9 +375,9 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
                                     ),
                                     const SizedBox(height: 6),
                                     Text(
-                                      '• blog/tags/ - Exclude /blog/tags/*\n'
-                                      '• */admin/ - Exclude any /admin/ path\n'
-                                      '• */temp/ - Exclude any /temp/ folder',
+                                      '• blog/tags/ - Excludes paths starting with /blog/tags/\n'
+                                      '• */admin/ - Excludes paths with "admin" as a path segment\n'
+                                      '• */temp/ - Excludes paths with "temp" as a path segment',
                                       style: TextStyle(
                                         fontSize: 11,
                                         color: Colors.blue.shade900,
@@ -591,13 +591,22 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
     final path = _newPathController.text.trim();
     if (path.isEmpty) return;
 
-    // Validate path format: must end with / or use wildcard pattern like */temp/
-    if (!path.endsWith('/') && !path.contains('*/')) {
+    // Validate path format: must end with /
+    if (!path.endsWith('/')) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text(
-            'Path should end with / or use wildcard pattern like */temp/',
-          ),
+          content: Text('Path must end with /'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    // If it contains *, it must be a valid wildcard pattern (*/segment/)
+    if (path.contains('*') && !path.startsWith('*/')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Wildcard pattern must start with */ (e.g., */admin/)'),
           backgroundColor: Colors.orange,
         ),
       );

@@ -861,9 +861,13 @@ class LinkCheckerService {
       for (final excludedPath in excludedPaths) {
         // Handle wildcard pattern (e.g., */admin/)
         if (excludedPath.startsWith('*/')) {
-          final pattern = excludedPath.substring(1); // Remove the leading *
-          // Check if any part of the path contains this pattern
-          if (path.contains(pattern)) {
+          final pattern = excludedPath.substring(2); // Remove the leading */
+          // Check if the pattern appears as a complete path segment
+          // This ensures */admin/ matches /blog/admin/ but not /administrator/
+          final pathSegments = path.split('/');
+          if (pathSegments.any(
+            (segment) => segment == pattern.replaceAll('/', ''),
+          )) {
             return false; // Exclude this URL
           }
         } else {
