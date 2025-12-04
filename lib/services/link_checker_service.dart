@@ -857,15 +857,24 @@ class LinkCheckerService {
     return urls.where((url) {
       final path = url.path;
 
-      // Check if the path starts with any of the excluded paths
+      // Check if the path matches any of the excluded paths
       for (final excludedPath in excludedPaths) {
-        // Normalize the excluded path (ensure it starts with /)
-        final normalizedExcludedPath = excludedPath.startsWith('/')
-            ? excludedPath
-            : '/$excludedPath';
+        // Handle wildcard pattern (e.g., */admin/)
+        if (excludedPath.startsWith('*/')) {
+          final pattern = excludedPath.substring(1); // Remove the leading *
+          // Check if any part of the path contains this pattern
+          if (path.contains(pattern)) {
+            return false; // Exclude this URL
+          }
+        } else {
+          // Handle simple prefix pattern (e.g., tags/ or /tags/)
+          final normalizedExcludedPath = excludedPath.startsWith('/')
+              ? excludedPath
+              : '/$excludedPath';
 
-        if (path.startsWith(normalizedExcludedPath)) {
-          return false; // Exclude this URL
+          if (path.startsWith(normalizedExcludedPath)) {
+            return false; // Exclude this URL
+          }
         }
       }
 
