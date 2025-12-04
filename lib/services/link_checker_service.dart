@@ -121,9 +121,9 @@ class LinkCheckerService {
       allInternalPages.length,
     );
     final pagesToScan = allInternalPages.sublist(startIndex, endIndex);
-    // Scan is only complete when we've reached the end of all pages
-    // Allow continuing even after reaching page limits
-    final scanCompleted = endIndex >= allInternalPages.length;
+    // Scan is complete when we've reached the end of all pages OR hit the page limit
+    final scanCompleted =
+        endIndex >= allInternalPages.length || endIndex >= _pageLimit;
 
     // Step 2: Extract links from each internal page
     final allFoundLinks = <Uri>{};

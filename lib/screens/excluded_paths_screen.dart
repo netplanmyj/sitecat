@@ -35,11 +35,15 @@ class _ExcludedPathsScreenState extends State<ExcludedPathsScreen> {
     final path = _newPathController.text.trim();
     if (path.isEmpty) return;
 
-    // Validate path format
-    if (!path.endsWith('/') && !path.contains('*')) {
+    // Validate path format: must end with / or use wildcard pattern like */temp/
+    // Examples: tags/, */temp/, categories/
+    // Invalid: admin (missing /), admin/* (should be admin/ or */admin/)
+    if (!path.endsWith('/') && !path.contains('*/')) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Path should end with / or contain *'),
+          content: Text(
+            'Path should end with / or use wildcard pattern like */temp/',
+          ),
           backgroundColor: Colors.orange,
         ),
       );
