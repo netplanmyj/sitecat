@@ -209,7 +209,7 @@ class _ExcludedPathsScreenState extends State<ExcludedPathsScreen> {
                 Text(
                   'Examples:\n'
                   '• tags/ - Excludes all pages under tags/\n'
-                  '• admin/* - Excludes admin section\n'
+                  '• */admin/ - Excludes admin sections\n'
                   '• */temp/ - Excludes temp folders',
                   style: TextStyle(fontSize: 13, color: Colors.blue.shade900),
                 ),

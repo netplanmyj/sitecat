@@ -129,6 +129,8 @@ class LinkCheckerService {
     final allFoundLinks = <Uri>{};
     final externalLinks = <Uri>{};
     final internalLinks = <Uri>{};
+    // Track all source pages for each link (currently only .first is persisted to DB)
+    // TODO: Update BrokenLink model to store multiple source pages for better debugging
     final linkSourceMap =
         <String, List<String>>{}; // link -> list of pages where found
     final visitedPages = <String>{};
@@ -171,7 +173,7 @@ class LinkCheckerService {
         // Record where this link was found (track all source pages)
         if (!linkSourceMap.containsKey(linkUrl)) {
           linkSourceMap[linkUrl] = [pageUrl];
-        } else if (!linkSourceMap[linkUrl]!.contains(pageUrl)) {
+        } else if (!(linkSourceMap[linkUrl]?.contains(pageUrl) ?? false)) {
           linkSourceMap[linkUrl]!.add(pageUrl);
         }
 

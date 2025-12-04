@@ -118,34 +118,31 @@ class _FullScanSectionState extends State<FullScanSection> {
 
                     // Continue scan button (always visible, disabled if no previous scan)
                     Expanded(
-                      child: OutlinedButton.icon(
-                        onPressed:
-                            (isCheckingLinks ||
-                                currentSite.lastScannedPageIndex == 0 ||
-                                (latestResult?.scanCompleted ?? false))
-                            ? null
-                            : widget.onContinueScan,
-                        icon: const Icon(Icons.play_arrow, size: 20),
-                        label: const Text('Continue'),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          foregroundColor:
-                              (isCheckingLinks ||
-                                  currentSite.lastScannedPageIndex == 0 ||
-                                  (latestResult?.scanCompleted ?? false))
-                              ? Colors.grey
-                              : Colors.orange,
-                          side: BorderSide(
-                            color:
-                                (isCheckingLinks ||
-                                    currentSite.lastScannedPageIndex == 0 ||
-                                    (latestResult?.scanCompleted ?? false))
+                      child: (() {
+                        final isContinueDisabled =
+                            isCheckingLinks ||
+                            currentSite.lastScannedPageIndex == 0 ||
+                            (latestResult?.scanCompleted ?? false);
+                        return OutlinedButton.icon(
+                          onPressed: isContinueDisabled
+                              ? null
+                              : widget.onContinueScan,
+                          icon: const Icon(Icons.play_arrow, size: 20),
+                          label: const Text('Continue'),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            foregroundColor: isContinueDisabled
                                 ? Colors.grey
                                 : Colors.orange,
-                            width: 1.5,
+                            side: BorderSide(
+                              color: isContinueDisabled
+                                  ? Colors.grey
+                                  : Colors.orange,
+                              width: 1.5,
+                            ),
                           ),
-                        ),
-                      ),
+                        );
+                      })(),
                     ),
                   ],
                 ),
