@@ -86,6 +86,7 @@ class SiteProvider extends ChangeNotifier {
     String? sitemapUrl,
     bool monitoringEnabled = true,
     int checkInterval = 60,
+    List<String>? excludedPaths,
   }) async {
     try {
       _clearError();
@@ -123,6 +124,7 @@ class SiteProvider extends ChangeNotifier {
         checkInterval: checkInterval,
         createdAt: now,
         updatedAt: now,
+        excludedPaths: excludedPaths ?? [],
       );
 
       await _siteService.createSite(site);

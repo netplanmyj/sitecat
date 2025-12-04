@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/site_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
 
@@ -20,7 +21,9 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
   final _nameController = TextEditingController();
   final _urlController = TextEditingController();
   final _sitemapUrlController = TextEditingController();
+  final _newPathController = TextEditingController();
 
+  late List<String> _excludedPaths;
   bool _isLoading = false;
 
   @override
@@ -32,6 +35,9 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
       _nameController.text = widget.site!.name;
       _urlController.text = widget.site!.url;
       _sitemapUrlController.text = widget.site!.sitemapUrl ?? '';
+      _excludedPaths = List.from(widget.site!.excludedPaths);
+    } else {
+      _excludedPaths = [];
     }
   }
 
@@ -40,6 +46,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
     _nameController.dispose();
     _urlController.dispose();
     _sitemapUrlController.dispose();
+    _newPathController.dispose();
     super.dispose();
   }
 
@@ -271,6 +278,200 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
                   ),
                 ),
 
+                const SizedBox(height: 16),
+
+                // Excluded Paths Section (Premium only)
+                Consumer<SubscriptionProvider>(
+                  builder: (context, subscriptionProvider, child) {
+                    final isPremium = subscriptionProvider.hasLifetimeAccess;
+
+                    return Card(
+                      child: Padding(
+                        padding: const EdgeInsets.all(16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Text(
+                                  'Excluded Paths',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                if (!isPremium)
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 4,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange.shade100,
+                                      borderRadius: BorderRadius.circular(4),
+                                      border: Border.all(
+                                        color: Colors.orange.shade300,
+                                      ),
+                                    ),
+                                    child: Text(
+                                      'Premium',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.orange.shade700,
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            if (!isPremium)
+                              Text(
+                                'Upgrade to Premium to exclude specific paths from scanning',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade600,
+                                ),
+                              )
+                            else ...[
+                              Text(
+                                'Exclude specific paths from Full Scan',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey.shade600,
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Colors.blue.shade50,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(
+                                    color: Colors.blue.shade200,
+                                  ),
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Icon(
+                                          Icons.info,
+                                          color: Colors.blue.shade700,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 6),
+                                        Text(
+                                          'Path Pattern Examples:',
+                                          style: TextStyle(
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.blue.shade900,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 6),
+                                    Text(
+                                      '• blog/tags/ - Exclude /blog/tags/*\n'
+                                      '• */admin/ - Exclude any /admin/ path\n'
+                                      '• */temp/ - Exclude any /temp/ folder',
+                                      style: TextStyle(
+                                        fontSize: 11,
+                                        color: Colors.blue.shade900,
+                                        fontFamily: 'monospace',
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(height: 12),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _newPathController,
+                                      decoration: InputDecoration(
+                                        hintText:
+                                            'e.g., blog/tags/ or */admin/',
+                                        prefixIcon: const Icon(Icons.block),
+                                        border: const OutlineInputBorder(),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 12,
+                                            ),
+                                        isDense: true,
+                                      ),
+                                      onSubmitted: (_) => _addExcludedPath(),
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    onPressed: _addExcludedPath,
+                                    icon: const Icon(Icons.add_circle),
+                                    color: Colors.green,
+                                    iconSize: 32,
+                                  ),
+                                ],
+                              ),
+                              if (_excludedPaths.isNotEmpty) ...[
+                                const SizedBox(height: 12),
+                                ...List.generate(
+                                  _excludedPaths.length,
+                                  (index) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color: Colors.grey.shade100,
+                                        borderRadius: BorderRadius.circular(6),
+                                        border: Border.all(
+                                          color: Colors.grey.shade300,
+                                        ),
+                                      ),
+                                      child: ListTile(
+                                        dense: true,
+                                        leading: Icon(
+                                          Icons.block,
+                                          size: 20,
+                                          color: Colors.orange.shade700,
+                                        ),
+                                        title: Text(
+                                          _excludedPaths[index],
+                                          style: const TextStyle(
+                                            fontFamily: 'monospace',
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        trailing: IconButton(
+                                          icon: const Icon(
+                                            Icons.delete,
+                                            size: 20,
+                                          ),
+                                          color: Colors.red,
+                                          onPressed: () =>
+                                              _removeExcludedPath(index),
+                                        ),
+                                        contentPadding:
+                                            const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 0,
+                                            ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ],
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+
                 const SizedBox(height: 24),
 
                 // Action buttons
@@ -386,6 +587,45 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
     );
   }
 
+  void _addExcludedPath() {
+    final path = _newPathController.text.trim();
+    if (path.isEmpty) return;
+
+    // Validate path format: must end with / or use wildcard pattern like */temp/
+    if (!path.endsWith('/') && !path.contains('*/')) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Path should end with / or use wildcard pattern like */temp/',
+          ),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    if (_excludedPaths.contains(path)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Path already exists'),
+          backgroundColor: Colors.orange,
+        ),
+      );
+      return;
+    }
+
+    setState(() {
+      _excludedPaths.add(path);
+      _newPathController.clear();
+    });
+  }
+
+  void _removeExcludedPath(int index) {
+    setState(() {
+      _excludedPaths.removeAt(index);
+    });
+  }
+
   Future<void> _saveSite() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -416,6 +656,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
           sitemapUrl: _sitemapUrlController.text.trim().isEmpty
               ? null
               : _sitemapUrlController.text.trim(),
+          excludedPaths: _excludedPaths,
         );
         success = await siteProvider.updateSite(updatedSite);
       } else {
@@ -426,6 +667,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
           sitemapUrl: _sitemapUrlController.text.trim().isEmpty
               ? null
               : _sitemapUrlController.text.trim(),
+          excludedPaths: _excludedPaths,
         );
       }
 
