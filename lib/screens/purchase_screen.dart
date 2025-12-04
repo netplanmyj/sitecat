@@ -23,7 +23,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('プレミアム版にアップグレード')),
+      appBar: AppBar(title: const Text('Upgrade to Premium')),
       body: Consumer<SubscriptionProvider>(
         builder: (context, provider, child) {
           if (provider.isLoading) {
@@ -51,20 +51,20 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             const Icon(Icons.check_circle, size: 80, color: Colors.green),
             const SizedBox(height: 24),
             const Text(
-              'プレミアム版を\nご利用中です',
+              'You are using\nPremium',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
             const Text(
-              'すべての機能をお楽しみいただけます',
+              'Enjoy all premium features',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
             const SizedBox(height: 32),
             ElevatedButton(
               onPressed: () => Navigator.of(context).pop(),
-              child: const Text('閉じる'),
+              child: const Text('Close'),
             ),
           ],
         ),
@@ -83,9 +83,9 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // タイトル
+            // Title
             const Text(
-              'SiteCat プレミアム版',
+              'SiteCat Premium',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
             ),
@@ -101,7 +101,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             ),
             const SizedBox(height: 4),
             const Text(
-              '買い切り（永続利用）',
+              'One-time purchase (Lifetime access)',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 16, color: Colors.grey),
             ),
@@ -136,7 +136,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               const SizedBox(height: 16),
             ],
 
-            // 購入ボタン
+            // Purchase button
             ElevatedButton(
               onPressed: provider.isLoading
                   ? null
@@ -146,7 +146,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                       if (success && mounted) {
                         messenger.showSnackBar(
                           const SnackBar(
-                            content: Text('購入が完了しました！'),
+                            content: Text('Purchase completed!'),
                             backgroundColor: Colors.green,
                           ),
                         );
@@ -158,13 +158,13 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                 foregroundColor: Colors.white,
               ),
               child: const Text(
-                '購入する',
+                'Purchase',
                 style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
               ),
             ),
             const SizedBox(height: 12),
 
-            // リストアボタン
+            // Restore button
             TextButton(
               onPressed: provider.isLoading
                   ? null
@@ -175,26 +175,26 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
                         if (success) {
                           messenger.showSnackBar(
                             const SnackBar(
-                              content: Text('購入履歴をリストアしました'),
+                              content: Text('Purchases restored'),
                               backgroundColor: Colors.green,
                             ),
                           );
                         } else {
                           messenger.showSnackBar(
                             const SnackBar(
-                              content: Text('リストアする購入履歴が見つかりませんでした'),
+                              content: Text('No purchases found to restore'),
                             ),
                           );
                         }
                       }
                     },
-              child: const Text('購入履歴をリストア'),
+              child: const Text('Restore Purchases'),
             ),
             const SizedBox(height: 24),
 
-            // 利用規約・プライバシーポリシー
+            // Terms and Privacy Policy
             const Text(
-              '購入することで、利用規約とプライバシーポリシーに同意したものとみなされます。',
+              'By purchasing, you agree to our Terms of Service and Privacy Policy.',
               textAlign: TextAlign.center,
               style: TextStyle(fontSize: 12, color: Colors.grey),
             ),
@@ -213,17 +213,37 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text(
-              'プレミアム版の機能',
+              'Premium Features',
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 16),
-            _buildFeatureRow(Icons.web, 'サイト登録', '1個', '無制限'),
+            _buildFeatureRow(
+              Icons.web,
+              'Site Registration',
+              '1 site',
+              'Unlimited',
+            ),
             const Divider(),
-            _buildFeatureRow(Icons.pause_circle, 'Full Scan中断・再開', '×', '○'),
+            _buildFeatureRow(
+              Icons.pause_circle,
+              'Full Scan Pause/Resume',
+              '×',
+              '○',
+            ),
             const Divider(),
-            _buildFeatureRow(Icons.filter_alt, '除外パス設定', '×', '○'),
+            _buildFeatureRow(
+              Icons.filter_alt,
+              'Exclude Path Settings',
+              '×',
+              '○',
+            ),
             const Divider(),
-            _buildFeatureRow(Icons.history, '履歴表示', '各10件', '各50件'),
+            _buildFeatureRow(
+              Icons.history,
+              'History Display',
+              '10 each',
+              '50 each',
+            ),
           ],
         ),
       ),
