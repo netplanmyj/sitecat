@@ -64,14 +64,17 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
               color: isPremium ? Colors.white : Colors.white70,
             ),
             tooltip: isPremium ? 'Excluded Paths' : 'Excluded Paths (Premium)',
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ExcludedPathsScreen(site: widget.site),
-                ),
-              );
-            },
+            onPressed: isPremium
+                ? () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ExcludedPathsScreen(site: widget.site),
+                      ),
+                    );
+                  }
+                : null,
           ),
         ],
         bottom: TabBar(
