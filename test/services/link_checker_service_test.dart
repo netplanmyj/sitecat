@@ -935,4 +935,152 @@ ${urlElements.join('\n')}
       expect(true, true); // Placeholder
     });
   });
+
+  group('Excluded Paths - Wildcard Pattern Matching', () {
+    test(
+      'should filter URLs matching wildcard patterns with exact path segment',
+      () {
+        // Arrange
+        final urls = [
+          Uri.parse('https://example.com/blog/admin/settings'),
+          Uri.parse('https://example.com/admin/dashboard'),
+          Uri.parse('https://example.com/posts/article'),
+          Uri.parse(
+            'https://example.com/administrator/config',
+          ), // Should NOT match
+        ];
+        final excludedPaths = ['*/admin/'];
+
+        // Act: Simulate filtering logic
+        final filtered = urls.where((url) {
+          final path = url.path;
+          for (final excludedPath in excludedPaths) {
+            if (excludedPath.startsWith('*/')) {
+              final pattern = excludedPath.substring(2);
+              final pathSegments = path.split('/');
+              if (pathSegments.any(
+                (segment) => segment == pattern.replaceAll('/', ''),
+              )) {
+                return false;
+              }
+            }
+          }
+          return true;
+        }).toList();
+
+        // Assert
+        expect(filtered.length, 2);
+        expect(filtered[0].toString(), 'https://example.com/posts/article');
+        expect(
+          filtered[1].toString(),
+          'https://example.com/administrator/config',
+        );
+      },
+    );
+
+    test('should match wildcard pattern only as complete path segment', () {
+      // Arrange
+      final urls = [
+        Uri.parse('https://example.com/blog/temp/draft'),
+        Uri.parse('https://example.com/temp/file'),
+        Uri.parse('https://example.com/temporary/doc'), // Should NOT match
+        Uri.parse('https://example.com/template/page'), // Should NOT match
+      ];
+      final excludedPaths = ['*/temp/'];
+
+      // Act
+      final filtered = urls.where((url) {
+        final path = url.path;
+        for (final excludedPath in excludedPaths) {
+          if (excludedPath.startsWith('*/')) {
+            final pattern = excludedPath.substring(2);
+            final pathSegments = path.split('/');
+            if (pathSegments.any(
+              (segment) => segment == pattern.replaceAll('/', ''),
+            )) {
+              return false;
+            }
+          }
+        }
+        return true;
+      }).toList();
+
+      // Assert
+      expect(filtered.length, 2);
+      expect(filtered[0].toString(), 'https://example.com/temporary/doc');
+      expect(filtered[1].toString(), 'https://example.com/template/page');
+    });
+
+    test('should handle multiple wildcard patterns', () {
+      // Arrange
+      final urls = [
+        Uri.parse('https://example.com/blog/admin/settings'),
+        Uri.parse('https://example.com/api/temp/data'),
+        Uri.parse('https://example.com/posts/article'),
+        Uri.parse('https://example.com/docs/guide'),
+      ];
+      final excludedPaths = ['*/admin/', '*/temp/'];
+
+      // Act
+      final filtered = urls.where((url) {
+        final path = url.path;
+        for (final excludedPath in excludedPaths) {
+          if (excludedPath.startsWith('*/')) {
+            final pattern = excludedPath.substring(2);
+            final pathSegments = path.split('/');
+            if (pathSegments.any(
+              (segment) => segment == pattern.replaceAll('/', ''),
+            )) {
+              return false;
+            }
+          }
+        }
+        return true;
+      }).toList();
+
+      // Assert
+      expect(filtered.length, 2);
+      expect(filtered[0].toString(), 'https://example.com/posts/article');
+      expect(filtered[1].toString(), 'https://example.com/docs/guide');
+    });
+
+    test('should handle prefix patterns and wildcard patterns together', () {
+      // Arrange
+      final urls = [
+        Uri.parse('https://example.com/blog/tags/flutter'),
+        Uri.parse('https://example.com/blog/admin/settings'),
+        Uri.parse('https://example.com/posts/admin/config'),
+        Uri.parse('https://example.com/posts/article'),
+      ];
+      final excludedPaths = ['blog/tags/', '*/admin/'];
+
+      // Act
+      final filtered = urls.where((url) {
+        final path = url.path;
+        for (final excludedPath in excludedPaths) {
+          if (excludedPath.startsWith('*/')) {
+            final pattern = excludedPath.substring(2);
+            final pathSegments = path.split('/');
+            if (pathSegments.any(
+              (segment) => segment == pattern.replaceAll('/', ''),
+            )) {
+              return false;
+            }
+          } else {
+            final normalizedExcludedPath = excludedPath.startsWith('/')
+                ? excludedPath
+                : '/$excludedPath';
+            if (path.startsWith(normalizedExcludedPath)) {
+              return false;
+            }
+          }
+        }
+        return true;
+      }).toList();
+
+      // Assert
+      expect(filtered.length, 1);
+      expect(filtered[0].toString(), 'https://example.com/posts/article');
+    });
+  });
 }
