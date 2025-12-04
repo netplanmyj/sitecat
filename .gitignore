@@ -45,6 +45,9 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
+# iOS build artifacts
+/ios/build
+
 # Firebase configuration files
 # 本番環境用の設定ファイルはリポジトリに含めます（sitecat-prod）
 # 開発環境用のファイルは除外します
