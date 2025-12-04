@@ -129,11 +129,17 @@ class _FullScanSectionState extends State<FullScanSection> {
                         label: const Text('Continue'),
                         style: OutlinedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          foregroundColor: currentSite.lastScannedPageIndex == 0
+                          foregroundColor:
+                              (isCheckingLinks ||
+                                  currentSite.lastScannedPageIndex == 0 ||
+                                  (latestResult?.scanCompleted ?? false))
                               ? Colors.grey
                               : Colors.orange,
                           side: BorderSide(
-                            color: currentSite.lastScannedPageIndex == 0
+                            color:
+                                (isCheckingLinks ||
+                                    currentSite.lastScannedPageIndex == 0 ||
+                                    (latestResult?.scanCompleted ?? false))
                                 ? Colors.grey
                                 : Colors.orange,
                             width: 1.5,

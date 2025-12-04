@@ -125,6 +125,12 @@ class _AuthenticatedHomeState extends State<AuthenticatedHome> {
       if (!mounted) return;
 
       // Initialize subscription provider and sync premium status to all providers
+      // TODO: Security - Fetch limits from backend instead of client-side calculation
+      // Currently, premium status and limits are determined client-side which can be
+      // bypassed by tampering. Future implementation should:
+      // 1. Verify entitlements server-side on each request
+      // 2. Fetch allowed limits (maxSites, maxPages, maxHistory) from backend
+      // 3. Have backend as the source of truth for all premium features
       await subscriptionProvider.initialize();
       if (!mounted) return;
 

@@ -38,6 +38,10 @@ class LinkCheckerProvider extends ChangeNotifier {
   // Getters
 
   /// Update premium status and configure service accordingly
+  // TODO: Security - Move premium limit enforcement to backend
+  // Currently, limits are enforced client-side which can be bypassed.
+  // Future implementation should validate entitlements on the server
+  // and have backend dictate allowed limits per user.
   void setHasLifetimeAccess(bool hasAccess) {
     if (_hasLifetimeAccess != hasAccess) {
       _hasLifetimeAccess = hasAccess;

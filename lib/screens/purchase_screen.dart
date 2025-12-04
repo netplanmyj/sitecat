@@ -144,6 +144,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               onPressed: provider.isLoading
                   ? null
                   : () async {
+                      if (!mounted) return;
                       final siteProvider = context.read<SiteProvider>();
                       final linkCheckerProvider = context
                           .read<LinkCheckerProvider>();
@@ -186,6 +187,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               onPressed: provider.isLoading
                   ? null
                   : () async {
+                      if (!mounted) return;
                       final siteProvider = context.read<SiteProvider>();
                       final linkCheckerProvider = context
                           .read<LinkCheckerProvider>();

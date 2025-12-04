@@ -105,6 +105,10 @@ class _ExcludedPathsScreenState extends State<ExcludedPathsScreen> {
     final subscriptionProvider = context.watch<SubscriptionProvider>();
     final isPremium = subscriptionProvider.hasLifetimeAccess;
 
+    // TODO: Security - Move premium gating to backend
+    // Currently, access control is client-side only which can be bypassed.
+    // Future implementation should reject updates for excluded paths
+    // on the backend when user lacks premium entitlement.
     if (!isPremium) {
       return Scaffold(
         appBar: AppBar(
