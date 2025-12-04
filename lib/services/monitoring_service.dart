@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 import '../models/monitoring_result.dart';
 import '../models/site.dart';
+import '../constants/app_constants.dart';
 import '../utils/url_helper.dart';
 
 /// Service for monitoring website health
@@ -13,8 +14,18 @@ class MonitoringService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final Logger _logger = Logger();
 
+  // History limit for cleanup (can be set based on premium status)
+  int _historyLimit = AppConstants.freePlanHistoryLimit;
+
   // Get current user ID
   String? get _currentUserId => _auth.currentUser?.uid;
+
+  /// Set history limit based on premium status
+  void setHistoryLimit(bool isPremium) {
+    _historyLimit = isPremium
+        ? AppConstants.premiumHistoryLimit
+        : AppConstants.freePlanHistoryLimit;
+  }
 
   // Collection reference for monitoring results (hierarchical structure)
   CollectionReference _resultsCollection(String userId) => _firestore
@@ -162,29 +173,29 @@ class MonitoringService {
     await _resultsCollection(_currentUserId!).doc(resultId).delete();
   }
 
-  /// Cleanup old monitoring results for a site (keep only latest 10)
+  /// Cleanup old monitoring results for a site (respects premium/free limits)
   Future<void> _cleanupOldResults(String siteId) async {
     if (_currentUserId == null) return;
 
     try {
-      // Get results older than the 10th newest
+      // Get all results for the site
       final querySnapshot = await _resultsCollection(_currentUserId!)
           .where('siteId', isEqualTo: siteId)
           .orderBy('timestamp', descending: true)
           .get();
 
-      // If we have 10 or fewer results, no cleanup needed
-      if (querySnapshot.docs.length <= 10) return;
+      // If we have fewer results than the limit, no cleanup needed
+      if (querySnapshot.docs.length <= _historyLimit) return;
 
-      // Delete results beyond the 10th
+      // Delete results beyond the limit
       final batch = _firestore.batch();
-      for (int i = 10; i < querySnapshot.docs.length; i++) {
+      for (int i = _historyLimit; i < querySnapshot.docs.length; i++) {
         batch.delete(querySnapshot.docs[i].reference);
       }
 
       await batch.commit();
       _logger.i(
-        'Cleaned up ${querySnapshot.docs.length - 10} old monitoring results for site $siteId',
+        'Cleaned up ${querySnapshot.docs.length - _historyLimit} old monitoring results for site $siteId',
       );
     } catch (e) {
       _logger.e('Error during cleanup of old monitoring results', error: e);

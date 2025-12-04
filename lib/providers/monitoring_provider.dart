@@ -7,6 +7,7 @@ import '../services/monitoring_service.dart';
 class MonitoringProvider extends ChangeNotifier {
   final MonitoringService _monitoringService = MonitoringService();
   bool _isDemoMode = false;
+  bool _hasLifetimeAccess = false;
 
   // Minimum interval between checks (1 minute for debugging)
   static const Duration minimumCheckInterval = Duration(minutes: 1);
@@ -20,6 +21,15 @@ class MonitoringProvider extends ChangeNotifier {
 
   // Getters
   String? get error => _error;
+
+  /// Update premium status and configure service accordingly
+  void setHasLifetimeAccess(bool hasAccess) {
+    if (_hasLifetimeAccess != hasAccess) {
+      _hasLifetimeAccess = hasAccess;
+      _monitoringService.setHistoryLimit(hasAccess);
+      notifyListeners();
+    }
+  }
 
   /// Get monitoring results for a specific site
   List<MonitoringResult> getSiteResults(String siteId) {

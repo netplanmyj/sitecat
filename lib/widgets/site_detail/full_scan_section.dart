@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/site.dart';
 import '../../providers/link_checker_provider.dart';
+import '../../providers/site_provider.dart';
 import '../countdown_timer.dart';
 
 class FullScanSection extends StatefulWidget {
@@ -28,8 +29,14 @@ class _FullScanSectionState extends State<FullScanSection> {
     return Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: Consumer<LinkCheckerProvider>(
-          builder: (context, linkCheckerProvider, child) {
+        child: Consumer2<LinkCheckerProvider, SiteProvider>(
+          builder: (context, linkCheckerProvider, siteProvider, child) {
+            // Get the latest site data from SiteProvider
+            final currentSite = siteProvider.sites.firstWhere(
+              (s) => s.id == widget.site.id,
+              orElse: () => widget.site,
+            );
+
             final isCheckingLinks = linkCheckerProvider.isChecking(
               widget.site.id,
             );
@@ -37,6 +44,11 @@ class _FullScanSectionState extends State<FullScanSection> {
               widget.site.id,
             );
             final timeUntilNext = linkCheckerProvider.getTimeUntilNextCheck(
+              widget.site.id,
+            );
+
+            // Get the latest scan result to show progress
+            final latestResult = linkCheckerProvider.getCachedResult(
               widget.site.id,
             );
 
@@ -102,32 +114,103 @@ class _FullScanSectionState extends State<FullScanSection> {
                       ),
                     ),
 
-                    // Continue scan button (only if previous scan was incomplete)
-                    if (linkCheckerProvider
-                            .getCachedResult(widget.site.id)
-                            ?.scanCompleted ==
-                        false) ...[
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: isCheckingLinks
-                              ? null
-                              : widget.onContinueScan,
-                          icon: const Icon(Icons.play_arrow, size: 20),
-                          label: const Text('Continue'),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            foregroundColor: Colors.orange,
-                            side: const BorderSide(
-                              color: Colors.orange,
-                              width: 1.5,
-                            ),
+                    const SizedBox(width: 12),
+
+                    // Continue scan button (always visible, disabled if no previous scan)
+                    Expanded(
+                      child: OutlinedButton.icon(
+                        onPressed:
+                            (isCheckingLinks ||
+                                currentSite.lastScannedPageIndex == 0)
+                            ? null
+                            : widget.onContinueScan,
+                        icon: const Icon(Icons.play_arrow, size: 20),
+                        label: const Text('Continue'),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 12),
+                          foregroundColor: currentSite.lastScannedPageIndex == 0
+                              ? Colors.grey
+                              : Colors.orange,
+                          side: BorderSide(
+                            color: currentSite.lastScannedPageIndex == 0
+                                ? Colors.grey
+                                : Colors.orange,
+                            width: 1.5,
                           ),
                         ),
                       ),
-                    ],
+                    ),
                   ],
                 ),
+
+                // Progress indicator - show current scan progress when available
+                if (currentSite.lastScannedPageIndex > 0 &&
+                    latestResult != null) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.blue.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.blue.shade200),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: Colors.blue.shade700,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Scan Progress',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        LinearProgressIndicator(
+                          value: latestResult.totalPagesInSitemap > 0
+                              ? currentSite.lastScannedPageIndex /
+                                    latestResult.totalPagesInSitemap
+                              : 0,
+                          backgroundColor: Colors.blue.shade100,
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.blue.shade600,
+                          ),
+                          minHeight: 8,
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${currentSite.lastScannedPageIndex} / ${latestResult.totalPagesInSitemap} pages scanned',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.blue.shade700,
+                          ),
+                        ),
+                        if (!latestResult.scanCompleted)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 4),
+                            child: Text(
+                              'Use "Continue" to scan the remaining pages',
+                              style: TextStyle(
+                                fontSize: 11,
+                                color: Colors.blue.shade600,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
 
                 // Countdown timer (rate limit for link checks)
                 if (timeUntilNext != null) ...[
@@ -146,7 +229,7 @@ class _FullScanSectionState extends State<FullScanSection> {
 
                 // Note about page limit
                 Text(
-                  'Note: Free plan scans up to 50 pages per check',
+                  'Note: Scans up to 100 pages per batch',
                   style: TextStyle(
                     fontSize: 11,
                     color: Colors.grey.shade600,

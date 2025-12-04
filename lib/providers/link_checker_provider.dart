@@ -14,6 +14,7 @@ class LinkCheckerProvider extends ChangeNotifier {
   final LinkCheckerService _linkCheckerService = LinkCheckerService();
   final SiteService _siteService = SiteService();
   bool _isDemoMode = false;
+  bool _hasLifetimeAccess = false;
 
   // Minimum interval between checks (1 minute for debugging)
   static const Duration minimumCheckInterval = Duration(minutes: 1);
@@ -35,6 +36,16 @@ class LinkCheckerProvider extends ChangeNotifier {
   List<({String siteId, LinkCheckResult result})> _allCheckHistory = [];
 
   // Getters
+
+  /// Update premium status and configure service accordingly
+  void setHasLifetimeAccess(bool hasAccess) {
+    if (_hasLifetimeAccess != hasAccess) {
+      _hasLifetimeAccess = hasAccess;
+      _linkCheckerService.setHistoryLimit(hasAccess);
+      _linkCheckerService.setPageLimit(hasAccess);
+      notifyListeners();
+    }
+  }
 
   /// Get the current check state for a site
   LinkCheckState getCheckState(String siteId) {

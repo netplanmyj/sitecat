@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/subscription_provider.dart';
+import '../providers/site_provider.dart';
+import '../providers/link_checker_provider.dart';
+import '../providers/monitoring_provider.dart';
 
 /// 買い切り版購入画面
 class PurchaseScreen extends StatefulWidget {
@@ -141,9 +144,23 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               onPressed: provider.isLoading
                   ? null
                   : () async {
+                      final siteProvider = context.read<SiteProvider>();
+                      final linkCheckerProvider = context
+                          .read<LinkCheckerProvider>();
+                      final monitoringProvider = context
+                          .read<MonitoringProvider>();
                       final messenger = ScaffoldMessenger.of(context);
+
                       final success = await provider.purchaseLifetime();
-                      if (success && mounted) {
+                      if (!mounted) return;
+
+                      if (success) {
+                        // Update all providers with new premium status
+                        final isPremium = provider.hasLifetimeAccess;
+                        siteProvider.setHasLifetimeAccess(isPremium);
+                        linkCheckerProvider.setHasLifetimeAccess(isPremium);
+                        monitoringProvider.setHasLifetimeAccess(isPremium);
+
                         messenger.showSnackBar(
                           const SnackBar(
                             content: Text('Purchase completed!'),
@@ -169,23 +186,35 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               onPressed: provider.isLoading
                   ? null
                   : () async {
+                      final siteProvider = context.read<SiteProvider>();
+                      final linkCheckerProvider = context
+                          .read<LinkCheckerProvider>();
+                      final monitoringProvider = context
+                          .read<MonitoringProvider>();
                       final messenger = ScaffoldMessenger.of(context);
+
                       final success = await provider.restorePurchases();
-                      if (mounted) {
-                        if (success) {
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text('Purchases restored'),
-                              backgroundColor: Colors.green,
-                            ),
-                          );
-                        } else {
-                          messenger.showSnackBar(
-                            const SnackBar(
-                              content: Text('No purchases found to restore'),
-                            ),
-                          );
-                        }
+                      if (!mounted) return;
+
+                      if (success) {
+                        // Update all providers with restored premium status
+                        final isPremium = provider.hasLifetimeAccess;
+                        siteProvider.setHasLifetimeAccess(isPremium);
+                        linkCheckerProvider.setHasLifetimeAccess(isPremium);
+                        monitoringProvider.setHasLifetimeAccess(isPremium);
+
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('Purchases restored'),
+                            backgroundColor: Colors.green,
+                          ),
+                        );
+                      } else {
+                        messenger.showSnackBar(
+                          const SnackBar(
+                            content: Text('No purchases found to restore'),
+                          ),
+                        );
                       }
                     },
               child: const Text('Restore Purchases'),
@@ -220,8 +249,8 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             _buildFeatureRow(
               Icons.web,
               'Site Registration',
-              '1 site',
-              'Unlimited',
+              '3 sites',
+              '30 sites',
             ),
             const Divider(),
             _buildFeatureRow(

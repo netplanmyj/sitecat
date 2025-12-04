@@ -4,12 +4,14 @@ import '../models/site.dart';
 import '../providers/monitoring_provider.dart';
 import '../providers/link_checker_provider.dart';
 import '../providers/site_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../widgets/site_info_card.dart';
 import '../widgets/link_check_section.dart';
 import '../widgets/monitoring_result_card.dart';
 import '../widgets/site_detail/quick_check_section.dart';
 import '../widgets/site_detail/full_scan_section.dart';
 import 'broken_links_screen.dart';
+import 'excluded_paths_screen.dart';
 
 class SiteDetailScreen extends StatefulWidget {
   final Site site;
@@ -46,9 +48,30 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
 
   @override
   Widget build(BuildContext context) {
+    final subscriptionProvider = context.watch<SubscriptionProvider>();
+    final isPremium = subscriptionProvider.hasLifetimeAccess;
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.site.name),
+        actions: [
+          // Excluded paths settings (Premium feature)
+          IconButton(
+            icon: Icon(
+              Icons.filter_list,
+              color: isPremium ? Colors.white : Colors.white70,
+            ),
+            tooltip: isPremium ? 'Excluded Paths' : 'Excluded Paths (Premium)',
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ExcludedPathsScreen(site: widget.site),
+                ),
+              );
+            },
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [

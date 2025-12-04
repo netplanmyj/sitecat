@@ -14,6 +14,7 @@ class SiteProvider extends ChangeNotifier {
   String? _error;
   StreamSubscription<List<Site>>? _sitesSubscription;
   bool _isDemoMode = false;
+  bool _hasLifetimeAccess = false;
 
   // Getters
   List<Site> get sites => _isDemoMode ? DemoService.getSites() : _sites;
@@ -23,8 +24,22 @@ class SiteProvider extends ChangeNotifier {
   List<Site> get monitoringSites =>
       sites.where((site) => site.monitoringEnabled).toList();
 
-  /// サイトを追加可能かチェック（無料プランの制限）
-  bool get canAddSite => sites.length < AppConstants.freePlanSiteLimit;
+  /// Check if user can add more sites
+  /// Premium users: max 30 sites, Free users: max 3 sites
+  bool get canAddSite {
+    if (_hasLifetimeAccess) {
+      return sites.length < AppConstants.premiumSiteLimit;
+    }
+    return sites.length < AppConstants.freePlanSiteLimit;
+  }
+
+  /// Update premium status (called from UI layer with SubscriptionProvider)
+  void setHasLifetimeAccess(bool hasAccess) {
+    if (_hasLifetimeAccess != hasAccess) {
+      _hasLifetimeAccess = hasAccess;
+      notifyListeners();
+    }
+  }
 
   // Initialize and start listening to sites
   Future<void> initialize({bool isDemoMode = false}) async {
@@ -77,7 +92,10 @@ class SiteProvider extends ChangeNotifier {
 
       // Check site limit
       if (!canAddSite) {
-        _setError(AppConstants.siteLimitReachedMessage);
+        final message = _hasLifetimeAccess
+            ? AppConstants.premiumSiteLimitReachedMessage
+            : AppConstants.siteLimitReachedMessage;
+        _setError(message);
         return false;
       }
 

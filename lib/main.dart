@@ -117,10 +117,22 @@ class _AuthenticatedHomeState extends State<AuthenticatedHome> {
       final isDemoMode = authProvider.isDemoMode;
       final siteProvider = context.read<SiteProvider>();
       final linkCheckerProvider = context.read<LinkCheckerProvider>();
+      final monitoringProvider = context.read<MonitoringProvider>();
+      final subscriptionProvider = context.read<SubscriptionProvider>();
 
       // Initialize providers with demo mode flag
       await siteProvider.initialize(isDemoMode: isDemoMode);
       if (!mounted) return;
+
+      // Initialize subscription provider and sync premium status to all providers
+      await subscriptionProvider.initialize();
+      if (!mounted) return;
+
+      final isPremium = subscriptionProvider.hasLifetimeAccess;
+      siteProvider.setHasLifetimeAccess(isPremium);
+      linkCheckerProvider.setHasLifetimeAccess(isPremium);
+      monitoringProvider.setHasLifetimeAccess(isPremium);
+
       linkCheckerProvider.initialize(isDemoMode: isDemoMode);
     });
 

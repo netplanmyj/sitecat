@@ -17,8 +17,28 @@ class LinkCheckerService {
   final http.Client _httpClient = http.Client();
   final Logger _logger = Logger();
 
+  // History limit for cleanup (can be set based on premium status)
+  int _historyLimit = AppConstants.freePlanHistoryLimit;
+
+  // Page limit for scanning (can be set based on premium status)
+  int _pageLimit = AppConstants.freePlanPageLimit;
+
   // Get current user ID
   String? get _currentUserId => _auth.currentUser?.uid;
+
+  /// Set history limit based on premium status
+  void setHistoryLimit(bool isPremium) {
+    _historyLimit = isPremium
+        ? AppConstants.premiumHistoryLimit
+        : AppConstants.freePlanHistoryLimit;
+  }
+
+  /// Set page limit based on premium status
+  void setPageLimit(bool isPremium) {
+    _pageLimit = isPremium
+        ? AppConstants.premiumPlanPageLimit
+        : AppConstants.freePlanPageLimit;
+  }
 
   // Collection references (hierarchical structure)
   CollectionReference _resultsCollection(String userId) =>
@@ -91,8 +111,9 @@ class LinkCheckerService {
     }
 
     // Limit internal pages to scan (to avoid excessive processing)
-    const maxPagesToScan = 50; // Per-batch limit
-    final remainingPageLimit = AppConstants.freePlanPageLimit - startIndex;
+    const maxPagesToScan =
+        100; // Per-batch limit (increased from 50 for better UX)
+    final remainingPageLimit = _pageLimit - startIndex;
     final actualPagesToScan = maxPagesToScan.clamp(0, remainingPageLimit);
 
     final endIndex = (startIndex + actualPagesToScan).clamp(
@@ -100,18 +121,19 @@ class LinkCheckerService {
       allInternalPages.length,
     );
     final pagesToScan = allInternalPages.sublist(startIndex, endIndex);
-    final scanCompleted =
-        endIndex >= allInternalPages.length ||
-        endIndex >= AppConstants.freePlanPageLimit;
+    // Scan is only complete when we've reached the end of all pages
+    // Allow continuing even after reaching page limits
+    final scanCompleted = endIndex >= allInternalPages.length;
 
     // Step 2: Extract links from each internal page
     final allFoundLinks = <Uri>{};
     final externalLinks = <Uri>{};
     final internalLinks = <Uri>{};
-    final linkSourceMap = <String, String>{}; // link -> foundOn
+    final linkSourceMap =
+        <String, List<String>>{}; // link -> list of pages where found
     final visitedPages = <String>{};
 
-    // Count total links found (including duplicates across pages)
+    // Count unique links found (no duplicates)
     int totalInternalLinksCount = 0;
     int totalExternalLinksCount = 0;
 
@@ -146,20 +168,25 @@ class LinkCheckerService {
         final linkUrl = normalizedLink.toString();
         allFoundLinks.add(normalizedLink);
 
-        // Record where this link was found
+        // Record where this link was found (track all source pages)
         if (!linkSourceMap.containsKey(linkUrl)) {
-          linkSourceMap[linkUrl] = pageUrl;
+          linkSourceMap[linkUrl] = [pageUrl];
+        } else if (!linkSourceMap[linkUrl]!.contains(pageUrl)) {
+          linkSourceMap[linkUrl]!.add(pageUrl);
         }
 
         // Categorize: internal or external (use original base URL for comparison)
+        // Count unique links only (check if already added to the set)
         if (_isSameDomain(normalizedLink, originalBaseUrl)) {
           // Internal link - mark for checking
-          internalLinks.add(normalizedLink);
-          totalInternalLinksCount++; // Count each occurrence
+          if (internalLinks.add(normalizedLink)) {
+            totalInternalLinksCount++; // Only count if newly added
+          }
         } else {
           // External link - mark for checking
-          externalLinks.add(normalizedLink);
-          totalExternalLinksCount++; // Count each occurrence
+          if (externalLinks.add(normalizedLink)) {
+            totalExternalLinksCount++; // Only count if newly added
+          }
         }
       }
     }
@@ -197,7 +224,7 @@ class LinkCheckerService {
             userId: _currentUserId!,
             timestamp: DateTime.now(),
             url: linkUrl,
-            foundOn: linkSourceMap[linkUrl] ?? site.url,
+            foundOn: linkSourceMap[linkUrl]?.first ?? site.url,
             statusCode: isBroken.statusCode,
             error: isBroken.error,
             linkType: LinkType.internal,
@@ -239,7 +266,7 @@ class LinkCheckerService {
               userId: _currentUserId!,
               timestamp: DateTime.now(),
               url: linkUrl,
-              foundOn: linkSourceMap[linkUrl] ?? site.url,
+              foundOn: linkSourceMap[linkUrl]?.first ?? site.url,
               statusCode: isBroken.statusCode,
               error: isBroken.error,
               linkType: LinkType.external,
@@ -747,23 +774,23 @@ class LinkCheckerService {
     await _resultsCollection(_currentUserId!).doc(resultId).delete();
   }
 
-  /// Cleanup old link check results for a site (keep only latest 10)
+  /// Cleanup old link check results for a site (respects premium/free limits)
   Future<void> _cleanupOldResults(String siteId) async {
     if (_currentUserId == null) return;
 
     try {
-      // Get results older than the 10th newest
+      // Get all results for the site
       final querySnapshot = await _resultsCollection(_currentUserId!)
           .where('siteId', isEqualTo: siteId)
           .orderBy('timestamp', descending: true)
           .get();
 
-      // If we have 10 or fewer results, no cleanup needed
-      if (querySnapshot.docs.length <= 10) return;
+      // If we have fewer results than the limit, no cleanup needed
+      if (querySnapshot.docs.length <= _historyLimit) return;
 
-      // Delete results beyond the 10th (including their broken links subcollections)
+      // Delete results beyond the limit (including their broken links subcollections)
       final batch = _firestore.batch();
-      for (int i = 10; i < querySnapshot.docs.length; i++) {
+      for (int i = _historyLimit; i < querySnapshot.docs.length; i++) {
         final docRef = querySnapshot.docs[i].reference;
 
         // Delete broken links subcollection
@@ -780,7 +807,7 @@ class LinkCheckerService {
 
       await batch.commit();
       _logger.i(
-        'Cleaned up ${querySnapshot.docs.length - 10} old link check results for site $siteId',
+        'Cleaned up ${querySnapshot.docs.length - _historyLimit} old link check results for site $siteId',
       );
     } catch (e) {
       _logger.e('Error during cleanup of old link check results', error: e);
