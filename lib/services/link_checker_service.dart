@@ -55,6 +55,7 @@ class LinkCheckerService {
     bool continueFromLastScan = false, // Continue from last scanned index
     void Function(int checked, int total)? onProgress,
     void Function(int checked, int total)? onExternalLinksProgress,
+    void Function(int? statusCode)? onSitemapStatusUpdate,
   }) async {
     if (_currentUserId == null) {
       throw Exception('User must be authenticated to check links');
@@ -83,6 +84,9 @@ class LinkCheckerService {
           final headCheck = await _checkUrlHead(convertedUrl);
           sitemapStatusCode = headCheck.statusCode;
 
+          // Notify UI of sitemap status immediately
+          onSitemapStatusUpdate?.call(sitemapStatusCode);
+
           if (sitemapStatusCode == 200) {
             allInternalPages = await _fetchSitemapUrls(fullSitemapUrl);
           } else {
@@ -92,6 +96,7 @@ class LinkCheckerService {
         } catch (e) {
           // If HEAD check fails unexpectedly, record and fall back to top page
           sitemapStatusCode = 0;
+          onSitemapStatusUpdate?.call(sitemapStatusCode);
           allInternalPages = [originalBaseUrl];
         }
 
