@@ -64,15 +64,21 @@
 - [x] 処理フローの明確化
 - [x] コミット: ffaa0cd
 
-### Phase 2: 補助メソッドの抽出（次のステップ）
-1. `_loadSitemapUrls()` - Step 1を抽出
-2. `_loadPreviousScanData()` - Step 1bを抽出
-3. `_calculateScanRange()` - Step 1cを抽出
-4. `_scanPagesAndExtractLinks()` - Step 2を抽出
-5. `_checkInternalLinks()` - Step 3を抽出
-6. `_checkExternalLinks()` - Step 4を抽出
-7. `_mergeBrokenLinks()` - Step 5を抽出
-8. `_createAndSaveResult()` - Step 6を抽出
+### Phase 2: 補助メソッドの抽出（完了✅）
+**達成メトリクス**:
+- `checkSiteLinks`メソッド: **355行 → 68行** (81%削減)
+- Cyclomatic Complexity: **29 → 8推定** (72%削減)
+- ネスト深さ: **6レベル → 3レベル** (50%削減)
+- テスト結果: **19/19通過** (機能変更なし)
+
+**抽出されたメソッド** (7個):
+1. [x] `_loadSitemapUrls()` - sitemap読み込み、60行（コミット: f511500）
+2. [x] `_loadPreviousScanData()` - 前回データ取得、17行（コミット: f511500）
+3. [x] `_calculateScanRange()` - スキャン範囲計算、23行（コミット: f511500）
+4. [x] `_scanPagesAndExtractLinks()` - リンク抽出、90行（コミット: 6e35ea0）
+5. [x] `_checkAllLinks()` - リンクチェック、110行（コミット: dfc33e0）
+6. [x] `_mergeBrokenLinks()` - 結果マージ、8行（コミット: dfc33e0）
+7. [x] `_createAndSaveResult()` - 結果保存、87行（コミット: 202e7ce）
 
 ### Phase 3: データクラスの導入
 ```dart
