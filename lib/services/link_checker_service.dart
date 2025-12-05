@@ -57,6 +57,9 @@ class LinkCheckerService {
   /// - 0: Network error occurred
   /// - null: No sitemap configured
   /// This enables real-time UI updates before the full scan completes.
+  ///
+  /// [shouldCancel] is called periodically to check if scan should be cancelled.
+  /// Return true to stop the scan gracefully.
   Future<LinkCheckResult> checkSiteLinks(
     Site site, {
     bool checkExternalLinks = true,
@@ -64,6 +67,7 @@ class LinkCheckerService {
     void Function(int checked, int total)? onProgress,
     void Function(int checked, int total)? onExternalLinksProgress,
     void Function(int? statusCode)? onSitemapStatusUpdate,
+    bool Function()? shouldCancel,
   }) async {
     if (_currentUserId == null) {
       throw Exception('User must be authenticated to check links');
@@ -174,6 +178,12 @@ class LinkCheckerService {
 
     int pagesScanned = 0;
     for (final page in pagesToScan) {
+      // Check for cancellation request
+      if (shouldCancel?.call() ?? false) {
+        // Stop scanning pages, proceed to save partial results
+        break;
+      }
+
       final pageUrl = page.toString();
 
       // Skip if already visited
@@ -242,6 +252,12 @@ class LinkCheckerService {
     }
 
     for (final link in internalLinksList) {
+      // Check for cancellation request
+      if (shouldCancel?.call() ?? false) {
+        // Stop checking internal links, proceed to save partial results
+        break;
+      }
+
       final linkUrl = link.toString();
 
       // Add delay to avoid server overload
@@ -284,6 +300,12 @@ class LinkCheckerService {
       int checkedExternal = 0;
 
       for (final link in externalLinksList) {
+        // Check for cancellation request
+        if (shouldCancel?.call() ?? false) {
+          // Stop checking external links, proceed to save partial results
+          break;
+        }
+
         final linkUrl = link.toString();
 
         // Add delay to avoid server overload

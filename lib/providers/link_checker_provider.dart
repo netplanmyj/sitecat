@@ -32,6 +32,7 @@ class LinkCheckerProvider extends ChangeNotifier {
   final Map<String, int> _externalLinksChecked = {};
   final Map<String, int> _externalLinksTotal = {};
   final Map<String, int?> _currentSitemapStatusCode = {};
+  final Map<String, bool> _cancelRequested = {};
 
   // All results across sites
   List<({String siteId, LinkCheckResult result})> _allCheckHistory = [];
@@ -105,6 +106,17 @@ class LinkCheckerProvider extends ChangeNotifier {
   /// Get current sitemap status code (updated in real-time during scan)
   int? getCurrentSitemapStatusCode(String siteId) {
     return _currentSitemapStatusCode[siteId];
+  }
+
+  /// Request cancellation of ongoing scan
+  void cancelScan(String siteId) {
+    _cancelRequested[siteId] = true;
+    notifyListeners();
+  }
+
+  /// Check if cancellation was requested for a site
+  bool isCancelRequested(String siteId) {
+    return _cancelRequested[siteId] ?? false;
   }
 
   /// Check if a site is currently being checked
@@ -193,6 +205,7 @@ class LinkCheckerProvider extends ChangeNotifier {
     // Reset state
     _checkStates[siteId] = LinkCheckState.checking;
     _errors.remove(siteId);
+    _cancelRequested[siteId] = false; // Reset cancel flag
 
     // Store previous progress before potentially resetting
     final previousChecked = _checkedCounts[siteId] ?? 0;
@@ -235,6 +248,7 @@ class LinkCheckerProvider extends ChangeNotifier {
           _currentSitemapStatusCode[siteId] = statusCode;
           notifyListeners();
         },
+        shouldCancel: () => isCancelRequested(siteId),
       );
 
       // Cache the result
