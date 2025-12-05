@@ -50,6 +50,14 @@ class LinkCheckerService {
 
   /// Check all links on a site
   ///
+  /// This method performs a comprehensive link check in 6 main steps:
+  /// 1. Load sitemap URLs and check accessibility
+  /// 2. Scan pages and extract all links (internal & external)
+  /// 3. Check internal links for broken pages
+  /// 4. Check external links (if requested)
+  /// 5. Merge with previous scan results (if continuing)
+  /// 6. Create and save the final result to Firestore
+  ///
   /// [onSitemapStatusUpdate] is called immediately after checking sitemap accessibility.
   /// The statusCode represents:
   /// - 200: Sitemap is accessible
@@ -74,12 +82,12 @@ class LinkCheckerService {
     }
 
     final startTime = DateTime.now();
-    // Keep original base URL for domain comparison (sitemap URLs use localhost)
     final originalBaseUrl = Uri.parse(site.url);
-    // Converted base URL for actual HTTP requests (Android: localhost -> 10.0.2.2)
     final baseUrl = Uri.parse(UrlHelper.convertLocalhostForPlatform(site.url));
 
-    // Step 1: Get internal pages from sitemap (these are our pages to scan)
+    // ========================================================================
+    // STEP 1: Load sitemap URLs and check accessibility
+    // ========================================================================
     List<Uri> allInternalPages = [];
     int? sitemapStatusCode; // Record sitemap HTTP status code
 
@@ -134,10 +142,11 @@ class LinkCheckerService {
 
     final totalPagesInSitemap = allInternalPages.length;
 
-    // Determine start index (for progressive scanning)
+    // ========================================================================
+    // STEP 1b: Load previous scan data (if continuing from last scan)
+    // ========================================================================
     final startIndex = continueFromLastScan ? site.lastScannedPageIndex : 0;
 
-    // Get previous scan data if continuing
     LinkCheckResult? previousResult;
     List<BrokenLink> previousBrokenLinks = [];
     if (continueFromLastScan && startIndex > 0) {
@@ -147,9 +156,10 @@ class LinkCheckerService {
       }
     }
 
-    // Limit internal pages to scan (to avoid excessive processing)
-    const maxPagesToScan =
-        100; // Per-batch limit (increased from 50 for better UX)
+    // ========================================================================
+    // STEP 1c: Calculate scan range for this batch
+    // ========================================================================
+    const maxPagesToScan = 100;
     final remainingPageLimit = _pageLimit - startIndex;
     final actualPagesToScan = maxPagesToScan.clamp(0, remainingPageLimit);
 
@@ -162,7 +172,9 @@ class LinkCheckerService {
     final scanCompleted =
         endIndex >= allInternalPages.length || endIndex >= _pageLimit;
 
-    // Step 2: Extract links from each internal page
+    // ========================================================================
+    // STEP 2: Scan pages and extract all links
+    // ========================================================================
     final allFoundLinks = <Uri>{};
     final externalLinks = <Uri>{};
     final internalLinks = <Uri>{};
@@ -236,7 +248,9 @@ class LinkCheckerService {
       }
     }
 
-    // Step 3: Check internal links for broken pages
+    // ========================================================================
+    // STEP 3: Check internal links for broken pages
+    // ========================================================================
     final brokenLinks = <BrokenLink>[];
     final internalLinksList = internalLinks.toList();
     final totalInternalLinks = internalLinksList.length;
@@ -290,7 +304,9 @@ class LinkCheckerService {
       }
     }
 
-    // Step 4: Check external links only if requested
+    // ========================================================================
+    // STEP 4: Check external links (if requested)
+    // ========================================================================
     if (checkExternalLinks) {
       // Notify that external link checking is starting
       final cumulativePagesScanned = startIndex + pagesScanned;
@@ -338,14 +354,17 @@ class LinkCheckerService {
       }
     }
 
-    // Step 5: Prepare broken links
-    // If continuing, keep previous broken links and add new ones
+    // ========================================================================
+    // STEP 5: Merge broken links with previous results (if continuing)
+    // ========================================================================
     final allBrokenLinks =
         continueFromLastScan && previousBrokenLinks.isNotEmpty
         ? [...previousBrokenLinks, ...brokenLinks]
         : brokenLinks;
 
-    // Step 6: Create and save result
+    // ========================================================================
+    // STEP 6: Create and save result to Firestore
+    // ========================================================================
     final endTime = DateTime.now();
     final newLastScannedPageIndex = scanCompleted
         ? 0
