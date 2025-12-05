@@ -88,89 +88,35 @@ class LinkCheckerService {
     // ========================================================================
     // STEP 1: Load sitemap URLs and check accessibility
     // ========================================================================
-    List<Uri> allInternalPages = [];
-    int? sitemapStatusCode; // Record sitemap HTTP status code
-
-    if (site.sitemapUrl != null && site.sitemapUrl!.isNotEmpty) {
-      try {
-        // Build full sitemap URL (combine with base URL if relative path)
-        final fullSitemapUrl = _buildFullUrl(baseUrl, site.sitemapUrl!);
-
-        // Check sitemap accessibility first
-        try {
-          final convertedUrl = UrlHelper.convertLocalhostForPlatform(
-            fullSitemapUrl,
-          );
-          final headCheck = await _checkUrlHead(convertedUrl);
-          sitemapStatusCode = headCheck.statusCode;
-
-          // Notify UI of sitemap status immediately
-          onSitemapStatusUpdate?.call(sitemapStatusCode);
-
-          if (sitemapStatusCode == 200) {
-            allInternalPages = await _fetchSitemapUrls(fullSitemapUrl);
-          } else {
-            // Sitemap not accessible, use top page only
-            allInternalPages = [originalBaseUrl];
-          }
-        } catch (e) {
-          // If HEAD check fails unexpectedly, record and fall back to top page
-          sitemapStatusCode = 0;
-          onSitemapStatusUpdate?.call(sitemapStatusCode);
-          allInternalPages = [originalBaseUrl];
-        }
-
-        // Filter out excluded paths
-        if (site.excludedPaths.isNotEmpty) {
-          allInternalPages = _filterExcludedPaths(
-            allInternalPages,
-            site.excludedPaths,
-          );
-        }
-
-        if (allInternalPages.isEmpty) {
-          allInternalPages = [originalBaseUrl];
-        }
-      } catch (e) {
-        // Sitemap fetch failed, fall back to checking only the top page
-        allInternalPages = [originalBaseUrl];
-      }
-    } else {
-      // No sitemap provided, check only the top page
-      allInternalPages = [originalBaseUrl];
-    }
-
-    final totalPagesInSitemap = allInternalPages.length;
+    final sitemapData = await _loadSitemapUrls(
+      site,
+      baseUrl,
+      originalBaseUrl,
+      onSitemapStatusUpdate,
+    );
+    final allInternalPages = sitemapData.urls;
+    final totalPagesInSitemap = sitemapData.totalPages;
+    final sitemapStatusCode = sitemapData.statusCode;
 
     // ========================================================================
     // STEP 1b: Load previous scan data (if continuing from last scan)
     // ========================================================================
     final startIndex = continueFromLastScan ? site.lastScannedPageIndex : 0;
-
-    LinkCheckResult? previousResult;
-    List<BrokenLink> previousBrokenLinks = [];
-    if (continueFromLastScan && startIndex > 0) {
-      previousResult = await getLatestCheckResult(site.id);
-      if (previousResult != null) {
-        previousBrokenLinks = await getBrokenLinks(site.id);
-      }
-    }
+    final previousData = await _loadPreviousScanData(
+      site.id,
+      continueFromLastScan,
+      startIndex,
+    );
+    final previousResult = previousData.result;
+    final previousBrokenLinks = previousData.brokenLinks;
 
     // ========================================================================
     // STEP 1c: Calculate scan range for this batch
     // ========================================================================
-    const maxPagesToScan = 100;
-    final remainingPageLimit = _pageLimit - startIndex;
-    final actualPagesToScan = maxPagesToScan.clamp(0, remainingPageLimit);
-
-    final endIndex = (startIndex + actualPagesToScan).clamp(
-      0,
-      allInternalPages.length,
-    );
-    final pagesToScan = allInternalPages.sublist(startIndex, endIndex);
-    // Scan is complete when we've reached the end of all pages OR hit the page limit
-    final scanCompleted =
-        endIndex >= allInternalPages.length || endIndex >= _pageLimit;
+    final scanRange = _calculateScanRange(allInternalPages, startIndex);
+    final pagesToScan = scanRange.pagesToScan;
+    final endIndex = scanRange.endIndex;
+    final scanCompleted = scanRange.scanCompleted;
 
     // ========================================================================
     // STEP 2: Scan pages and extract all links
@@ -917,6 +863,108 @@ class LinkCheckerService {
   /// **Returns:**
   /// A filtered list containing only URLs that don't match any excluded path prefix
   ///
+  // ==========================================================================
+  // Private helper methods for checkSiteLinks (extracted for better readability)
+  // ==========================================================================
+
+  /// Load sitemap URLs and check accessibility
+  /// Returns the list of URLs to scan, total count, and HTTP status code
+  Future<({List<Uri> urls, int totalPages, int? statusCode})> _loadSitemapUrls(
+    Site site,
+    Uri baseUrl,
+    Uri originalBaseUrl,
+    void Function(int? statusCode)? onSitemapStatusUpdate,
+  ) async {
+    List<Uri> allInternalPages = [];
+    int? sitemapStatusCode;
+
+    if (site.sitemapUrl != null && site.sitemapUrl!.isNotEmpty) {
+      try {
+        final fullSitemapUrl = _buildFullUrl(baseUrl, site.sitemapUrl!);
+
+        try {
+          final convertedUrl = UrlHelper.convertLocalhostForPlatform(
+            fullSitemapUrl,
+          );
+          final headCheck = await _checkUrlHead(convertedUrl);
+          sitemapStatusCode = headCheck.statusCode;
+
+          onSitemapStatusUpdate?.call(sitemapStatusCode);
+
+          if (sitemapStatusCode == 200) {
+            allInternalPages = await _fetchSitemapUrls(fullSitemapUrl);
+          } else {
+            allInternalPages = [originalBaseUrl];
+          }
+        } catch (e) {
+          sitemapStatusCode = 0;
+          onSitemapStatusUpdate?.call(sitemapStatusCode);
+          allInternalPages = [originalBaseUrl];
+        }
+
+        if (site.excludedPaths.isNotEmpty) {
+          allInternalPages = _filterExcludedPaths(
+            allInternalPages,
+            site.excludedPaths,
+          );
+        }
+
+        if (allInternalPages.isEmpty) {
+          allInternalPages = [originalBaseUrl];
+        }
+      } catch (e) {
+        allInternalPages = [originalBaseUrl];
+      }
+    } else {
+      allInternalPages = [originalBaseUrl];
+    }
+
+    return (
+      urls: allInternalPages,
+      totalPages: allInternalPages.length,
+      statusCode: sitemapStatusCode,
+    );
+  }
+
+  /// Load previous scan data if continuing from last scan
+  Future<({LinkCheckResult? result, List<BrokenLink> brokenLinks})>
+  _loadPreviousScanData(
+    String siteId,
+    bool continueFromLastScan,
+    int startIndex,
+  ) async {
+    if (!continueFromLastScan || startIndex == 0) {
+      return (result: null, brokenLinks: <BrokenLink>[]);
+    }
+
+    final previousResult = await getLatestCheckResult(siteId);
+    if (previousResult == null) {
+      return (result: null, brokenLinks: <BrokenLink>[]);
+    }
+
+    final previousBrokenLinks = await getBrokenLinks(previousResult.id!);
+    return (result: previousResult, brokenLinks: previousBrokenLinks);
+  }
+
+  /// Calculate the range of pages to scan in this batch
+  ({List<Uri> pagesToScan, int startIndex, int endIndex, bool scanCompleted})
+  _calculateScanRange(List<Uri> allPages, int startIndex) {
+    const maxPagesToScan = 100;
+    final remainingPageLimit = _pageLimit - startIndex;
+    final actualPagesToScan = maxPagesToScan.clamp(0, remainingPageLimit);
+
+    final endIndex = (startIndex + actualPagesToScan).clamp(0, allPages.length);
+    final pagesToScan = allPages.sublist(startIndex, endIndex);
+    final scanCompleted = endIndex >= allPages.length || endIndex >= _pageLimit;
+
+    return (
+      pagesToScan: pagesToScan,
+      startIndex: startIndex,
+      endIndex: endIndex,
+      scanCompleted: scanCompleted,
+    );
+  }
+
   /// **Example:**
   /// ```dart
   /// final urls = [
