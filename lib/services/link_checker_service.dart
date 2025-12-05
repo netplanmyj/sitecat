@@ -90,8 +90,9 @@ class LinkCheckerService {
             allInternalPages = [originalBaseUrl];
           }
         } catch (e) {
-          // If HEAD check fails, try to fetch anyway
-          allInternalPages = await _fetchSitemapUrls(fullSitemapUrl);
+          // If HEAD check fails unexpectedly, record and fall back to top page
+          sitemapStatusCode = 0;
+          allInternalPages = [originalBaseUrl];
         }
 
         // Filter out excluded paths

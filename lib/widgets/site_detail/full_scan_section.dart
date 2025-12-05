@@ -307,13 +307,17 @@ class _FullScanSectionState extends State<FullScanSection> {
       statusColor = Colors.grey.shade600;
       statusIcon = Icons.help_outline;
       statusText = 'Not checked';
+    } else if (statusCode == 0) {
+      statusColor = Colors.red.shade700;
+      statusIcon = Icons.cloud_off;
+      statusText = 'Network Error';
     } else if (statusCode == 200) {
       statusColor = Colors.green.shade700;
       statusIcon = Icons.check_circle;
       statusText = 'OK ($statusCode)';
     } else if (statusCode == 404) {
-      statusColor = Colors.orange.shade700;
-      statusIcon = Icons.warning_amber_rounded;
+      statusColor = Colors.red.shade700;
+      statusIcon = Icons.cancel;
       statusText = 'Not Found (404)';
     } else if (statusCode >= 400 && statusCode < 500) {
       statusColor = Colors.orange.shade700;

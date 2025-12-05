@@ -111,7 +111,7 @@ class LinkCheckResult {
   final String checkedUrl; // URL that was checked (to detect mismatches)
   final String? checkedSitemapUrl; // Sitemap URL that was used for this scan
   final int?
-  sitemapStatusCode; // HTTP status code when fetching sitemap (null if no sitemap)
+  sitemapStatusCode; // HTTP status code from sitemap HEAD request (200=OK, 404=Not Found, 0=Network Error, null=No sitemap or not checked)
   final DateTime timestamp;
   final int totalLinks;
   final int brokenLinks;
