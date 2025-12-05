@@ -80,29 +80,28 @@
 6. [x] `_mergeBrokenLinks()` - 結果マージ、8行（コミット: dfc33e0）
 7. [x] `_createAndSaveResult()` - 結果保存、87行（コミット: 202e7ce）
 
-### Phase 3: データクラスの導入
-```dart
-class _ScanContext {
-  final Site site;
-  final Uri originalBaseUrl;
-  final Uri baseUrl;
-  final Map<String, List<String>> linkSourceMap;
-  final int startIndex;
-  final int endIndex;
-  final bool scanCompleted;
-}
+### Phase 3: データクラスの導入（完了✅）
+**達成内容**:
+- レコード型からデータクラスへの移行完了
+- 型安全性とコード明瞭性の向上
+- テスト結果: **19/19通過** (機能変更なし)
 
-class _LinkExtractionResult {
-  final Set<Uri> internalLinks;
-  final Set<Uri> externalLinks;
-  final Map<String, List<String>> linkSourceMap;
-  final int totalInternalLinksCount;
-  final int totalExternalLinksCount;
-  final int pagesScanned;
-}
+**導入されたデータクラス** (4個):
+1. [x] `_SitemapLoadResult` - sitemap読み込み結果（コミット: 2e844e1）
+2. [x] `_PreviousScanData` - 前回スキャンデータ（コミット: 2e844e1）
+3. [x] `_ScanRange` - スキャン範囲情報（コミット: 2e844e1）
+4. [x] `_LinkExtractionResult` - リンク抽出結果（コミット: 2e844e1）
+
+**改善ポイント**:
+```dart
+// Before: レコード型（型名なし）
+Future<({List<Uri> urls, int totalPages, int? statusCode})> _loadSitemapUrls(...)
+
+// After: データクラス（明示的な型）
+Future<_SitemapLoadResult> _loadSitemapUrls(...)
 ```
 
-### Phase 4: テストの追加
+### Phase 4: テストの追加（次のステップ）
 - 各抽出メソッドの単体テスト
 - エッジケースのテスト
 - エラーハンドリングのテスト
