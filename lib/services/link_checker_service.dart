@@ -49,12 +49,21 @@ class LinkCheckerService {
       _resultsCollection(userId).doc(resultId).collection('brokenLinks');
 
   /// Check all links on a site
+  ///
+  /// [onSitemapStatusUpdate] is called immediately after checking sitemap accessibility.
+  /// The statusCode represents:
+  /// - 200: Sitemap is accessible
+  /// - 404: Sitemap not found
+  /// - 0: Network error occurred
+  /// - null: No sitemap configured
+  /// This enables real-time UI updates before the full scan completes.
   Future<LinkCheckResult> checkSiteLinks(
     Site site, {
     bool checkExternalLinks = true,
     bool continueFromLastScan = false, // Continue from last scanned index
     void Function(int checked, int total)? onProgress,
     void Function(int checked, int total)? onExternalLinksProgress,
+    void Function(int? statusCode)? onSitemapStatusUpdate,
   }) async {
     if (_currentUserId == null) {
       throw Exception('User must be authenticated to check links');
@@ -83,6 +92,9 @@ class LinkCheckerService {
           final headCheck = await _checkUrlHead(convertedUrl);
           sitemapStatusCode = headCheck.statusCode;
 
+          // Notify UI of sitemap status immediately
+          onSitemapStatusUpdate?.call(sitemapStatusCode);
+
           if (sitemapStatusCode == 200) {
             allInternalPages = await _fetchSitemapUrls(fullSitemapUrl);
           } else {
@@ -92,6 +104,7 @@ class LinkCheckerService {
         } catch (e) {
           // If HEAD check fails unexpectedly, record and fall back to top page
           sitemapStatusCode = 0;
+          onSitemapStatusUpdate?.call(sitemapStatusCode);
           allInternalPages = [originalBaseUrl];
         }
 

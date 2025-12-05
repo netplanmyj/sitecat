@@ -52,6 +52,13 @@ class _FullScanSectionState extends State<FullScanSection> {
               widget.site.id,
             );
 
+            // Get current sitemap status (updated during scan, or from latest result)
+            final currentSitemapStatus =
+                linkCheckerProvider.getCurrentSitemapStatusCode(
+                  widget.site.id,
+                ) ??
+                latestResult?.sitemapStatusCode;
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -116,7 +123,7 @@ class _FullScanSectionState extends State<FullScanSection> {
                         _buildStatusRow(
                           'Sitemap',
                           currentSite.sitemapUrl!,
-                          latestResult?.sitemapStatusCode,
+                          currentSitemapStatus,
                         ),
                       ],
                     ),

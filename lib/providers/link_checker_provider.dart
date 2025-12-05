@@ -31,6 +31,7 @@ class LinkCheckerProvider extends ChangeNotifier {
   final Map<String, bool> _isProcessingExternalLinks = {};
   final Map<String, int> _externalLinksChecked = {};
   final Map<String, int> _externalLinksTotal = {};
+  final Map<String, int?> _currentSitemapStatusCode = {};
 
   // All results across sites
   List<({String siteId, LinkCheckResult result})> _allCheckHistory = [];
@@ -99,6 +100,11 @@ class LinkCheckerProvider extends ChangeNotifier {
       _externalLinksChecked[siteId] ?? 0,
       _externalLinksTotal[siteId] ?? 0,
     );
+  }
+
+  /// Get current sitemap status code (updated in real-time during scan)
+  int? getCurrentSitemapStatusCode(String siteId) {
+    return _currentSitemapStatusCode[siteId];
   }
 
   /// Check if a site is currently being checked
@@ -222,6 +228,11 @@ class LinkCheckerProvider extends ChangeNotifier {
             _isProcessingExternalLinks[siteId] = true;
           }
 
+          notifyListeners();
+        },
+        onSitemapStatusUpdate: (statusCode) {
+          // Update current sitemap status in real-time
+          _currentSitemapStatusCode[siteId] = statusCode;
           notifyListeners();
         },
       );
