@@ -121,78 +121,20 @@ class LinkCheckerService {
     // ========================================================================
     // STEP 2: Scan pages and extract all links
     // ========================================================================
-    final allFoundLinks = <Uri>{};
-    final externalLinks = <Uri>{};
-    final internalLinks = <Uri>{};
-    // Track all source pages for each link (currently only .first is persisted to DB)
-    // TODO: Update BrokenLink model to store multiple source pages for better debugging
-    final linkSourceMap =
-        <String, List<String>>{}; // link -> list of pages where found
-    final visitedPages = <String>{};
-
-    // Count unique links found (no duplicates)
-    int totalInternalLinksCount = 0;
-    int totalExternalLinksCount = 0;
-
-    int pagesScanned = 0;
-    for (final page in pagesToScan) {
-      // Check for cancellation request
-      if (shouldCancel?.call() ?? false) {
-        // Stop scanning pages, proceed to save partial results
-        break;
-      }
-
-      final pageUrl = page.toString();
-
-      // Skip if already visited
-      if (visitedPages.contains(pageUrl)) continue;
-      visitedPages.add(pageUrl);
-
-      // Report progress (cumulative)
-      pagesScanned++;
-      final cumulativePagesScanned = startIndex + pagesScanned;
-      onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
-
-      // Add delay to avoid server overload and firewall detection
-      if (pagesScanned > 1) {
-        await Future.delayed(const Duration(milliseconds: 200));
-      }
-
-      // Fetch and parse HTML
-      final htmlContent = await _fetchHtmlContent(pageUrl);
-      if (htmlContent == null) continue;
-
-      // Extract all links from this page
-      final links = _extractLinks(htmlContent, page);
-
-      for (final link in links) {
-        // Normalize the link to ensure consistent URL representation (remove fragments, trailing slashes, normalize case)
-        final normalizedLink = _normalizeSitemapUrl(link);
-        final linkUrl = normalizedLink.toString();
-        allFoundLinks.add(normalizedLink);
-
-        // Record where this link was found (track all source pages)
-        if (!linkSourceMap.containsKey(linkUrl)) {
-          linkSourceMap[linkUrl] = [pageUrl];
-        } else if (!(linkSourceMap[linkUrl]?.contains(pageUrl) ?? false)) {
-          linkSourceMap[linkUrl]!.add(pageUrl);
-        }
-
-        // Categorize: internal or external (use original base URL for comparison)
-        // Count unique links only (check if already added to the set)
-        if (_isSameDomain(normalizedLink, originalBaseUrl)) {
-          // Internal link - mark for checking
-          if (internalLinks.add(normalizedLink)) {
-            totalInternalLinksCount++; // Only count if newly added
-          }
-        } else {
-          // External link - mark for checking
-          if (externalLinks.add(normalizedLink)) {
-            totalExternalLinksCount++; // Only count if newly added
-          }
-        }
-      }
-    }
+    final linkData = await _scanPagesAndExtractLinks(
+      pagesToScan,
+      originalBaseUrl,
+      startIndex,
+      totalPagesInSitemap,
+      onProgress,
+      shouldCancel,
+    );
+    final internalLinks = linkData.internalLinks;
+    final externalLinks = linkData.externalLinks;
+    final linkSourceMap = linkData.linkSourceMap;
+    final totalInternalLinksCount = linkData.totalInternalLinksCount;
+    final totalExternalLinksCount = linkData.totalExternalLinksCount;
+    final pagesScanned = linkData.pagesScanned;
 
     // ========================================================================
     // STEP 3: Check internal links for broken pages
@@ -962,6 +904,89 @@ class LinkCheckerService {
       startIndex: startIndex,
       endIndex: endIndex,
       scanCompleted: scanCompleted,
+    );
+  }
+
+  /// Scan pages and extract all links (internal and external)
+  Future<
+    ({
+      Set<Uri> internalLinks,
+      Set<Uri> externalLinks,
+      Map<String, List<String>> linkSourceMap,
+      int totalInternalLinksCount,
+      int totalExternalLinksCount,
+      int pagesScanned,
+    })
+  >
+  _scanPagesAndExtractLinks(
+    List<Uri> pagesToScan,
+    Uri originalBaseUrl,
+    int startIndex,
+    int totalPagesInSitemap,
+    void Function(int checked, int total)? onProgress,
+    bool Function()? shouldCancel,
+  ) async {
+    final internalLinks = <Uri>{};
+    final externalLinks = <Uri>{};
+    final linkSourceMap = <String, List<String>>{};
+    final visitedPages = <String>{};
+
+    int totalInternalLinksCount = 0;
+    int totalExternalLinksCount = 0;
+    int pagesScanned = 0;
+
+    for (final page in pagesToScan) {
+      if (shouldCancel?.call() ?? false) {
+        break;
+      }
+
+      final pageUrl = page.toString();
+
+      if (visitedPages.contains(pageUrl)) continue;
+      visitedPages.add(pageUrl);
+
+      pagesScanned++;
+      final cumulativePagesScanned = startIndex + pagesScanned;
+      onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
+
+      if (pagesScanned > 1) {
+        await Future.delayed(const Duration(milliseconds: 200));
+      }
+
+      final htmlContent = await _fetchHtmlContent(pageUrl);
+      if (htmlContent == null) continue;
+
+      final links = _extractLinks(htmlContent, page);
+
+      for (final link in links) {
+        final normalizedLink = _normalizeSitemapUrl(link);
+        final linkUrl = normalizedLink.toString();
+
+        if (!linkSourceMap.containsKey(linkUrl)) {
+          linkSourceMap[linkUrl] = [pageUrl];
+        } else if (!(linkSourceMap[linkUrl]?.contains(pageUrl) ?? false)) {
+          linkSourceMap[linkUrl]!.add(pageUrl);
+        }
+
+        if (_isSameDomain(normalizedLink, originalBaseUrl)) {
+          if (internalLinks.add(normalizedLink)) {
+            totalInternalLinksCount++;
+          }
+        } else {
+          if (externalLinks.add(normalizedLink)) {
+            totalExternalLinksCount++;
+          }
+        }
+      }
+    }
+
+    return (
+      internalLinks: internalLinks,
+      externalLinks: externalLinks,
+      linkSourceMap: linkSourceMap,
+      totalInternalLinksCount: totalInternalLinksCount,
+      totalExternalLinksCount: totalExternalLinksCount,
+      pagesScanned: pagesScanned,
     );
   }
 
