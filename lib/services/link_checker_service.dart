@@ -180,7 +180,7 @@ class LinkCheckerService {
     for (final page in pagesToScan) {
       // Check for cancellation request
       if (shouldCancel?.call() ?? false) {
-        // Save partial result and return early
+        // Stop scanning pages, proceed to save partial results
         break;
       }
 
@@ -254,6 +254,7 @@ class LinkCheckerService {
     for (final link in internalLinksList) {
       // Check for cancellation request
       if (shouldCancel?.call() ?? false) {
+        // Stop checking internal links, proceed to save partial results
         break;
       }
 
@@ -301,6 +302,7 @@ class LinkCheckerService {
       for (final link in externalLinksList) {
         // Check for cancellation request
         if (shouldCancel?.call() ?? false) {
+          // Stop checking external links, proceed to save partial results
           break;
         }
 
