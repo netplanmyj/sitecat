@@ -52,6 +52,9 @@ class LinkCheckerService {
   ///
   /// This method performs a comprehensive link check in 6 main steps:
   /// 1. Load sitemap URLs and check accessibility
+  ///    - 1a: Load sitemap URLs from configured sitemap.xml
+  ///    - 1b: Load previous scan data (if continuing)
+  ///    - 1c: Calculate scan range for this batch
   /// 2. Scan pages and extract all links (internal & external)
   /// 3. Check internal links for broken pages
   /// 4. Check external links (if requested)
@@ -727,7 +730,7 @@ class LinkCheckerService {
     }
 
     final previousResult = await getLatestCheckResult(siteId);
-    if (previousResult == null) {
+    if (previousResult == null || previousResult.id == null) {
       return const _PreviousScanData(result: null, brokenLinks: <BrokenLink>[]);
     }
 
