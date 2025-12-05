@@ -137,118 +137,30 @@ class LinkCheckerService {
     final pagesScanned = linkData.pagesScanned;
 
     // ========================================================================
-    // STEP 3: Check internal links for broken pages
+    // STEP 3 & 4: Check internal and external links for broken pages
     // ========================================================================
-    final brokenLinks = <BrokenLink>[];
-    final internalLinksList = internalLinks.toList();
-    final totalInternalLinks = internalLinksList.length;
-
-    // Calculate total links to check (for progress reporting)
-    final externalLinksCount = checkExternalLinks ? externalLinks.length : 0;
-    final totalAllLinks = totalInternalLinks + externalLinksCount;
-    int checkedInternal = 0;
-
-    // Report initial state if there are links to check
-    if (totalAllLinks > 0) {
-      onExternalLinksProgress?.call(0, totalAllLinks);
-    }
-
-    for (final link in internalLinksList) {
-      // Check for cancellation request
-      if (shouldCancel?.call() ?? false) {
-        // Stop checking internal links, proceed to save partial results
-        break;
-      }
-
-      final linkUrl = link.toString();
-
-      // Add delay to avoid server overload
-      if (checkedInternal > 0) {
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
-
-      final isBroken = await _checkLink(link);
-
-      if (isBroken != null) {
-        brokenLinks.add(
-          BrokenLink(
-            id: '', // Will be set by Firestore
-            siteId: site.id,
-            userId: _currentUserId!,
-            timestamp: DateTime.now(),
-            url: linkUrl,
-            foundOn: linkSourceMap[linkUrl]?.first ?? site.url,
-            statusCode: isBroken.statusCode,
-            error: isBroken.error,
-            linkType: LinkType.internal,
-          ),
-        );
-      }
-
-      checkedInternal++;
-      // Always report internal links progress
-      if (totalAllLinks > 0) {
-        onExternalLinksProgress?.call(checkedInternal, totalAllLinks);
-      }
-    }
-
-    // ========================================================================
-    // STEP 4: Check external links (if requested)
-    // ========================================================================
-    if (checkExternalLinks) {
-      // Notify that external link checking is starting
-      final cumulativePagesScanned = startIndex + pagesScanned;
-      onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
-
-      final externalLinksList = externalLinks.toList();
-      int checkedExternal = 0;
-
-      for (final link in externalLinksList) {
-        // Check for cancellation request
-        if (shouldCancel?.call() ?? false) {
-          // Stop checking external links, proceed to save partial results
-          break;
-        }
-
-        final linkUrl = link.toString();
-
-        // Add delay to avoid server overload
-        if (checkedExternal > 0) {
-          await Future.delayed(const Duration(milliseconds: 100));
-        }
-
-        final isBroken = await _checkLink(link);
-
-        if (isBroken != null) {
-          brokenLinks.add(
-            BrokenLink(
-              id: '', // Will be set by Firestore
-              siteId: site.id,
-              userId: _currentUserId!,
-              timestamp: DateTime.now(),
-              url: linkUrl,
-              foundOn: linkSourceMap[linkUrl]?.first ?? site.url,
-              statusCode: isBroken.statusCode,
-              error: isBroken.error,
-              linkType: LinkType.external,
-            ),
-          );
-        }
-
-        checkedExternal++;
-        // Report combined progress (internal + external)
-        final totalChecked = checkedInternal + checkedExternal;
-        onExternalLinksProgress?.call(totalChecked, totalAllLinks);
-      }
-    }
+    final brokenLinks = await _checkAllLinks(
+      site,
+      internalLinks,
+      externalLinks,
+      linkSourceMap,
+      checkExternalLinks,
+      startIndex,
+      pagesScanned,
+      totalPagesInSitemap,
+      onProgress,
+      onExternalLinksProgress,
+      shouldCancel,
+    );
 
     // ========================================================================
     // STEP 5: Merge broken links with previous results (if continuing)
     // ========================================================================
-    final allBrokenLinks =
-        continueFromLastScan && previousBrokenLinks.isNotEmpty
-        ? [...previousBrokenLinks, ...brokenLinks]
-        : brokenLinks;
+    final allBrokenLinks = _mergeBrokenLinks(
+      brokenLinks,
+      previousBrokenLinks,
+      continueFromLastScan,
+    );
 
     // ========================================================================
     // STEP 6: Create and save result to Firestore
@@ -988,6 +900,127 @@ class LinkCheckerService {
       totalExternalLinksCount: totalExternalLinksCount,
       pagesScanned: pagesScanned,
     );
+  }
+
+  /// Check all links (internal and external) for broken pages
+  Future<List<BrokenLink>> _checkAllLinks(
+    Site site,
+    Set<Uri> internalLinks,
+    Set<Uri> externalLinks,
+    Map<String, List<String>> linkSourceMap,
+    bool checkExternalLinks,
+    int startIndex,
+    int pagesScanned,
+    int totalPagesInSitemap,
+    void Function(int checked, int total)? onProgress,
+    void Function(int checked, int total)? onExternalLinksProgress,
+    bool Function()? shouldCancel,
+  ) async {
+    final brokenLinks = <BrokenLink>[];
+    final internalLinksList = internalLinks.toList();
+    final totalInternalLinks = internalLinksList.length;
+
+    final externalLinksCount = checkExternalLinks ? externalLinks.length : 0;
+    final totalAllLinks = totalInternalLinks + externalLinksCount;
+    int checkedInternal = 0;
+
+    // Report initial state
+    if (totalAllLinks > 0) {
+      onExternalLinksProgress?.call(0, totalAllLinks);
+    }
+
+    // Check internal links
+    for (final link in internalLinksList) {
+      if (shouldCancel?.call() ?? false) {
+        break;
+      }
+
+      final linkUrl = link.toString();
+
+      if (checkedInternal > 0) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+
+      final isBroken = await _checkLink(link);
+
+      if (isBroken != null) {
+        brokenLinks.add(
+          BrokenLink(
+            id: '',
+            siteId: site.id,
+            userId: _currentUserId!,
+            timestamp: DateTime.now(),
+            url: linkUrl,
+            foundOn: linkSourceMap[linkUrl]?.first ?? site.url,
+            statusCode: isBroken.statusCode,
+            error: isBroken.error,
+            linkType: LinkType.internal,
+          ),
+        );
+      }
+
+      checkedInternal++;
+      if (totalAllLinks > 0) {
+        onExternalLinksProgress?.call(checkedInternal, totalAllLinks);
+      }
+    }
+
+    // Check external links (if requested)
+    if (checkExternalLinks) {
+      final cumulativePagesScanned = startIndex + pagesScanned;
+      onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
+
+      final externalLinksList = externalLinks.toList();
+      int checkedExternal = 0;
+
+      for (final link in externalLinksList) {
+        if (shouldCancel?.call() ?? false) {
+          break;
+        }
+
+        final linkUrl = link.toString();
+
+        if (checkedExternal > 0) {
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
+
+        final isBroken = await _checkLink(link);
+
+        if (isBroken != null) {
+          brokenLinks.add(
+            BrokenLink(
+              id: '',
+              siteId: site.id,
+              userId: _currentUserId!,
+              timestamp: DateTime.now(),
+              url: linkUrl,
+              foundOn: linkSourceMap[linkUrl]?.first ?? site.url,
+              statusCode: isBroken.statusCode,
+              error: isBroken.error,
+              linkType: LinkType.external,
+            ),
+          );
+        }
+
+        checkedExternal++;
+        final totalChecked = checkedInternal + checkedExternal;
+        onExternalLinksProgress?.call(totalChecked, totalAllLinks);
+      }
+    }
+
+    return brokenLinks;
+  }
+
+  /// Merge broken links with previous scan results
+  List<BrokenLink> _mergeBrokenLinks(
+    List<BrokenLink> newBrokenLinks,
+    List<BrokenLink> previousBrokenLinks,
+    bool continueFromLastScan,
+  ) {
+    if (continueFromLastScan && previousBrokenLinks.isNotEmpty) {
+      return [...previousBrokenLinks, ...newBrokenLinks];
+    }
+    return newBrokenLinks;
   }
 
   /// **Example:**
