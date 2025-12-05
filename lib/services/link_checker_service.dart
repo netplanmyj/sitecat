@@ -165,82 +165,18 @@ class LinkCheckerService {
     // ========================================================================
     // STEP 6: Create and save result to Firestore
     // ========================================================================
-    final endTime = DateTime.now();
-    final newLastScannedPageIndex = scanCompleted
-        ? 0
-        : endIndex; // Reset to 0 if completed
-
-    // Calculate cumulative statistics
-    final previousTotalLinks = previousResult?.totalLinks ?? 0;
-    final previousInternalLinks = previousResult?.internalLinks ?? 0;
-    final previousExternalLinks = previousResult?.externalLinks ?? 0;
-
-    // Total links = sum of internal and external link occurrences (including duplicates)
-    final totalLinksCount = totalInternalLinksCount + totalExternalLinksCount;
-    final cumulativeTotalLinks = continueFromLastScan && previousResult != null
-        ? previousTotalLinks + totalLinksCount
-        : totalLinksCount;
-    final cumulativeInternalLinks =
-        continueFromLastScan && previousResult != null
-        ? previousInternalLinks + totalInternalLinksCount
-        : totalInternalLinksCount;
-    final cumulativeExternalLinks =
-        continueFromLastScan && previousResult != null
-        ? previousExternalLinks + totalExternalLinksCount
-        : totalExternalLinksCount;
-
-    final result = LinkCheckResult(
-      siteId: site.id,
-      checkedUrl: site.url, // Record the URL that was checked
-      checkedSitemapUrl: site.sitemapUrl, // Record the sitemap URL used
-      sitemapStatusCode: sitemapStatusCode, // Record sitemap HTTP status
-      timestamp: DateTime.now(),
-      totalLinks: cumulativeTotalLinks,
-      brokenLinks: allBrokenLinks.length,
-      internalLinks:
-          cumulativeInternalLinks, // Total internal links found (cumulative, including duplicates)
-      externalLinks:
-          cumulativeExternalLinks, // Total external links found (cumulative, including duplicates)
-      scanDuration: endTime.difference(startTime),
-      pagesScanned: endIndex, // Total pages scanned so far
-      totalPagesInSitemap: totalPagesInSitemap,
-      scanCompleted: scanCompleted,
-      newLastScannedPageIndex: newLastScannedPageIndex,
-    );
-
-    // Save to Firestore and get the document reference
-    final docRef = await _resultsCollection(
-      _currentUserId!,
-    ).add(result.toFirestore());
-
-    final resultId = docRef.id;
-
-    // Save broken links as subcollection under this result
-    await _saveBrokenLinks(resultId, allBrokenLinks);
-
-    // Cleanup old link check results (keep only latest 10 per site)
-    _cleanupOldResults(site.id).catchError((error) {
-      // Log error but don't throw - cleanup failure shouldn't block the scan result
-      _logger.e('Failed to cleanup old link check results', error: error);
-    });
-
-    // Return result with the Firestore document ID
-    return LinkCheckResult(
-      id: resultId,
-      siteId: result.siteId,
-      checkedUrl: result.checkedUrl,
-      checkedSitemapUrl: result.checkedSitemapUrl,
-      sitemapStatusCode: result.sitemapStatusCode,
-      timestamp: result.timestamp,
-      totalLinks: result.totalLinks,
-      brokenLinks: result.brokenLinks,
-      internalLinks: result.internalLinks,
-      externalLinks: result.externalLinks,
-      scanDuration: result.scanDuration,
-      pagesScanned: result.pagesScanned,
-      totalPagesInSitemap: result.totalPagesInSitemap,
-      scanCompleted: result.scanCompleted,
-      newLastScannedPageIndex: result.newLastScannedPageIndex,
+    return await _createAndSaveResult(
+      site,
+      sitemapStatusCode,
+      endIndex,
+      scanCompleted,
+      totalPagesInSitemap,
+      totalInternalLinksCount,
+      totalExternalLinksCount,
+      allBrokenLinks,
+      previousResult,
+      continueFromLastScan,
+      startTime,
     );
   }
 
@@ -1021,6 +957,92 @@ class LinkCheckerService {
       return [...previousBrokenLinks, ...newBrokenLinks];
     }
     return newBrokenLinks;
+  }
+
+  /// Create and save scan result to Firestore
+  Future<LinkCheckResult> _createAndSaveResult(
+    Site site,
+    int? sitemapStatusCode,
+    int endIndex,
+    bool scanCompleted,
+    int totalPagesInSitemap,
+    int totalInternalLinksCount,
+    int totalExternalLinksCount,
+    List<BrokenLink> allBrokenLinks,
+    LinkCheckResult? previousResult,
+    bool continueFromLastScan,
+    DateTime startTime,
+  ) async {
+    final endTime = DateTime.now();
+    final newLastScannedPageIndex = scanCompleted ? 0 : endIndex;
+
+    // Calculate cumulative statistics
+    final previousTotalLinks = previousResult?.totalLinks ?? 0;
+    final previousInternalLinks = previousResult?.internalLinks ?? 0;
+    final previousExternalLinks = previousResult?.externalLinks ?? 0;
+
+    final totalLinksCount = totalInternalLinksCount + totalExternalLinksCount;
+    final cumulativeTotalLinks = continueFromLastScan && previousResult != null
+        ? previousTotalLinks + totalLinksCount
+        : totalLinksCount;
+    final cumulativeInternalLinks =
+        continueFromLastScan && previousResult != null
+        ? previousInternalLinks + totalInternalLinksCount
+        : totalInternalLinksCount;
+    final cumulativeExternalLinks =
+        continueFromLastScan && previousResult != null
+        ? previousExternalLinks + totalExternalLinksCount
+        : totalExternalLinksCount;
+
+    final result = LinkCheckResult(
+      siteId: site.id,
+      checkedUrl: site.url,
+      checkedSitemapUrl: site.sitemapUrl,
+      sitemapStatusCode: sitemapStatusCode,
+      timestamp: DateTime.now(),
+      totalLinks: cumulativeTotalLinks,
+      brokenLinks: allBrokenLinks.length,
+      internalLinks: cumulativeInternalLinks,
+      externalLinks: cumulativeExternalLinks,
+      scanDuration: endTime.difference(startTime),
+      pagesScanned: endIndex,
+      totalPagesInSitemap: totalPagesInSitemap,
+      scanCompleted: scanCompleted,
+      newLastScannedPageIndex: newLastScannedPageIndex,
+    );
+
+    // Save to Firestore
+    final docRef = await _resultsCollection(
+      _currentUserId!,
+    ).add(result.toFirestore());
+    final resultId = docRef.id;
+
+    // Save broken links as subcollection
+    await _saveBrokenLinks(resultId, allBrokenLinks);
+
+    // Cleanup old results (async, non-blocking)
+    _cleanupOldResults(site.id).catchError((error) {
+      _logger.e('Failed to cleanup old link check results', error: error);
+    });
+
+    // Return result with Firestore document ID
+    return LinkCheckResult(
+      id: resultId,
+      siteId: result.siteId,
+      checkedUrl: result.checkedUrl,
+      checkedSitemapUrl: result.checkedSitemapUrl,
+      sitemapStatusCode: result.sitemapStatusCode,
+      timestamp: result.timestamp,
+      totalLinks: result.totalLinks,
+      brokenLinks: result.brokenLinks,
+      internalLinks: result.internalLinks,
+      externalLinks: result.externalLinks,
+      scanDuration: result.scanDuration,
+      pagesScanned: result.pagesScanned,
+      totalPagesInSitemap: result.totalPagesInSitemap,
+      scanCompleted: result.scanCompleted,
+      newLastScannedPageIndex: result.newLastScannedPageIndex,
+    );
   }
 
   /// **Example:**
