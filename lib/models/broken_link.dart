@@ -110,6 +110,8 @@ class LinkCheckResult {
   final String siteId;
   final String checkedUrl; // URL that was checked (to detect mismatches)
   final String? checkedSitemapUrl; // Sitemap URL that was used for this scan
+  final int?
+  sitemapStatusCode; // HTTP status code when fetching sitemap (null if no sitemap)
   final DateTime timestamp;
   final int totalLinks;
   final int brokenLinks;
@@ -126,6 +128,7 @@ class LinkCheckResult {
     required this.siteId,
     required this.checkedUrl,
     this.checkedSitemapUrl,
+    this.sitemapStatusCode,
     required this.timestamp,
     required this.totalLinks,
     required this.brokenLinks,
@@ -146,6 +149,7 @@ class LinkCheckResult {
       siteId: data['siteId'] ?? '',
       checkedUrl: data['checkedUrl'] ?? '', // URL that was checked
       checkedSitemapUrl: data['checkedSitemapUrl'], // Sitemap URL used
+      sitemapStatusCode: data['sitemapStatusCode'] as int?,
       timestamp: (data['timestamp'] as Timestamp).toDate(),
       totalLinks: data['totalLinks'] ?? 0,
       brokenLinks: data['brokenLinks'] ?? 0,
@@ -165,6 +169,7 @@ class LinkCheckResult {
       'siteId': siteId,
       'checkedUrl': checkedUrl,
       'checkedSitemapUrl': checkedSitemapUrl,
+      'sitemapStatusCode': sitemapStatusCode,
       'timestamp': Timestamp.fromDate(timestamp),
       'totalLinks': totalLinks,
       'brokenLinks': brokenLinks,

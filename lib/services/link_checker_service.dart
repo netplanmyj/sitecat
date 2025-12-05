@@ -68,12 +68,31 @@ class LinkCheckerService {
 
     // Step 1: Get internal pages from sitemap (these are our pages to scan)
     List<Uri> allInternalPages = [];
+    int? sitemapStatusCode; // Record sitemap HTTP status code
 
     if (site.sitemapUrl != null && site.sitemapUrl!.isNotEmpty) {
       try {
         // Build full sitemap URL (combine with base URL if relative path)
         final fullSitemapUrl = _buildFullUrl(baseUrl, site.sitemapUrl!);
-        allInternalPages = await _fetchSitemapUrls(fullSitemapUrl);
+
+        // Check sitemap accessibility first
+        try {
+          final convertedUrl = UrlHelper.convertLocalhostForPlatform(
+            fullSitemapUrl,
+          );
+          final headCheck = await _checkUrlHead(convertedUrl);
+          sitemapStatusCode = headCheck.statusCode;
+
+          if (sitemapStatusCode == 200) {
+            allInternalPages = await _fetchSitemapUrls(fullSitemapUrl);
+          } else {
+            // Sitemap not accessible, use top page only
+            allInternalPages = [originalBaseUrl];
+          }
+        } catch (e) {
+          // If HEAD check fails, try to fetch anyway
+          allInternalPages = await _fetchSitemapUrls(fullSitemapUrl);
+        }
 
         // Filter out excluded paths
         if (site.excludedPaths.isNotEmpty) {
@@ -319,6 +338,7 @@ class LinkCheckerService {
       siteId: site.id,
       checkedUrl: site.url, // Record the URL that was checked
       checkedSitemapUrl: site.sitemapUrl, // Record the sitemap URL used
+      sitemapStatusCode: sitemapStatusCode, // Record sitemap HTTP status
       timestamp: DateTime.now(),
       totalLinks: cumulativeTotalLinks,
       brokenLinks: allBrokenLinks.length,
@@ -355,6 +375,7 @@ class LinkCheckerService {
       siteId: result.siteId,
       checkedUrl: result.checkedUrl,
       checkedSitemapUrl: result.checkedSitemapUrl,
+      sitemapStatusCode: result.sitemapStatusCode,
       timestamp: result.timestamp,
       totalLinks: result.totalLinks,
       brokenLinks: result.brokenLinks,
