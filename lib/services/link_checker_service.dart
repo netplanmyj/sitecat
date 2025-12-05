@@ -659,7 +659,7 @@ class LinkCheckerService {
 
   /// Load sitemap URLs and check accessibility
   /// Returns the list of URLs to scan, total count, and HTTP status code
-  Future<({List<Uri> urls, int totalPages, int? statusCode})> _loadSitemapUrls(
+  Future<_SitemapLoadResult> _loadSitemapUrls(
     Site site,
     Uri baseUrl,
     Uri originalBaseUrl,
@@ -709,7 +709,7 @@ class LinkCheckerService {
       allInternalPages = [originalBaseUrl];
     }
 
-    return (
+    return _SitemapLoadResult(
       urls: allInternalPages,
       totalPages: allInternalPages.length,
       statusCode: sitemapStatusCode,
@@ -717,28 +717,29 @@ class LinkCheckerService {
   }
 
   /// Load previous scan data if continuing from last scan
-  Future<({LinkCheckResult? result, List<BrokenLink> brokenLinks})>
-  _loadPreviousScanData(
+  Future<_PreviousScanData> _loadPreviousScanData(
     String siteId,
     bool continueFromLastScan,
     int startIndex,
   ) async {
     if (!continueFromLastScan || startIndex == 0) {
-      return (result: null, brokenLinks: <BrokenLink>[]);
+      return const _PreviousScanData(result: null, brokenLinks: <BrokenLink>[]);
     }
 
     final previousResult = await getLatestCheckResult(siteId);
     if (previousResult == null) {
-      return (result: null, brokenLinks: <BrokenLink>[]);
+      return const _PreviousScanData(result: null, brokenLinks: <BrokenLink>[]);
     }
 
     final previousBrokenLinks = await getBrokenLinks(previousResult.id!);
-    return (result: previousResult, brokenLinks: previousBrokenLinks);
+    return _PreviousScanData(
+      result: previousResult,
+      brokenLinks: previousBrokenLinks,
+    );
   }
 
   /// Calculate the range of pages to scan in this batch
-  ({List<Uri> pagesToScan, int startIndex, int endIndex, bool scanCompleted})
-  _calculateScanRange(List<Uri> allPages, int startIndex) {
+  _ScanRange _calculateScanRange(List<Uri> allPages, int startIndex) {
     const maxPagesToScan = 100;
     final remainingPageLimit = _pageLimit - startIndex;
     final actualPagesToScan = maxPagesToScan.clamp(0, remainingPageLimit);
@@ -747,26 +748,15 @@ class LinkCheckerService {
     final pagesToScan = allPages.sublist(startIndex, endIndex);
     final scanCompleted = endIndex >= allPages.length || endIndex >= _pageLimit;
 
-    return (
+    return _ScanRange(
       pagesToScan: pagesToScan,
-      startIndex: startIndex,
       endIndex: endIndex,
       scanCompleted: scanCompleted,
     );
   }
 
   /// Scan pages and extract all links (internal and external)
-  Future<
-    ({
-      Set<Uri> internalLinks,
-      Set<Uri> externalLinks,
-      Map<String, List<String>> linkSourceMap,
-      int totalInternalLinksCount,
-      int totalExternalLinksCount,
-      int pagesScanned,
-    })
-  >
-  _scanPagesAndExtractLinks(
+  Future<_LinkExtractionResult> _scanPagesAndExtractLinks(
     List<Uri> pagesToScan,
     Uri originalBaseUrl,
     int startIndex,
@@ -828,7 +818,7 @@ class LinkCheckerService {
       }
     }
 
-    return (
+    return _LinkExtractionResult(
       internalLinks: internalLinks,
       externalLinks: externalLinks,
       linkSourceMap: linkSourceMap,
@@ -1089,4 +1079,61 @@ class LinkCheckerService {
       return true; // Include this URL
     }).toList();
   }
+}
+
+// ============================================================================
+// Private Data Classes for Link Checker Service
+// ============================================================================
+
+/// Result of sitemap loading operation
+class _SitemapLoadResult {
+  final List<Uri> urls;
+  final int totalPages;
+  final int? statusCode;
+
+  const _SitemapLoadResult({
+    required this.urls,
+    required this.totalPages,
+    required this.statusCode,
+  });
+}
+
+/// Result of previous scan data loading
+class _PreviousScanData {
+  final LinkCheckResult? result;
+  final List<BrokenLink> brokenLinks;
+
+  const _PreviousScanData({required this.result, required this.brokenLinks});
+}
+
+/// Calculated scan range for batch processing
+class _ScanRange {
+  final List<Uri> pagesToScan;
+  final int endIndex;
+  final bool scanCompleted;
+
+  const _ScanRange({
+    required this.pagesToScan,
+    required this.endIndex,
+    required this.scanCompleted,
+  });
+}
+
+/// Result of link extraction from pages
+class _LinkExtractionResult {
+  final Set<Uri> internalLinks;
+  final Set<Uri> externalLinks;
+  final Map<String, List<String>> linkSourceMap;
+  final int totalInternalLinksCount;
+  final int totalExternalLinksCount;
+  final int pagesScanned;
+
+  const _LinkExtractionResult({
+    required this.internalLinks,
+    required this.externalLinks,
+    required this.linkSourceMap,
+    required this.totalInternalLinksCount,
+    required this.totalExternalLinksCount,
+    required this.pagesScanned,
+  });
 }
