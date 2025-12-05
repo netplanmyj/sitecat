@@ -252,6 +252,7 @@ LinkCheckResult _createLinkCheckResult({
     id: 'test-${DateTime.now().millisecondsSinceEpoch}',
     siteId: 'test-site',
     checkedUrl: 'https://example.com',
+    sitemapStatusCode: 200,
     timestamp: DateTime.now(),
     totalLinks: totalLinks,
     brokenLinks: brokenLinks,

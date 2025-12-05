@@ -75,6 +75,55 @@ class _FullScanSectionState extends State<FullScanSection> {
                 ),
                 const SizedBox(height: 12),
 
+                // Site and Sitemap status info
+                if (currentSite.sitemapUrl != null &&
+                    currentSite.sitemapUrl!.isNotEmpty) ...[
+                  Container(
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade50,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: Colors.grey.shade700,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Scan Configuration',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.grey.shade700,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        _buildStatusRow(
+                          'Site URL',
+                          currentSite.url,
+                          null, // We don't check site URL status here
+                        ),
+                        const SizedBox(height: 6),
+                        _buildStatusRow(
+                          'Sitemap',
+                          currentSite.sitemapUrl!,
+                          latestResult?.sitemapStatusCode,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
                 // External links checkbox
                 CheckboxListTile(
                   value: _checkExternalLinks,
@@ -245,6 +294,95 @@ class _FullScanSectionState extends State<FullScanSection> {
           },
         ),
       ),
+    );
+  }
+
+  Widget _buildStatusRow(String label, String url, int? statusCode) {
+    // Determine status color and icon
+    Color statusColor;
+    IconData statusIcon;
+    String statusText;
+
+    if (statusCode == null) {
+      statusColor = Colors.grey.shade600;
+      statusIcon = Icons.help_outline;
+      statusText = 'Not checked';
+    } else if (statusCode == 0) {
+      statusColor = Colors.red.shade700;
+      statusIcon = Icons.cloud_off;
+      statusText = 'Network Error';
+    } else if (statusCode == 200) {
+      statusColor = Colors.green.shade700;
+      statusIcon = Icons.check_circle;
+      statusText = 'OK ($statusCode)';
+    } else if (statusCode == 404) {
+      statusColor = Colors.red.shade700;
+      statusIcon = Icons.cancel;
+      statusText = 'Not Found (404)';
+    } else if (statusCode >= 400 && statusCode < 500) {
+      statusColor = Colors.orange.shade700;
+      statusIcon = Icons.error_outline;
+      statusText = 'Error ($statusCode)';
+    } else if (statusCode >= 500) {
+      statusColor = Colors.red.shade700;
+      statusIcon = Icons.error;
+      statusText = 'Server Error ($statusCode)';
+    } else {
+      statusColor = Colors.grey.shade600;
+      statusIcon = Icons.info_outline;
+      statusText = 'Status: $statusCode';
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(
+          width: 70,
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.grey.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                url,
+                style: TextStyle(
+                  fontSize: 11,
+                  color: Colors.grey.shade800,
+                  fontFamily: 'monospace',
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              if (statusCode != null) ...[
+                const SizedBox(height: 2),
+                Row(
+                  children: [
+                    Icon(statusIcon, size: 12, color: statusColor),
+                    const SizedBox(width: 4),
+                    Text(
+                      statusText,
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: statusColor,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ],
     );
   }
 }
