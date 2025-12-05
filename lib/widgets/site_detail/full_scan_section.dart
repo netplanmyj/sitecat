@@ -154,17 +154,27 @@ class _FullScanSectionState extends State<FullScanSection> {
                 // Full scan button and Continue scan button
                 Row(
                   children: [
-                    // Full scan button
+                    // Full scan / Stop button
                     Expanded(
                       child: ElevatedButton.icon(
-                        onPressed: (isCheckingLinks || !canCheckLinks)
-                            ? null
-                            : () => widget.onFullScan(_checkExternalLinks),
-                        icon: const Icon(Icons.search, size: 20),
-                        label: const Text('Start Scan'),
+                        onPressed: isCheckingLinks
+                            ? () =>
+                                  linkCheckerProvider.cancelScan(widget.site.id)
+                            : (canCheckLinks
+                                  ? () => widget.onFullScan(_checkExternalLinks)
+                                  : null),
+                        icon: Icon(
+                          isCheckingLinks ? Icons.stop : Icons.search,
+                          size: 20,
+                        ),
+                        label: Text(
+                          isCheckingLinks ? 'Stop Scan' : 'Start Scan',
+                        ),
                         style: ElevatedButton.styleFrom(
                           padding: const EdgeInsets.symmetric(vertical: 12),
-                          backgroundColor: Colors.green,
+                          backgroundColor: isCheckingLinks
+                              ? Colors.red
+                              : Colors.green,
                           foregroundColor: Colors.white,
                         ),
                       ),
