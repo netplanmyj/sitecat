@@ -1,12 +1,35 @@
-# リファクタリングメトリクス - Issue #212
+# リファクタリングメトリクス
 
-## 測定日時
-2025年12月5日
+> **概要**: プロジェクト内の大規模ファイルのリファクタリング詳細記録  
+> **目的**: リファクタリング前後のメトリクス測定、計画管理、進捗追跡  
+> **更新方針**: ファイルごとにセクションを追加、完了後も記録を保持  
+> **参照**: 全体戦略は [DEVELOPMENT_GUIDE.md](./DEVELOPMENT_GUIDE.md) 参照
 
-## 対象ファイル
-`lib/services/link_checker_service.dart`
+---
 
-## 現在の状態（リファクタリング前）
+## リファクタリング対象ファイル一覧
+
+**優先度順（2025年12月6日時点）**:
+
+| 優先度 | ファイル | 行数 | ステータス | Issue |
+|--------|---------|------|-----------|-------|
+| 🔴 | lib/services/link_checker_service.dart | 1142 | Phase 3完了 | #212 |
+| 🟡 | lib/screens/site_form_screen.dart | 780 | 未着手 | #220予定 |
+| 🟢 | lib/screens/profile_screen.dart | 426 | 未着手 | - |
+| 🟢 | lib/providers/link_checker_provider.dart | 414 | 未着手 | - |
+| 🟢 | lib/widgets/site_detail/full_scan_section.dart | 405 | 未着手 | - |
+
+---
+
+## 1. lib/services/link_checker_service.dart
+
+### 基本情報
+- **Issue**: #212
+- **PR**: #219（Phase 1-3完了、マージ済み）
+- **測定日**: 2025年12月5日
+- **担当者**: GitHub Copilot + 開発者
+
+### リファクタリング前の状態
 
 ### ファイル規模
 - **総行数**: 965行
@@ -171,6 +194,171 @@ lib/services/
 ### テスト容易性
 - 単体テスト可能なメソッド数: 1個 → 9個
 - テストカバレッジ向上の見込み
+
+## 参考資料
+- [Clean Code by Robert C. Martin](https://www.amazon.com/Clean-Code-Handbook-Software-Craftsmanship/dp/0132350882)
+- [Refactoring by Martin Fowler](https://refactoring.com/)
+- [Dart Style Guide](https://dart.dev/guides/language/effective-dart/style)
+
+---
+
+## 2. lib/screens/site_form_screen.dart
+
+### 基本情報
+- **Issue**: #220（予定）
+- **PR**: 未作成
+- **測定日**: 2025年12月6日
+- **優先度**: 🟡 警告レベル
+
+### リファクタリング前の状態
+
+#### ファイル規模
+- **総行数**: 780行
+- **ランキング**: 第2位（プロジェクト内）
+
+#### 主要なメソッド
+- `build()`: 約530行（UI構築）
+  - AppBarセクション（20行）
+  - Formセクション（400行）
+    - サイト名入力（50行）
+    - URL入力（80行）
+    - Sitemap URL入力（80行）
+    - 除外パス設定（190行）
+  - 保存ボタン（30行）
+- `_saveSite()`: 約70行（保存処理）
+- `_showUrlChangeWarningDialog()`: 約60行（警告ダイアログ）
+
+#### 問題点
+1. **巨大なbuildメソッド**: 530行でスクロール必須
+2. **UI責務の混在**: 入力、検証、警告、リスト管理が1ファイルに
+3. **ウィジェットの再利用不可**: 他のフォームで使えない
+4. **保守性の低下**: 変更時の影響範囲が不明確
+
+### リファクタリング計画
+
+#### Phase 1: FormSectionウィジェットの抽出
+**目標**: buildメソッドを100行以下に削減
+
+**抽出予定ウィジェット**:
+```
+lib/widgets/site_form/
+  site_name_field.dart (60行)
+    - サイト名入力フィールド
+    - バリデーション
+  
+  site_url_field.dart (100行)
+    - URL入力フィールド
+    - バリデーション
+    - プレビュー機能
+  
+  sitemap_url_field.dart (100行)
+    - Sitemap URL入力
+    - バリデーション
+    - ヘルプテキスト
+  
+  excluded_paths_section.dart (250行)
+    - 除外パス管理UI
+    - リスト表示
+    - 追加・削除機能
+  
+  form_actions.dart (80行)
+    - 保存ボタン
+    - キャンセルボタン
+    - ローディング表示
+```
+
+**期待効果**:
+- site_form_screen.dart: 780行 → 200行（74%削減）
+- 再利用可能なウィジェット: 5個作成
+- buildメソッド: 530行 → 80行（85%削減）
+
+#### Phase 2: バリデーションロジックの共通化
+**目標**: フォーム検証を再利用可能に
+
+**作成予定クラス**:
+```dart
+lib/utils/validators/
+  site_validator.dart (100行)
+    - validateSiteName()
+    - validateUrl()
+    - validateSitemapUrl()
+    - validateExcludedPath()
+```
+
+**期待効果**:
+- 他のフォームでも使用可能
+- テストが容易
+- 検証ロジックの一貫性向上
+
+#### Phase 3: ダイアログウィジェットの分離
+**目標**: 警告ダイアログを再利用可能に
+
+**作成予定ウィジェット**:
+```dart
+lib/widgets/dialogs/
+  url_change_warning_dialog.dart (80行)
+    - URL変更警告ダイアログ
+    - 警告項目リスト
+    - 確認ボタン
+```
+
+### 実施予定
+- **開始**: Phase 1-3完了後
+- **期間**: 2-3日
+- **ブランチ**: refactor/issue-220-site-form-screen
+
+---
+
+## 3. 今後の対象ファイル（経過観察）
+
+### lib/screens/profile_screen.dart (426行)
+- Premium機能UI
+- アカウント情報表示
+- サブスクリプション管理
+
+**対応方針**: Premium UIをウィジェット分離
+
+### lib/providers/link_checker_provider.dart (414行)
+- リンクチェック状態管理
+- プログレス管理
+
+**対応方針**: 状態クラスの導入、メソッド抽出
+
+### lib/widgets/site_detail/full_scan_section.dart (405行)
+- Full Scan UI
+- 進捗表示
+- 結果表示
+
+**対応方針**: サブウィジェットへの分割
+
+---
+
+## リファクタリング実施ガイドライン
+
+### 開始前のチェックリスト
+- [ ] Issue作成（リファクタリング計画記載）
+- [ ] ブランチ作成（`refactor/issue-[番号]-[対象ファイル]`）
+- [ ] メトリクス測定（行数、Cyclomatic Complexity、ネスト深さ）
+- [ ] 既存テストの確認
+
+### 各Phase完了時のチェックリスト
+- [ ] テスト実行（全テスト通過）
+- [ ] コンパイルエラー確認
+- [ ] メトリクス再測定
+- [ ] コミット（`refactor: [Phase名] - [達成内容]`）
+
+### PR作成時のチェックリスト
+- [ ] Before/Afterメトリクスをコミット
+- [ ] 本ドキュメント更新（完了記録）
+- [ ] PRテンプレート記入
+- [ ] レビュー依頼
+
+### 完了後の記録
+- [ ] 最終メトリクスを本ドキュメントに記録
+- [ ] 学んだ教訓を記載
+- [ ] 次の対象ファイルの優先度更新
+
+---
 
 ## 参考資料
 - [Clean Code by Robert C. Martin](https://www.amazon.com/Clean-Code-Handbook-Software-Craftsmanship/dp/0132350882)
