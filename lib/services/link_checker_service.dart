@@ -10,6 +10,7 @@ import 'link_checker/models.dart';
 import 'link_checker/http_client.dart';
 import 'link_checker/sitemap_parser.dart';
 import 'link_checker/result_repository.dart';
+import 'link_checker/link_validator.dart';
 
 /// Service for checking broken links on websites
 class LinkCheckerService {
@@ -161,18 +162,23 @@ class LinkCheckerService {
     // ========================================================================
     // STEP 3 & 4: Check internal and external links for broken pages
     // ========================================================================
-    final brokenLinks = await _checkAllLinks(
-      site,
-      internalLinks,
-      externalLinks,
-      linkSourceMap,
-      checkExternalLinks,
-      startIndex,
-      pagesScanned,
-      totalPagesInSitemap,
-      onProgress,
-      onExternalLinksProgress,
-      shouldCancel,
+    final validator = LinkValidator(
+      httpClient: _httpHelper,
+      userId: _currentUserId!,
+      siteUrl: site.url,
+    );
+    final brokenLinks = await validator.checkAllLinks(
+      siteId: site.id,
+      internalLinks: internalLinks,
+      externalLinks: externalLinks,
+      linkSourceMap: linkSourceMap,
+      checkExternalLinks: checkExternalLinks,
+      startIndex: startIndex,
+      pagesScanned: pagesScanned,
+      totalPagesInSitemap: totalPagesInSitemap,
+      onProgress: onProgress,
+      onExternalLinksProgress: onExternalLinksProgress,
+      shouldCancel: shouldCancel,
     );
 
     // ========================================================================
@@ -472,115 +478,6 @@ class LinkCheckerService {
       totalExternalLinksCount: totalExternalLinksCount,
       pagesScanned: pagesScanned,
     );
-  }
-
-  /// Check all links (internal and external) for broken pages
-  Future<List<BrokenLink>> _checkAllLinks(
-    Site site,
-    Set<Uri> internalLinks,
-    Set<Uri> externalLinks,
-    Map<String, List<String>> linkSourceMap,
-    bool checkExternalLinks,
-    int startIndex,
-    int pagesScanned,
-    int totalPagesInSitemap,
-    void Function(int checked, int total)? onProgress,
-    void Function(int checked, int total)? onExternalLinksProgress,
-    bool Function()? shouldCancel,
-  ) async {
-    final brokenLinks = <BrokenLink>[];
-    final internalLinksList = internalLinks.toList();
-    final totalInternalLinks = internalLinksList.length;
-
-    final externalLinksCount = checkExternalLinks ? externalLinks.length : 0;
-    final totalAllLinks = totalInternalLinks + externalLinksCount;
-    int checkedInternal = 0;
-
-    // Report initial state
-    if (totalAllLinks > 0) {
-      onExternalLinksProgress?.call(0, totalAllLinks);
-    }
-
-    // Check internal links
-    for (final link in internalLinksList) {
-      if (shouldCancel?.call() ?? false) {
-        break;
-      }
-
-      final linkUrl = link.toString();
-
-      if (checkedInternal > 0) {
-        await Future.delayed(const Duration(milliseconds: 100));
-      }
-
-      final isBroken = await _httpHelper.checkLink(link);
-
-      if (isBroken != null) {
-        brokenLinks.add(
-          BrokenLink(
-            id: '',
-            siteId: site.id,
-            userId: _currentUserId!,
-            timestamp: DateTime.now(),
-            url: linkUrl,
-            foundOn: linkSourceMap[linkUrl]?.first ?? site.url,
-            statusCode: isBroken.statusCode,
-            error: isBroken.error,
-            linkType: LinkType.internal,
-          ),
-        );
-      }
-
-      checkedInternal++;
-      if (totalAllLinks > 0) {
-        onExternalLinksProgress?.call(checkedInternal, totalAllLinks);
-      }
-    }
-
-    // Check external links (if requested)
-    if (checkExternalLinks) {
-      final cumulativePagesScanned = startIndex + pagesScanned;
-      onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
-
-      final externalLinksList = externalLinks.toList();
-      int checkedExternal = 0;
-
-      for (final link in externalLinksList) {
-        if (shouldCancel?.call() ?? false) {
-          break;
-        }
-
-        final linkUrl = link.toString();
-
-        if (checkedExternal > 0) {
-          await Future.delayed(const Duration(milliseconds: 100));
-        }
-
-        final isBroken = await _httpHelper.checkLink(link);
-
-        if (isBroken != null) {
-          brokenLinks.add(
-            BrokenLink(
-              id: '',
-              siteId: site.id,
-              userId: _currentUserId!,
-              timestamp: DateTime.now(),
-              url: linkUrl,
-              foundOn: linkSourceMap[linkUrl]?.first ?? site.url,
-              statusCode: isBroken.statusCode,
-              error: isBroken.error,
-              linkType: LinkType.external,
-            ),
-          );
-        }
-
-        checkedExternal++;
-        final totalChecked = checkedInternal + checkedExternal;
-        onExternalLinksProgress?.call(totalChecked, totalAllLinks);
-      }
-    }
-
-    return brokenLinks;
   }
 
   /// Merge broken links with previous scan results

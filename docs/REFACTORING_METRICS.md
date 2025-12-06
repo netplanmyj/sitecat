@@ -249,8 +249,85 @@ lib/services/
 - コンパイルエラー: なし
 
 **次のフェーズ候補**:
-- Phase 6: エラーハンドリング・リトライロジックの共通化（検討中）
-- Phase 7: ログ出力の整理・構造化（検討中）
+- Phase 6: リンク検証ロジックの共通化（実施中）
+
+---
+
+### Phase 6: リンク検証ロジックの抽出 🔄
+
+**実施日**: 2025-12-06  
+**削減**: 622行（Phase 5-3: 722行 → Phase 6: 622行、100行削減）
+
+**作業内容**:
+
+1. **LinkValidatorクラス作成**（145行、新規）
+   - パス: `lib/services/link_checker/link_validator.dart`
+   - 責務: リンクチェックロジックの専門化
+   - メソッド数: 3個
+     * `checkAllLinks`: 内部・外部リンクの一括チェック
+     * `_checkLinks`: リンクリストのチェック（共通化）
+     * `_createBrokenLink`: BrokenLinkオブジェクト生成（重複削減）
+
+2. **_checkAllLinksメソッド削除**（121行削減）
+   - 内部リンクチェックロジック: 60行削除
+   - 外部リンクチェックロジック: 61行削除
+   - 重複コードの共通化により実質100行削減
+
+3. **メインロジック更新**
+   - `checkSiteLinks`メソッド内でLinkValidatorを使用
+     ```dart
+     // Before
+     final brokenLinks = await _checkAllLinks(
+       site, internalLinks, externalLinks, ...
+     );
+     
+     // After
+     final validator = LinkValidator(
+       httpClient: _httpHelper,
+       userId: _currentUserId!,
+       siteUrl: site.url,
+     );
+     final brokenLinks = await validator.checkAllLinks(
+       siteId: site.id,
+       internalLinks: internalLinks,
+       externalLinks: externalLinks,
+       ...
+     );
+     ```
+
+**Phase 6削減量**:
+- Phase 5-3完了時: 722行
+- Phase 6完了時: **622行**（100行削減、約14%削減）
+
+**Phase 5-6合計削減量**:
+- 開始: 1142行
+- 完了: 622行
+- **合計削減: 520行（46%削減）** ✅
+
+**分割後のファイル構成**:
+```
+lib/services/
+  link_checker_service.dart (622行) - メインロジック・公開API
+  link_checker/
+    models.dart (54行) - データクラス4個
+    http_client.dart (117行) - HTTP/HTML処理
+    sitemap_parser.dart (165行) - Sitemap XML解析
+    result_repository.dart (180行) - Firestore CRUD操作
+    link_validator.dart (145行) - リンク検証ロジック
+```
+
+**改善効果**:
+- リンクチェックロジックの専門化
+- 内部/外部リンクチェックの重複コード削減
+- BrokenLinkオブジェクト生成の一元化
+- テスタビリティ向上（LinkValidatorを独立してテスト可能）
+
+**テスト結果**:
+- 全193テスト通過 ✅
+- コンパイルエラー: なし
+
+**次のフェーズ候補**:
+- Phase 7: さらなる最適化（検討中）
 
 ---
 
