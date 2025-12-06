@@ -84,8 +84,8 @@ void main() {
       expect(shouldProcessExternal(true, 50, 0), isFalse); // Empty total
     });
 
-    test('minimum check interval logic - 1 minute for debugging', () {
-      expect(LinkCheckerProvider.minimumCheckInterval.inMinutes, equals(1));
+    test('cooldown default duration is 30 seconds', () {
+      expect(LinkCheckerProvider.defaultCooldown.inSeconds, equals(30));
     });
 
     test('external links progress tracking - handles empty state', () {
