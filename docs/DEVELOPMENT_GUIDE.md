@@ -81,6 +81,131 @@ git commit -m "Replace old feature with new implementation
 - **Widget Tests**: UI コンポーネントのテスト
 - **Integration Tests**: エンドツーエンドテスト
 
+### 4. リファクタリング戦略
+
+**目的**: コードベースをコンパクトに保ち、保守性・拡張性を維持する
+
+#### 基本方針
+
+**1. 日常的なリファクタリング（常時実施）**
+- 新機能追加時は必ず既存コードの重複をチェック
+- 200行を超えるファイルは分割を検討
+- 50行を超えるメソッドは分割を検討
+- 3レベルを超えるネストは改善を検討
+
+**2. 定期的な大規模リファクタリング（月次）**
+- 最大ファイルTOP5を特定
+- リファクタリング計画を立案
+- 段階的に実施（Phase分け）
+
+**3. ファイル分割の基準**
+
+| ファイルサイズ | 優先度 | 対応 |
+|---------------|--------|------|
+| 1000行以上 | 🔴 緊急 | 即座にファイル分割 |
+| 500-999行 | 🟡 警告 | 次のバージョンで対応 |
+| 200-499行 | 🟢 正常 | 必要に応じてメソッド抽出 |
+| 200行未満 | ✅ 理想 | 維持 |
+
+#### リファクタリングの3ステップ
+
+**Step 1: メソッド抽出**
+- 巨大メソッドを小さなメソッドに分割
+- 単一責任原則を適用
+- テストを追加して動作保証
+
+**Step 2: クラス・ウィジェット分割**
+- 責務ごとに独立したクラス/ウィジェットを作成
+- `lib/services/[feature]/` や `lib/widgets/[feature]/` に配置
+- ファイル間で再利用可能にする
+
+**Step 3: 重複コードの共通化**
+- 類似処理を抽出してユーティリティ化
+- `lib/utils/` や `lib/core/` に配置
+- プロジェクト全体で共有
+
+#### 現在の優先リファクタリング対象
+
+**🔴 緊急対応（1000行以上）**
+
+（現在該当なし）
+
+**🟡 警告レベル（500-999行）**
+
+1. **lib/services/link_checker_service.dart** (722行)
+   - Phase 5完了（ファイル分割・主要ロジック整理済み）
+   - 4ファイルに分割: models.dart, http_client.dart, sitemap_parser.dart, result_repository.dart
+   - 旧: 1142行 → 新: 722行（420行削減、37%削減）
+   - 詳細: [REFACTORING_METRICS.md](./REFACTORING_METRICS.md)
+
+2. **lib/screens/site_form_screen.dart** (780行)
+   - サイト登録・編集フォーム
+   - 対応: ウィジェット分割（FormSection単位）
+   - 予想: 5-7ウィジェットに分割可能
+
+**🟢 経過観察（400-499行）**
+3. **lib/providers/link_checker_provider.dart** (414行)
+4. **lib/screens/profile_screen.dart** (426行)
+5. **lib/widgets/site_detail/full_scan_section.dart** (405行)
+
+#### リファクタリング実施の流れ
+
+```bash
+# 1. リファクタリングブランチ作成
+git checkout -b refactor/[対象ファイル名]-[issue番号]
+
+# 2. Phase 1: メソッド抽出
+# - セクションコメント追加
+# - 補助メソッド作成
+# - テスト実行
+
+# 3. Phase 2: データクラス導入（必要に応じて）
+# - レコード型 → クラス化
+# - 型安全性向上
+
+# 4. Phase 3: ファイル分割
+# - 責務ごとに別ファイル作成
+# - import文更新
+# - テスト実行
+
+# 5. Phase 4: 重複コード共通化
+# - 類似処理を検索
+# - ユーティリティ関数作成
+# - プロジェクト全体で適用
+
+# 6. PR作成・レビュー・マージ
+git push -u origin refactor/[対象ファイル名]-[issue番号]
+```
+
+#### リファクタリングのメトリクス測定
+
+**各Phase完了時に記録**:
+- ファイル行数（Before → After）
+- Cyclomatic Complexity（制御構造の数）
+- ネスト深さ（最大レベル数）
+- テスト通過率
+
+**記録場所**: `docs/REFACTORING_METRICS.md`（ファイルごとに詳細記録）
+
+#### ベストプラクティス
+
+**✅ DO（推奨）**
+- リファクタリング前に必ずテストを追加
+- 段階的に実施（1つのPRで1つのPhase）
+- コミットメッセージに`refactor:`プレフィックス
+- Before/Afterメトリクスを記録
+
+**❌ DON'T（非推奨）**
+- 機能追加とリファクタリングを同時に実施
+- テストなしでリファクタリング
+- 一度に大量のファイルを変更
+- メトリクス測定をスキップ
+
+#### 参考資料
+- [Clean Code by Robert C. Martin](https://www.amazon.com/Clean-Code-Handbook-Software-Craftsmanship/dp/0132350882)
+- [Refactoring by Martin Fowler](https://refactoring.com/)
+- [Dart Style Guide](https://dart.dev/guides/language/effective-dart/style)
+
 ## 依存関係
 
 プロジェクトで使用しているパッケージの詳細は `pubspec.yaml` を参照してください。

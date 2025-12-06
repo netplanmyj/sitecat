@@ -1,14 +1,15 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
-import 'package:html/parser.dart' as html_parser;
 import 'package:logger/logger.dart';
-import 'package:xml/xml.dart' as xml;
 import '../models/broken_link.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
 import '../utils/url_helper.dart';
-import '../utils/url_encoding_utils.dart';
+import 'link_checker/models.dart';
+import 'link_checker/http_client.dart';
+import 'link_checker/sitemap_parser.dart';
+import 'link_checker/result_repository.dart';
 
 /// Service for checking broken links on websites
 class LinkCheckerService {
@@ -16,6 +17,32 @@ class LinkCheckerService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final http.Client _httpClient = http.Client();
   final Logger _logger = Logger();
+
+  // Helper classes
+  late final LinkCheckerHttpClient _httpHelper;
+  late final SitemapParser _sitemapParser;
+  LinkCheckResultRepository? _repository;
+  String? _repositoryUserId;
+
+  LinkCheckerService() {
+    _httpHelper = LinkCheckerHttpClient(_httpClient);
+    _sitemapParser = SitemapParser(_httpClient);
+  }
+
+  // Get repository instance (lazy initialization)
+  LinkCheckResultRepository get _repo {
+    final userId = _currentUserId!;
+    if (_repository == null || _repositoryUserId != userId) {
+      _repositoryUserId = userId;
+      _repository = LinkCheckResultRepository(
+        firestore: _firestore,
+        logger: _logger,
+        userId: userId,
+        historyLimit: _historyLimit,
+      );
+    }
+    return _repository!;
+  }
 
   // History limit for cleanup (can be set based on premium status)
   int _historyLimit = AppConstants.freePlanHistoryLimit;
@@ -39,14 +66,6 @@ class LinkCheckerService {
         ? AppConstants.premiumPlanPageLimit
         : AppConstants.freePlanPageLimit;
   }
-
-  // Collection references (hierarchical structure)
-  CollectionReference _resultsCollection(String userId) =>
-      _firestore.collection('users').doc(userId).collection('linkCheckResults');
-
-  // Broken links as subcollection under linkCheckResults
-  CollectionReference _brokenLinksCollection(String userId, String resultId) =>
-      _resultsCollection(userId).doc(resultId).collection('brokenLinks');
 
   /// Check all links on a site
   ///
@@ -183,263 +202,6 @@ class LinkCheckerService {
     );
   }
 
-  /// Check URL with HEAD request before fetching content
-  Future<({int statusCode, String? contentType})> _checkUrlHead(
-    String url,
-  ) async {
-    try {
-      final response = await _httpClient
-          .head(Uri.parse(url))
-          .timeout(const Duration(seconds: 5));
-
-      final contentType = response.headers['content-type']?.toLowerCase();
-      return (statusCode: response.statusCode, contentType: contentType);
-    } catch (e) {
-      return (statusCode: 0, contentType: null);
-    }
-  }
-
-  /// Fetch HTML content from a URL (with HEAD pre-check)
-  Future<String?> _fetchHtmlContent(String url) async {
-    try {
-      // Convert localhost for Android emulator
-      final convertedUrl = UrlHelper.convertLocalhostForPlatform(url);
-
-      // Step 1: HEAD request to check status and content type
-      final headCheck = await _checkUrlHead(convertedUrl);
-
-      // Skip if not OK status
-      if (headCheck.statusCode != 200) {
-        return null;
-      }
-
-      // Skip if not HTML content
-      final contentType = headCheck.contentType;
-      if (contentType != null && !contentType.contains('text/html')) {
-        return null;
-      }
-
-      // Step 2: GET request to fetch content
-      final response = await _httpClient
-          .get(Uri.parse(convertedUrl))
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        return response.body;
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /// Fetch URLs from sitemap.xml (supports up to 2 levels of sitemap index)
-  Future<List<Uri>> _fetchSitemapUrls(String sitemapUrl) async {
-    try {
-      // Convert localhost for Android emulator
-      final convertedUrl = UrlHelper.convertLocalhostForPlatform(sitemapUrl);
-
-      // Step 1: HEAD request to check status and content type
-      final headCheck = await _checkUrlHead(convertedUrl);
-
-      if (headCheck.statusCode != 200) {
-        throw Exception('Sitemap not accessible: ${headCheck.statusCode}');
-      }
-
-      // Verify it's XML content
-      final contentType = headCheck.contentType;
-      if (contentType != null &&
-          !contentType.contains('xml') &&
-          !contentType.contains('text/plain')) {
-        throw Exception('Invalid sitemap content type: $contentType');
-      }
-
-      // Step 2: GET request to fetch sitemap content
-      final response = await _httpClient
-          .get(Uri.parse(convertedUrl))
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to fetch sitemap: ${response.statusCode}');
-      }
-
-      // Parse XML
-      final document = xml.XmlDocument.parse(response.body);
-
-      // Check if this is a sitemap index (contains <sitemap> elements)
-      final sitemapElements = document.findAllElements('sitemap');
-
-      if (sitemapElements.isNotEmpty) {
-        // This is a sitemap index - fetch URLs from child sitemaps
-        final allUrls = <Uri>[];
-
-        for (final sitemapElement in sitemapElements) {
-          final locElement = sitemapElement.findElements('loc').firstOrNull;
-          if (locElement != null) {
-            final childSitemapUrl = locElement.innerText.trim();
-            if (childSitemapUrl.isNotEmpty) {
-              try {
-                // Fetch URLs from child sitemap (without HEAD check)
-                final childUrls = await _parseSitemapXml(childSitemapUrl);
-                allUrls.addAll(childUrls);
-
-                // Limit total URLs to avoid excessive processing
-                if (allUrls.length >= 200) {
-                  break;
-                }
-              } catch (e) {
-                // Skip this child sitemap if it fails
-                continue;
-              }
-            }
-          }
-        }
-
-        return allUrls;
-      } else {
-        // This is a regular sitemap - extract URLs directly from current document
-        return _extractUrlsFromSitemapDocument(document);
-      }
-    } catch (e) {
-      throw Exception('Error parsing sitemap: $e');
-    }
-  }
-
-  /// Parse a sitemap XML directly from a URL (used for child sitemaps)
-  Future<List<Uri>> _parseSitemapXml(String sitemapUrl) async {
-    try {
-      // Convert localhost for Android emulator
-      final convertedUrl = UrlHelper.convertLocalhostForPlatform(sitemapUrl);
-
-      // Add longer delay to avoid overwhelming the server
-      await Future.delayed(const Duration(milliseconds: 2000));
-
-      // Use shared client instead of creating new one
-      final response = await _httpClient
-          .get(Uri.parse(convertedUrl))
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to fetch sitemap: ${response.statusCode}');
-      }
-
-      final document = xml.XmlDocument.parse(response.body);
-      return _extractUrlsFromSitemapDocument(document);
-    } catch (e) {
-      throw Exception('Error parsing sitemap: $e');
-    }
-  }
-
-  /// Extract URLs from a parsed sitemap XML document
-  List<Uri> _extractUrlsFromSitemapDocument(xml.XmlDocument document) {
-    final urlElements = document.findAllElements('url');
-    final normalizedUrls =
-        <String, Uri>{}; // Use Map to deduplicate by normalized key
-
-    for (final urlElement in urlElements) {
-      final locElement = urlElement.findElements('loc').firstOrNull;
-      if (locElement != null) {
-        final urlString = locElement.innerText.trim();
-        if (urlString.isNotEmpty) {
-          try {
-            final uri = Uri.parse(urlString);
-            if (uri.scheme == 'http' || uri.scheme == 'https') {
-              // Normalize URL: remove fragment, lowercase scheme/host, and remove trailing slash
-              final normalizedUri = _normalizeSitemapUrl(uri);
-              final normalizedKey = normalizedUri.toString();
-
-              // Store only unique URLs (Map handles deduplication automatically)
-              normalizedUrls[normalizedKey] = normalizedUri;
-            }
-          } catch (e) {
-            // Skip invalid URLs
-          }
-        }
-      }
-    }
-
-    return normalizedUrls.values.toList();
-  }
-
-  /// Normalize sitemap URL by removing fragment, normalizing scheme/host to lowercase, and removing trailing slash
-  Uri _normalizeSitemapUrl(Uri uri) {
-    // Remove fragment (#section)
-    final uriWithoutFragment = uri.removeFragment();
-
-    // Normalize scheme and host to lowercase (case-insensitive per RFC 3986)
-    final normalizedScheme = uriWithoutFragment.scheme.toLowerCase();
-    final normalizedHost = uriWithoutFragment.host.toLowerCase();
-
-    // Remove trailing slash from path (but keep "/" for root)
-    String path = uriWithoutFragment.path;
-    if (path.length > 1 && path.endsWith('/')) {
-      path = path.substring(0, path.length - 1);
-    }
-
-    // Reconstruct URI with normalized components
-    return uriWithoutFragment.replace(
-      scheme: normalizedScheme,
-      host: normalizedHost,
-      path: path,
-    );
-  }
-
-  /// Extract links from HTML content
-  List<Uri> _extractLinks(String htmlContent, Uri baseUrl) {
-    final document = html_parser.parse(htmlContent);
-    final linkElements = document.querySelectorAll('a[href]');
-
-    final links = <Uri>[];
-    for (final element in linkElements) {
-      final href = element.attributes['href'];
-      if (href == null || href.isEmpty) continue;
-
-      // Skip anchor links and javascript links
-      if (href.startsWith('#') || href.startsWith('javascript:')) continue;
-
-      try {
-        // Resolve relative URLs
-        final uri = baseUrl.resolve(href);
-        if (uri.scheme == 'http' || uri.scheme == 'https') {
-          // Fix mojibake in URL before adding to list
-          final fixedUrl = UrlEncodingUtils.fixMojibakeUrl(uri.toString());
-          links.add(Uri.parse(fixedUrl));
-        }
-      } catch (e) {
-        // Invalid URL, skip
-      }
-    }
-
-    // Remove duplicates
-    return links.toSet().toList();
-  }
-
-  /// Check if a link is broken
-  Future<({int statusCode, String? error})?> _checkLink(Uri url) async {
-    try {
-      // Convert localhost for Android emulator
-      final convertedUrl = UrlHelper.convertLocalhostForPlatform(
-        url.toString(),
-      );
-
-      // Use HEAD request for efficiency
-      final response = await _httpClient
-          .head(Uri.parse(convertedUrl))
-          .timeout(const Duration(seconds: 5));
-
-      // Consider 404 and 5xx as broken
-      if (response.statusCode == 404 || response.statusCode >= 500) {
-        return (statusCode: response.statusCode, error: null);
-      }
-
-      return null; // Link is OK
-    } on http.ClientException catch (e) {
-      return (statusCode: 0, error: 'Network error: ${e.message}');
-    } catch (e) {
-      return (statusCode: 0, error: 'Error: $e');
-    }
-  }
-
   /// Check if two URLs are from the same domain
   bool _isSameDomain(Uri url1, Uri url2) {
     // Android emulator special case: treat localhost and 10.0.2.2 as the same domain
@@ -471,66 +233,16 @@ class LinkCheckerService {
     return '$baseStr$pathStr';
   }
 
-  /// Save broken links to Firestore (under a specific result)
-  Future<void> _saveBrokenLinks(
-    String resultId,
-    List<BrokenLink> brokenLinks,
-  ) async {
-    if (brokenLinks.isEmpty || _currentUserId == null) return;
-
-    final batch = _firestore.batch();
-    for (final link in brokenLinks) {
-      final docRef = _brokenLinksCollection(_currentUserId!, resultId).doc();
-      batch.set(docRef, link.toFirestore());
-    }
-
-    await batch.commit();
-  }
-
   /// Get broken links for a specific result
   Future<List<BrokenLink>> getBrokenLinks(String resultId) async {
-    if (_currentUserId == null) {
-      return [];
-    }
-
-    final snapshot = await _brokenLinksCollection(
-      _currentUserId!,
-      resultId,
-    ).orderBy('timestamp', descending: true).get();
-
-    return snapshot.docs.map((doc) => BrokenLink.fromFirestore(doc)).toList();
-  }
-
-  /// Delete all broken links for a specific result (when deleting the result)
-  Future<void> _deleteResultBrokenLinks(String resultId) async {
-    if (_currentUserId == null) return;
-
-    final snapshot = await _brokenLinksCollection(
-      _currentUserId!,
-      resultId,
-    ).get();
-
-    final batch = _firestore.batch();
-    for (final doc in snapshot.docs) {
-      batch.delete(doc.reference);
-    }
-
-    await batch.commit();
+    if (_currentUserId == null) return [];
+    return _repo.getBrokenLinks(resultId);
   }
 
   /// Get latest check result for a site
   Future<LinkCheckResult?> getLatestCheckResult(String siteId) async {
     if (_currentUserId == null) return null;
-
-    final snapshot = await _resultsCollection(_currentUserId!)
-        .where('siteId', isEqualTo: siteId)
-        .orderBy('timestamp', descending: true)
-        .limit(1)
-        .get();
-
-    if (snapshot.docs.isEmpty) return null;
-
-    return LinkCheckResult.fromFirestore(snapshot.docs.first);
+    return _repo.getLatestCheckResult(siteId);
   }
 
   /// Get check results history for a site
@@ -539,97 +251,25 @@ class LinkCheckerService {
     int limit = 50,
   }) async {
     if (_currentUserId == null) return [];
-
-    final snapshot = await _resultsCollection(_currentUserId!)
-        .where('siteId', isEqualTo: siteId)
-        .orderBy('timestamp', descending: true)
-        .limit(limit)
-        .get();
-
-    return snapshot.docs
-        .map((doc) => LinkCheckResult.fromFirestore(doc))
-        .toList();
+    return _repo.getCheckResults(siteId, limit: limit);
   }
 
   /// Get all check results across all sites
   Future<List<LinkCheckResult>> getAllCheckResults({int limit = 50}) async {
     if (_currentUserId == null) return [];
-
-    final snapshot = await _resultsCollection(
-      _currentUserId!,
-    ).orderBy('timestamp', descending: true).limit(limit).get();
-
-    return snapshot.docs
-        .map((doc) => LinkCheckResult.fromFirestore(doc))
-        .toList();
+    return _repo.getAllCheckResults(limit: limit);
   }
 
   /// Delete all check results for a site (useful for cleanup)
   Future<void> deleteAllCheckResults(String siteId) async {
     if (_currentUserId == null) return;
-
-    final snapshot = await _resultsCollection(
-      _currentUserId!,
-    ).where('siteId', isEqualTo: siteId).get();
-
-    final batch = _firestore.batch();
-    for (final doc in snapshot.docs) {
-      batch.delete(doc.reference);
-    }
-
-    await batch.commit();
+    await _repo.deleteAllCheckResults(siteId);
   }
 
   /// Delete a specific link check result by document ID
   Future<void> deleteLinkCheckResult(String resultId) async {
     if (_currentUserId == null) return;
-
-    // Delete all broken links in the subcollection first
-    await _deleteResultBrokenLinks(resultId);
-
-    // Delete the result document
-    await _resultsCollection(_currentUserId!).doc(resultId).delete();
-  }
-
-  /// Cleanup old link check results for a site (respects premium/free limits)
-  Future<void> _cleanupOldResults(String siteId) async {
-    if (_currentUserId == null) return;
-
-    try {
-      // Get all results for the site
-      final querySnapshot = await _resultsCollection(_currentUserId!)
-          .where('siteId', isEqualTo: siteId)
-          .orderBy('timestamp', descending: true)
-          .get();
-
-      // If we have fewer results than the limit, no cleanup needed
-      if (querySnapshot.docs.length <= _historyLimit) return;
-
-      // Delete results beyond the limit (including their broken links subcollections)
-      final batch = _firestore.batch();
-      for (int i = _historyLimit; i < querySnapshot.docs.length; i++) {
-        final docRef = querySnapshot.docs[i].reference;
-
-        // Delete broken links subcollection
-        final brokenLinksSnapshot = await docRef
-            .collection('brokenLinks')
-            .get();
-        for (final brokenLinkDoc in brokenLinksSnapshot.docs) {
-          batch.delete(brokenLinkDoc.reference);
-        }
-
-        // Delete the result document itself
-        batch.delete(docRef);
-      }
-
-      await batch.commit();
-      _logger.i(
-        'Cleaned up ${querySnapshot.docs.length - _historyLimit} old link check results for site $siteId',
-      );
-    } catch (e) {
-      _logger.e('Error during cleanup of old link check results', error: e);
-      rethrow;
-    }
+    await _repo.deleteLinkCheckResult(resultId);
   }
 
   /// Filter out URLs that match excluded paths
@@ -662,7 +302,7 @@ class LinkCheckerService {
 
   /// Load sitemap URLs and check accessibility
   /// Returns the list of URLs to scan, total count, and HTTP status code
-  Future<_SitemapLoadResult> _loadSitemapUrls(
+  Future<SitemapLoadResult> _loadSitemapUrls(
     Site site,
     Uri baseUrl,
     Uri originalBaseUrl,
@@ -679,13 +319,16 @@ class LinkCheckerService {
           final convertedUrl = UrlHelper.convertLocalhostForPlatform(
             fullSitemapUrl,
           );
-          final headCheck = await _checkUrlHead(convertedUrl);
+          final headCheck = await _httpHelper.checkUrlHead(convertedUrl);
           sitemapStatusCode = headCheck.statusCode;
 
           onSitemapStatusUpdate?.call(sitemapStatusCode);
 
           if (sitemapStatusCode == 200) {
-            allInternalPages = await _fetchSitemapUrls(fullSitemapUrl);
+            allInternalPages = await _sitemapParser.fetchSitemapUrls(
+              fullSitemapUrl,
+              _httpHelper.checkUrlHead,
+            );
           } else {
             allInternalPages = [originalBaseUrl];
           }
@@ -712,7 +355,7 @@ class LinkCheckerService {
       allInternalPages = [originalBaseUrl];
     }
 
-    return _SitemapLoadResult(
+    return SitemapLoadResult(
       urls: allInternalPages,
       totalPages: allInternalPages.length,
       statusCode: sitemapStatusCode,
@@ -720,29 +363,29 @@ class LinkCheckerService {
   }
 
   /// Load previous scan data if continuing from last scan
-  Future<_PreviousScanData> _loadPreviousScanData(
+  Future<PreviousScanData> _loadPreviousScanData(
     String siteId,
     bool continueFromLastScan,
     int startIndex,
   ) async {
     if (!continueFromLastScan || startIndex == 0) {
-      return const _PreviousScanData(result: null, brokenLinks: <BrokenLink>[]);
+      return const PreviousScanData(result: null, brokenLinks: <BrokenLink>[]);
     }
 
     final previousResult = await getLatestCheckResult(siteId);
     if (previousResult == null || previousResult.id == null) {
-      return const _PreviousScanData(result: null, brokenLinks: <BrokenLink>[]);
+      return const PreviousScanData(result: null, brokenLinks: <BrokenLink>[]);
     }
 
     final previousBrokenLinks = await getBrokenLinks(previousResult.id!);
-    return _PreviousScanData(
+    return PreviousScanData(
       result: previousResult,
       brokenLinks: previousBrokenLinks,
     );
   }
 
   /// Calculate the range of pages to scan in this batch
-  _ScanRange _calculateScanRange(List<Uri> allPages, int startIndex) {
+  ScanRange _calculateScanRange(List<Uri> allPages, int startIndex) {
     const maxPagesToScan = 100;
     final remainingPageLimit = _pageLimit - startIndex;
     final actualPagesToScan = maxPagesToScan.clamp(0, remainingPageLimit);
@@ -751,7 +394,7 @@ class LinkCheckerService {
     final pagesToScan = allPages.sublist(startIndex, endIndex);
     final scanCompleted = endIndex >= allPages.length || endIndex >= _pageLimit;
 
-    return _ScanRange(
+    return ScanRange(
       pagesToScan: pagesToScan,
       endIndex: endIndex,
       scanCompleted: scanCompleted,
@@ -759,7 +402,7 @@ class LinkCheckerService {
   }
 
   /// Scan pages and extract all links (internal and external)
-  Future<_LinkExtractionResult> _scanPagesAndExtractLinks(
+  Future<LinkExtractionResult> _scanPagesAndExtractLinks(
     List<Uri> pagesToScan,
     Uri originalBaseUrl,
     int startIndex,
@@ -794,13 +437,13 @@ class LinkCheckerService {
         await Future.delayed(const Duration(milliseconds: 200));
       }
 
-      final htmlContent = await _fetchHtmlContent(pageUrl);
+      final htmlContent = await _httpHelper.fetchHtmlContent(pageUrl);
       if (htmlContent == null) continue;
 
-      final links = _extractLinks(htmlContent, page);
+      final links = _httpHelper.extractLinks(htmlContent, page);
 
       for (final link in links) {
-        final normalizedLink = _normalizeSitemapUrl(link);
+        final normalizedLink = _sitemapParser.normalizeSitemapUrl(link);
         final linkUrl = normalizedLink.toString();
 
         if (!linkSourceMap.containsKey(linkUrl)) {
@@ -821,7 +464,7 @@ class LinkCheckerService {
       }
     }
 
-    return _LinkExtractionResult(
+    return LinkExtractionResult(
       internalLinks: internalLinks,
       externalLinks: externalLinks,
       linkSourceMap: linkSourceMap,
@@ -870,7 +513,7 @@ class LinkCheckerService {
         await Future.delayed(const Duration(milliseconds: 100));
       }
 
-      final isBroken = await _checkLink(link);
+      final isBroken = await _httpHelper.checkLink(link);
 
       if (isBroken != null) {
         brokenLinks.add(
@@ -913,7 +556,7 @@ class LinkCheckerService {
           await Future.delayed(const Duration(milliseconds: 100));
         }
 
-        final isBroken = await _checkLink(link);
+        final isBroken = await _httpHelper.checkLink(link);
 
         if (isBroken != null) {
           brokenLinks.add(
@@ -1005,16 +648,13 @@ class LinkCheckerService {
     );
 
     // Save to Firestore
-    final docRef = await _resultsCollection(
-      _currentUserId!,
-    ).add(result.toFirestore());
-    final resultId = docRef.id;
+    final resultId = await _repo.saveResult(result);
 
     // Save broken links as subcollection
-    await _saveBrokenLinks(resultId, allBrokenLinks);
+    await _repo.saveBrokenLinks(resultId, allBrokenLinks);
 
     // Cleanup old results (async, non-blocking)
-    _cleanupOldResults(site.id).catchError((error) {
+    _repo.cleanupOldResults(site.id).catchError((error) {
       _logger.e('Failed to cleanup old link check results', error: error);
     });
 
@@ -1082,61 +722,4 @@ class LinkCheckerService {
       return true; // Include this URL
     }).toList();
   }
-}
-
-// ============================================================================
-// Private Data Classes for Link Checker Service
-// ============================================================================
-
-/// Result of sitemap loading operation
-class _SitemapLoadResult {
-  final List<Uri> urls;
-  final int totalPages;
-  final int? statusCode;
-
-  const _SitemapLoadResult({
-    required this.urls,
-    required this.totalPages,
-    required this.statusCode,
-  });
-}
-
-/// Result of previous scan data loading
-class _PreviousScanData {
-  final LinkCheckResult? result;
-  final List<BrokenLink> brokenLinks;
-
-  const _PreviousScanData({required this.result, required this.brokenLinks});
-}
-
-/// Calculated scan range for batch processing
-class _ScanRange {
-  final List<Uri> pagesToScan;
-  final int endIndex;
-  final bool scanCompleted;
-
-  const _ScanRange({
-    required this.pagesToScan,
-    required this.endIndex,
-    required this.scanCompleted,
-  });
-}
-
-/// Result of link extraction from pages
-class _LinkExtractionResult {
-  final Set<Uri> internalLinks;
-  final Set<Uri> externalLinks;
-  final Map<String, List<String>> linkSourceMap;
-  final int totalInternalLinksCount;
-  final int totalExternalLinksCount;
-  final int pagesScanned;
-
-  const _LinkExtractionResult({
-    required this.internalLinks,
-    required this.externalLinks,
-    required this.linkSourceMap,
-    required this.totalInternalLinksCount,
-    required this.totalExternalLinksCount,
-    required this.pagesScanned,
-  });
 }
