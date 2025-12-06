@@ -139,7 +139,35 @@ Future<_SitemapLoadResult> _loadSitemapUrls(...)
 - テスト結果: 19/19通過
 - コミット: 438fcaa
 
-**Phase 5-2予定 - 残りのファイル分割**:
+**Phase 5-2完了✅ - HTTP/Sitemap処理の抽出**:
+- lib/services/link_checker/http_client.dart作成（117行）
+  - LinkCheckerHttpClient: HTTP/HTML処理
+  - checkUrlHead, fetchHtmlContent, extractLinks, checkLink
+- lib/services/link_checker/sitemap_parser.dart作成（165行）
+  - SitemapParser: XML解析
+  - fetchSitemapUrls, parseSitemapXml, normalizeSitemapUrl
+- link_checker_service.dart: 1086行 → 840行（246行削減）
+- テスト結果: 19/19通過
+- コミット: 501703a
+
+**Phase 5総削減量**:
+- 開始: 1142行
+- Phase 5-1後: 1086行（56行削減）
+- Phase 5-2後: 840行（246行削減）
+- **合計削減: 302行（26%削減）** ✅
+- **🎉 1000行以下を達成！**
+
+**分割後のファイル構成**:
+```
+lib/services/
+  link_checker_service.dart (840行) - メインロジック
+  link_checker/
+    models.dart (54行) - データクラス4個
+    http_client.dart (117行) - HTTP/HTML処理
+    sitemap_parser.dart (165行) - Sitemap XML解析
+```
+
+**Phase 5-3予定 - Firestore操作の抽出**:
 
 **問題点**:
 - 1ファイル1000行超えは保守性・可読性の観点で問題
