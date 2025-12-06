@@ -23,7 +23,7 @@ void main() {
     group('mergeBrokenLinks', () {
       test(
         'should return only new broken links when continueFromLastScan is false',
-        () async {
+        () {
           // Arrange
           final newLinks = [
             BrokenLink(
@@ -77,7 +77,7 @@ void main() {
 
       test(
         'should merge new and previous broken links when continueFromLastScan is true',
-        () async {
+        () {
           // Arrange
           final newLinks = [
             BrokenLink(
@@ -132,7 +132,7 @@ void main() {
 
       test(
         'should return only new links when continueFromLastScan is true but previousBrokenLinks is empty',
-        () async {
+        () {
           // Arrange
           final newLinks = [
             BrokenLink(
@@ -164,7 +164,7 @@ void main() {
 
       test(
         'should return empty list when both new and previous lists are empty',
-        () async {
+        () {
           // Arrange
           final newLinks = <BrokenLink>[];
           final previousLinks = <BrokenLink>[];
@@ -183,7 +183,7 @@ void main() {
 
       test(
         'should handle empty new links with continueFromLastScan true',
-        () async {
+        () {
           // Arrange
           final newLinks = <BrokenLink>[];
           final previousLinks = [
@@ -214,7 +214,7 @@ void main() {
 
       test(
         'should preserve order: previous links first, then new links',
-        () async {
+        () {
           // Arrange
           final newLinks = [
             BrokenLink(
@@ -278,7 +278,7 @@ void main() {
         },
       );
 
-      test('should not modify original lists', () async {
+      test('should not modify original lists', () {
         // Arrange
         final newLinks = [
           BrokenLink(

@@ -111,11 +111,9 @@ class SiteFormFields {
                   return null; // Relative path is valid
                 }
 
-                // For full URLs, validate scheme
+                // For full URLs, validate structure
                 final uri = Uri.tryParse(value);
-                if (uri == null ||
-                    !uri.hasScheme ||
-                    (!uri.scheme.startsWith('http'))) {
+                if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
                   return 'Please enter a valid URL';
                 }
                 return null;
