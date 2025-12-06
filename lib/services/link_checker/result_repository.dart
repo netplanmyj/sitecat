@@ -86,7 +86,7 @@ class LinkCheckResultRepository {
         .toList();
   }
 
-  /// Delete all check results for a site
+  /// Delete all check results for a specific site
   Future<void> deleteAllCheckResults(String siteId) async {
     final snapshot = await _resultsCollection
         .where('siteId', isEqualTo: siteId)
@@ -94,6 +94,15 @@ class LinkCheckResultRepository {
 
     final batch = _firestore.batch();
     for (final doc in snapshot.docs) {
+      // Delete broken links subcollection
+      final brokenLinksSnapshot = await doc.reference
+          .collection('brokenLinks')
+          .get();
+      for (final brokenLinkDoc in brokenLinksSnapshot.docs) {
+        batch.delete(brokenLinkDoc.reference);
+      }
+
+      // Delete the result document
       batch.delete(doc.reference);
     }
 

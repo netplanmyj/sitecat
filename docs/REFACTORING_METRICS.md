@@ -187,7 +187,7 @@ lib/services/
      * `deleteLinkCheckResult`: 単一結果削除
      * `saveResult`: チェック結果の保存
      * `saveBrokenLinks`: 壊れたリンクの一括保存（バッチ処理）
-     * `cleanupOldResults`: 古い結果の自動クリーンアップ（30日以上前）
+     * `cleanupOldResults`: 古い結果の自動クリーンアップ（履歴制限を超える結果）
 
 2. **公開メソッドのリポジトリ委譲**（6メソッド、72行削減）
    - `getBrokenLinks`: 13行 → 4行

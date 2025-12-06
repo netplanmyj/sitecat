@@ -22,6 +22,7 @@ class LinkCheckerService {
   late final LinkCheckerHttpClient _httpHelper;
   late final SitemapParser _sitemapParser;
   LinkCheckResultRepository? _repository;
+  String? _repositoryUserId;
 
   LinkCheckerService() {
     _httpHelper = LinkCheckerHttpClient(_httpClient);
@@ -30,11 +31,13 @@ class LinkCheckerService {
 
   // Get repository instance (lazy initialization)
   LinkCheckResultRepository get _repo {
-    if (_repository == null || _currentUserId == null) {
+    final userId = _currentUserId!;
+    if (_repository == null || _repositoryUserId != userId) {
+      _repositoryUserId = userId;
       _repository = LinkCheckResultRepository(
         firestore: _firestore,
         logger: _logger,
-        userId: _currentUserId!,
+        userId: userId,
         historyLimit: _historyLimit,
       );
     }

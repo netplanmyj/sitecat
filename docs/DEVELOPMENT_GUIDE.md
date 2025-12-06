@@ -127,12 +127,17 @@ git commit -m "Replace old feature with new implementation
 #### 現在の優先リファクタリング対象
 
 **🔴 緊急対応（1000行以上）**
-1. **lib/services/link_checker_service.dart** (1142行)
-   - Phase 1-3完了（メソッド抽出、データクラス導入）
-   - 次: Phase 5でファイル分割（5ファイルに分割予定）
-   - 詳細: [REFACTORING_METRICS.md](./REFACTORING_METRICS.md)
+
+（現在該当なし）
 
 **🟡 警告レベル（500-999行）**
+
+1. **lib/services/link_checker_service.dart** (722行)
+   - Phase 5完了（ファイル分割・主要ロジック整理済み）
+   - 4ファイルに分割: models.dart, http_client.dart, sitemap_parser.dart, result_repository.dart
+   - 旧: 1142行 → 新: 722行（420行削減、37%削減）
+   - 詳細: [REFACTORING_METRICS.md](./REFACTORING_METRICS.md)
+
 2. **lib/screens/site_form_screen.dart** (780行)
    - サイト登録・編集フォーム
    - 対応: ウィジェット分割（FormSection単位）
