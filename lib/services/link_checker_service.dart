@@ -1,15 +1,14 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
-import 'package:html/parser.dart' as html_parser;
 import 'package:logger/logger.dart';
-import 'package:xml/xml.dart' as xml;
 import '../models/broken_link.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
 import '../utils/url_helper.dart';
-import '../utils/url_encoding_utils.dart';
 import 'link_checker/models.dart';
+import 'link_checker/http_client.dart';
+import 'link_checker/sitemap_parser.dart';
 
 /// Service for checking broken links on websites
 class LinkCheckerService {
@@ -17,6 +16,15 @@ class LinkCheckerService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final http.Client _httpClient = http.Client();
   final Logger _logger = Logger();
+
+  // Helper classes
+  late final LinkCheckerHttpClient _httpHelper;
+  late final SitemapParser _sitemapParser;
+
+  LinkCheckerService() {
+    _httpHelper = LinkCheckerHttpClient(_httpClient);
+    _sitemapParser = SitemapParser(_httpClient);
+  }
 
   // History limit for cleanup (can be set based on premium status)
   int _historyLimit = AppConstants.freePlanHistoryLimit;
@@ -182,263 +190,6 @@ class LinkCheckerService {
       continueFromLastScan,
       startTime,
     );
-  }
-
-  /// Check URL with HEAD request before fetching content
-  Future<({int statusCode, String? contentType})> _checkUrlHead(
-    String url,
-  ) async {
-    try {
-      final response = await _httpClient
-          .head(Uri.parse(url))
-          .timeout(const Duration(seconds: 5));
-
-      final contentType = response.headers['content-type']?.toLowerCase();
-      return (statusCode: response.statusCode, contentType: contentType);
-    } catch (e) {
-      return (statusCode: 0, contentType: null);
-    }
-  }
-
-  /// Fetch HTML content from a URL (with HEAD pre-check)
-  Future<String?> _fetchHtmlContent(String url) async {
-    try {
-      // Convert localhost for Android emulator
-      final convertedUrl = UrlHelper.convertLocalhostForPlatform(url);
-
-      // Step 1: HEAD request to check status and content type
-      final headCheck = await _checkUrlHead(convertedUrl);
-
-      // Skip if not OK status
-      if (headCheck.statusCode != 200) {
-        return null;
-      }
-
-      // Skip if not HTML content
-      final contentType = headCheck.contentType;
-      if (contentType != null && !contentType.contains('text/html')) {
-        return null;
-      }
-
-      // Step 2: GET request to fetch content
-      final response = await _httpClient
-          .get(Uri.parse(convertedUrl))
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        return response.body;
-      }
-      return null;
-    } catch (e) {
-      return null;
-    }
-  }
-
-  /// Fetch URLs from sitemap.xml (supports up to 2 levels of sitemap index)
-  Future<List<Uri>> _fetchSitemapUrls(String sitemapUrl) async {
-    try {
-      // Convert localhost for Android emulator
-      final convertedUrl = UrlHelper.convertLocalhostForPlatform(sitemapUrl);
-
-      // Step 1: HEAD request to check status and content type
-      final headCheck = await _checkUrlHead(convertedUrl);
-
-      if (headCheck.statusCode != 200) {
-        throw Exception('Sitemap not accessible: ${headCheck.statusCode}');
-      }
-
-      // Verify it's XML content
-      final contentType = headCheck.contentType;
-      if (contentType != null &&
-          !contentType.contains('xml') &&
-          !contentType.contains('text/plain')) {
-        throw Exception('Invalid sitemap content type: $contentType');
-      }
-
-      // Step 2: GET request to fetch sitemap content
-      final response = await _httpClient
-          .get(Uri.parse(convertedUrl))
-          .timeout(const Duration(seconds: 10));
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to fetch sitemap: ${response.statusCode}');
-      }
-
-      // Parse XML
-      final document = xml.XmlDocument.parse(response.body);
-
-      // Check if this is a sitemap index (contains <sitemap> elements)
-      final sitemapElements = document.findAllElements('sitemap');
-
-      if (sitemapElements.isNotEmpty) {
-        // This is a sitemap index - fetch URLs from child sitemaps
-        final allUrls = <Uri>[];
-
-        for (final sitemapElement in sitemapElements) {
-          final locElement = sitemapElement.findElements('loc').firstOrNull;
-          if (locElement != null) {
-            final childSitemapUrl = locElement.innerText.trim();
-            if (childSitemapUrl.isNotEmpty) {
-              try {
-                // Fetch URLs from child sitemap (without HEAD check)
-                final childUrls = await _parseSitemapXml(childSitemapUrl);
-                allUrls.addAll(childUrls);
-
-                // Limit total URLs to avoid excessive processing
-                if (allUrls.length >= 200) {
-                  break;
-                }
-              } catch (e) {
-                // Skip this child sitemap if it fails
-                continue;
-              }
-            }
-          }
-        }
-
-        return allUrls;
-      } else {
-        // This is a regular sitemap - extract URLs directly from current document
-        return _extractUrlsFromSitemapDocument(document);
-      }
-    } catch (e) {
-      throw Exception('Error parsing sitemap: $e');
-    }
-  }
-
-  /// Parse a sitemap XML directly from a URL (used for child sitemaps)
-  Future<List<Uri>> _parseSitemapXml(String sitemapUrl) async {
-    try {
-      // Convert localhost for Android emulator
-      final convertedUrl = UrlHelper.convertLocalhostForPlatform(sitemapUrl);
-
-      // Add longer delay to avoid overwhelming the server
-      await Future.delayed(const Duration(milliseconds: 2000));
-
-      // Use shared client instead of creating new one
-      final response = await _httpClient
-          .get(Uri.parse(convertedUrl))
-          .timeout(const Duration(seconds: 15));
-
-      if (response.statusCode != 200) {
-        throw Exception('Failed to fetch sitemap: ${response.statusCode}');
-      }
-
-      final document = xml.XmlDocument.parse(response.body);
-      return _extractUrlsFromSitemapDocument(document);
-    } catch (e) {
-      throw Exception('Error parsing sitemap: $e');
-    }
-  }
-
-  /// Extract URLs from a parsed sitemap XML document
-  List<Uri> _extractUrlsFromSitemapDocument(xml.XmlDocument document) {
-    final urlElements = document.findAllElements('url');
-    final normalizedUrls =
-        <String, Uri>{}; // Use Map to deduplicate by normalized key
-
-    for (final urlElement in urlElements) {
-      final locElement = urlElement.findElements('loc').firstOrNull;
-      if (locElement != null) {
-        final urlString = locElement.innerText.trim();
-        if (urlString.isNotEmpty) {
-          try {
-            final uri = Uri.parse(urlString);
-            if (uri.scheme == 'http' || uri.scheme == 'https') {
-              // Normalize URL: remove fragment, lowercase scheme/host, and remove trailing slash
-              final normalizedUri = _normalizeSitemapUrl(uri);
-              final normalizedKey = normalizedUri.toString();
-
-              // Store only unique URLs (Map handles deduplication automatically)
-              normalizedUrls[normalizedKey] = normalizedUri;
-            }
-          } catch (e) {
-            // Skip invalid URLs
-          }
-        }
-      }
-    }
-
-    return normalizedUrls.values.toList();
-  }
-
-  /// Normalize sitemap URL by removing fragment, normalizing scheme/host to lowercase, and removing trailing slash
-  Uri _normalizeSitemapUrl(Uri uri) {
-    // Remove fragment (#section)
-    final uriWithoutFragment = uri.removeFragment();
-
-    // Normalize scheme and host to lowercase (case-insensitive per RFC 3986)
-    final normalizedScheme = uriWithoutFragment.scheme.toLowerCase();
-    final normalizedHost = uriWithoutFragment.host.toLowerCase();
-
-    // Remove trailing slash from path (but keep "/" for root)
-    String path = uriWithoutFragment.path;
-    if (path.length > 1 && path.endsWith('/')) {
-      path = path.substring(0, path.length - 1);
-    }
-
-    // Reconstruct URI with normalized components
-    return uriWithoutFragment.replace(
-      scheme: normalizedScheme,
-      host: normalizedHost,
-      path: path,
-    );
-  }
-
-  /// Extract links from HTML content
-  List<Uri> _extractLinks(String htmlContent, Uri baseUrl) {
-    final document = html_parser.parse(htmlContent);
-    final linkElements = document.querySelectorAll('a[href]');
-
-    final links = <Uri>[];
-    for (final element in linkElements) {
-      final href = element.attributes['href'];
-      if (href == null || href.isEmpty) continue;
-
-      // Skip anchor links and javascript links
-      if (href.startsWith('#') || href.startsWith('javascript:')) continue;
-
-      try {
-        // Resolve relative URLs
-        final uri = baseUrl.resolve(href);
-        if (uri.scheme == 'http' || uri.scheme == 'https') {
-          // Fix mojibake in URL before adding to list
-          final fixedUrl = UrlEncodingUtils.fixMojibakeUrl(uri.toString());
-          links.add(Uri.parse(fixedUrl));
-        }
-      } catch (e) {
-        // Invalid URL, skip
-      }
-    }
-
-    // Remove duplicates
-    return links.toSet().toList();
-  }
-
-  /// Check if a link is broken
-  Future<({int statusCode, String? error})?> _checkLink(Uri url) async {
-    try {
-      // Convert localhost for Android emulator
-      final convertedUrl = UrlHelper.convertLocalhostForPlatform(
-        url.toString(),
-      );
-
-      // Use HEAD request for efficiency
-      final response = await _httpClient
-          .head(Uri.parse(convertedUrl))
-          .timeout(const Duration(seconds: 5));
-
-      // Consider 404 and 5xx as broken
-      if (response.statusCode == 404 || response.statusCode >= 500) {
-        return (statusCode: response.statusCode, error: null);
-      }
-
-      return null; // Link is OK
-    } on http.ClientException catch (e) {
-      return (statusCode: 0, error: 'Network error: ${e.message}');
-    } catch (e) {
-      return (statusCode: 0, error: 'Error: $e');
-    }
   }
 
   /// Check if two URLs are from the same domain
@@ -680,13 +431,16 @@ class LinkCheckerService {
           final convertedUrl = UrlHelper.convertLocalhostForPlatform(
             fullSitemapUrl,
           );
-          final headCheck = await _checkUrlHead(convertedUrl);
+          final headCheck = await _httpHelper.checkUrlHead(convertedUrl);
           sitemapStatusCode = headCheck.statusCode;
 
           onSitemapStatusUpdate?.call(sitemapStatusCode);
 
           if (sitemapStatusCode == 200) {
-            allInternalPages = await _fetchSitemapUrls(fullSitemapUrl);
+            allInternalPages = await _sitemapParser.fetchSitemapUrls(
+              fullSitemapUrl,
+              _httpHelper.checkUrlHead,
+            );
           } else {
             allInternalPages = [originalBaseUrl];
           }
@@ -795,13 +549,13 @@ class LinkCheckerService {
         await Future.delayed(const Duration(milliseconds: 200));
       }
 
-      final htmlContent = await _fetchHtmlContent(pageUrl);
+      final htmlContent = await _httpHelper.fetchHtmlContent(pageUrl);
       if (htmlContent == null) continue;
 
-      final links = _extractLinks(htmlContent, page);
+      final links = _httpHelper.extractLinks(htmlContent, page);
 
       for (final link in links) {
-        final normalizedLink = _normalizeSitemapUrl(link);
+        final normalizedLink = _sitemapParser.normalizeSitemapUrl(link);
         final linkUrl = normalizedLink.toString();
 
         if (!linkSourceMap.containsKey(linkUrl)) {
@@ -871,7 +625,7 @@ class LinkCheckerService {
         await Future.delayed(const Duration(milliseconds: 100));
       }
 
-      final isBroken = await _checkLink(link);
+      final isBroken = await _httpHelper.checkLink(link);
 
       if (isBroken != null) {
         brokenLinks.add(
@@ -914,7 +668,7 @@ class LinkCheckerService {
           await Future.delayed(const Duration(milliseconds: 100));
         }
 
-        final isBroken = await _checkLink(link);
+        final isBroken = await _httpHelper.checkLink(link);
 
         if (isBroken != null) {
           brokenLinks.add(
