@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/site_provider.dart';
-import '../providers/subscription_provider.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
+import '../widgets/site_form/excluded_paths_editor.dart';
+import '../widgets/site_form/site_form_fields.dart';
 
 class SiteFormScreen extends StatefulWidget {
   final Site? site; // null for create, Site for edit
@@ -115,476 +116,118 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
-                // Header card
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              widget.isEdit ? Icons.edit : Icons.add,
-                              color: Theme.of(context).primaryColor,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              widget.isEdit
-                                  ? 'Update Site Information'
-                                  : 'Add New Site',
-                              style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w500,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          widget.isEdit
-                              ? 'Update the details for your site monitoring'
-                              : 'Enter the details for your new site monitoring',
-                          style: TextStyle(color: Colors.grey.shade600),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
+                _buildHeaderCard(),
                 const SizedBox(height: 16),
-
-                // Site Name Field
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Site Name',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _nameController,
-                          decoration: const InputDecoration(
-                            hintText: 'Enter a friendly name for your site',
-                            prefixIcon: Icon(Icons.label_outline),
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) =>
-                              siteProvider.validateSiteName(value),
-                          textInputAction: TextInputAction.next,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
+                _buildSiteNameField(siteProvider),
                 const SizedBox(height: 16),
-
-                // Site URL Field
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Website URL',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _urlController,
-                          decoration: const InputDecoration(
-                            hintText: 'https://example.com',
-                            prefixIcon: Icon(Icons.link),
-                            border: OutlineInputBorder(),
-                          ),
-                          validator: (value) => siteProvider.validateSiteUrl(
-                            value,
-                            excludeSiteId: widget.site?.id,
-                          ),
-                          keyboardType: TextInputType.url,
-                          textInputAction: TextInputAction.next,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
+                _buildSiteUrlField(siteProvider),
                 const SizedBox(height: 16),
-
-                // Sitemap URL Field
-                Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Sitemap URL (Optional)',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w500,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                        TextFormField(
-                          controller: _sitemapUrlController,
-                          decoration: const InputDecoration(
-                            hintText:
-                                'sitemap.xml or https://example.com/sitemap.xml',
-                            prefixIcon: Icon(Icons.map_outlined),
-                            border: OutlineInputBorder(),
-                            helperText:
-                                'Full URL or relative path (e.g., sitemap.xml)',
-                            helperMaxLines: 2,
-                          ),
-                          validator: (value) {
-                            // Optional field - only validate if not empty
-                            if (value == null || value.trim().isEmpty) {
-                              return null;
-                            }
-
-                            // Allow relative paths (e.g., "sitemap.xml" or "/sitemap.xml")
-                            if (!value.startsWith('http://') &&
-                                !value.startsWith('https://')) {
-                              return null; // Relative path is valid
-                            }
-
-                            // For full URLs, validate scheme
-                            final uri = Uri.tryParse(value);
-                            if (uri == null ||
-                                !uri.hasScheme ||
-                                (!uri.scheme.startsWith('http'))) {
-                              return 'Please enter a valid URL';
-                            }
-                            return null;
-                          },
-                          keyboardType: TextInputType.url,
-                          textInputAction: TextInputAction.next,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-
+                _buildSitemapUrlField(),
                 const SizedBox(height: 16),
-
-                // Excluded Paths Section (Premium only)
-                Consumer<SubscriptionProvider>(
-                  builder: (context, subscriptionProvider, child) {
-                    final isPremium = subscriptionProvider.hasLifetimeAccess;
-
-                    return Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(16),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Text(
-                                  'Excluded Paths',
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                                const SizedBox(width: 8),
-                                if (!isPremium)
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 8,
-                                      vertical: 4,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: Colors.orange.shade100,
-                                      borderRadius: BorderRadius.circular(4),
-                                      border: Border.all(
-                                        color: Colors.orange.shade300,
-                                      ),
-                                    ),
-                                    child: Text(
-                                      'Premium',
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        fontWeight: FontWeight.bold,
-                                        color: Colors.orange.shade700,
-                                      ),
-                                    ),
-                                  ),
-                              ],
-                            ),
-                            const SizedBox(height: 8),
-                            if (!isPremium)
-                              Text(
-                                'Upgrade to Premium to exclude specific paths from scanning',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade600,
-                                ),
-                              )
-                            else ...[
-                              Text(
-                                'Exclude specific paths from Full Scan',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: Colors.grey.shade600,
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Container(
-                                padding: const EdgeInsets.all(12),
-                                decoration: BoxDecoration(
-                                  color: Colors.blue.shade50,
-                                  borderRadius: BorderRadius.circular(8),
-                                  border: Border.all(
-                                    color: Colors.blue.shade200,
-                                  ),
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      children: [
-                                        Icon(
-                                          Icons.info,
-                                          color: Colors.blue.shade700,
-                                          size: 16,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Text(
-                                          'Path Pattern Examples:',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w500,
-                                            color: Colors.blue.shade900,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 6),
-                                    Text(
-                                      '• blog/tags/ - Excludes paths starting with /blog/tags/\n'
-                                      '• */admin/ - Excludes paths with "admin" as a path segment\n'
-                                      '• */temp/ - Excludes paths with "temp" as a path segment',
-                                      style: TextStyle(
-                                        fontSize: 11,
-                                        color: Colors.blue.shade900,
-                                        fontFamily: 'monospace',
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              const SizedBox(height: 12),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _newPathController,
-                                      decoration: InputDecoration(
-                                        hintText:
-                                            'e.g., blog/tags/ or */admin/',
-                                        prefixIcon: const Icon(Icons.block),
-                                        border: const OutlineInputBorder(),
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 12,
-                                            ),
-                                        isDense: true,
-                                      ),
-                                      onSubmitted: (_) => _addExcludedPath(),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 8),
-                                  IconButton(
-                                    onPressed: _addExcludedPath,
-                                    icon: const Icon(Icons.add_circle),
-                                    color: Colors.green,
-                                    iconSize: 32,
-                                  ),
-                                ],
-                              ),
-                              if (_excludedPaths.isNotEmpty) ...[
-                                const SizedBox(height: 12),
-                                ...List.generate(
-                                  _excludedPaths.length,
-                                  (index) => Padding(
-                                    padding: const EdgeInsets.only(bottom: 6),
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        color: Colors.grey.shade100,
-                                        borderRadius: BorderRadius.circular(6),
-                                        border: Border.all(
-                                          color: Colors.grey.shade300,
-                                        ),
-                                      ),
-                                      child: ListTile(
-                                        dense: true,
-                                        leading: Icon(
-                                          Icons.block,
-                                          size: 20,
-                                          color: Colors.orange.shade700,
-                                        ),
-                                        title: Text(
-                                          _excludedPaths[index],
-                                          style: const TextStyle(
-                                            fontFamily: 'monospace',
-                                            fontSize: 13,
-                                          ),
-                                        ),
-                                        trailing: IconButton(
-                                          icon: const Icon(
-                                            Icons.delete,
-                                            size: 20,
-                                          ),
-                                          color: Colors.red,
-                                          onPressed: () =>
-                                              _removeExcludedPath(index),
-                                        ),
-                                        contentPadding:
-                                            const EdgeInsets.symmetric(
-                                              horizontal: 12,
-                                              vertical: 0,
-                                            ),
-                                      ),
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ],
-                          ],
-                        ),
-                      ),
-                    );
-                  },
-                ),
-
+                _buildExcludedPathsSection(),
                 const SizedBox(height: 24),
-
-                // Action buttons
-                if (_isLoading)
-                  const Card(
-                    child: Padding(
-                      padding: EdgeInsets.all(16),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          ),
-                          SizedBox(width: 12),
-                          Text('Saving site...'),
-                        ],
-                      ),
-                    ),
-                  )
-                else
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: const Text('Cancel'),
-                        ),
-                      ),
-                      const SizedBox(width: 16),
-                      Expanded(
-                        child: ElevatedButton(
-                          onPressed: _saveSite,
-                          style: ElevatedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                          ),
-                          child: Text(widget.isEdit ? 'Update' : 'Add Site'),
-                        ),
-                      ),
-                    ],
-                  ),
-
+                _buildActionButtons(),
                 const SizedBox(height: 16),
-
-                // Error message
                 if (siteProvider.error != null)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.red.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.red.shade200),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.error, color: Colors.red.shade700),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            siteProvider.error!,
-                            style: TextStyle(color: Colors.red.shade700),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                // Help card
-                Card(
-                  color: Colors.blue.shade50,
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.info, color: Colors.blue.shade700),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Tips',
-                              style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                                color: Colors.blue.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Text(
-                          '• Use HTTPS URLs when possible for better security\n'
-                          '• Choose meaningful names to easily identify your sites\n'
-                          '• Add sitemap URL to enable comprehensive link checking\n'
-                          '• You can manually check site status and links anytime',
-                          style: TextStyle(
-                            fontSize: 13,
-                            color: Colors.blue.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+                  _buildErrorMessage(siteProvider.error!),
+                _buildHelpCard(),
               ],
             ),
           );
         },
       ),
     );
+  }
+
+  Widget _buildHeaderCard() {
+    return SiteFormFields.buildHeaderCard(
+      isEdit: widget.isEdit,
+      context: context,
+    );
+  }
+
+  Widget _buildSiteNameField(SiteProvider siteProvider) {
+    return SiteFormFields.buildSiteNameField(
+      controller: _nameController,
+      siteProvider: siteProvider,
+    );
+  }
+
+  Widget _buildSiteUrlField(SiteProvider siteProvider) {
+    return SiteFormFields.buildSiteUrlField(
+      controller: _urlController,
+      siteProvider: siteProvider,
+      excludeSiteId: widget.site?.id,
+    );
+  }
+
+  Widget _buildSitemapUrlField() {
+    return SiteFormFields.buildSitemapUrlField(
+      controller: _sitemapUrlController,
+    );
+  }
+
+  Widget _buildExcludedPathsSection() {
+    return ExcludedPathsEditor(
+      pathController: _newPathController,
+      excludedPaths: _excludedPaths,
+      onAddPath: _addExcludedPath,
+      onRemovePath: _removeExcludedPath,
+    );
+  }
+
+  Widget _buildActionButtons() {
+    if (_isLoading) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              ),
+              SizedBox(width: 12),
+              Text('Saving site...'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            child: const Text('Cancel'),
+          ),
+        ),
+        const SizedBox(width: 16),
+        Expanded(
+          child: ElevatedButton(
+            onPressed: _saveSite,
+            style: ElevatedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+            ),
+            child: Text(widget.isEdit ? 'Update' : 'Add Site'),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildErrorMessage(String error) {
+    return SiteFormFields.buildErrorMessage(error: error);
+  }
+
+  Widget _buildHelpCard() {
+    return SiteFormFields.buildHelpCard();
   }
 
   void _addExcludedPath() {
