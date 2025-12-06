@@ -167,6 +167,93 @@ lib/services/
     sitemap_parser.dart (165行) - Sitemap XML解析
 ```
 
+**Phase 5-3完了✅ - Firestore操作の抽出**:
+
+**実施日**: 2025-01-XX  
+**削減**: 722行（Phase 5-2: 840行 → Phase 5-3: 722行、118行削減）
+
+**作業内容**:
+
+1. **LinkCheckResultRepositoryクラス作成**（180行、新規）
+   - パス: `lib/services/link_checker/result_repository.dart`
+   - 責務: Firestore CRUD操作の完全カプセル化
+   - メソッド数: 10個
+     * `getBrokenLinks`: 指定結果IDの壊れたリンク取得
+     * `deleteResultBrokenLinks`: 壊れたリンクの削除
+     * `getLatestCheckResult`: 最新チェック結果取得
+     * `getCheckResults`: チェック結果履歴取得（limit指定可）
+     * `getAllCheckResults`: 全サイトのチェック結果取得
+     * `deleteAllCheckResults`: 特定サイトの全結果削除
+     * `deleteLinkCheckResult`: 単一結果削除
+     * `saveResult`: チェック結果の保存
+     * `saveBrokenLinks`: 壊れたリンクの一括保存（バッチ処理）
+     * `cleanupOldResults`: 古い結果の自動クリーンアップ（30日以上前）
+
+2. **公開メソッドのリポジトリ委譲**（6メソッド、72行削減）
+   - `getBrokenLinks`: 13行 → 4行
+   - `getLatestCheckResult`: 13行 → 3行
+   - `getCheckResults`: 14行 → 3行
+   - `getAllCheckResults`: 10行 → 3行
+   - `deleteAllCheckResults`: 13行 → 3行
+   - `deleteLinkCheckResult`: 9行 → 3行
+
+3. **プライベートメソッド削除**（77行削減）
+   - `_saveBrokenLinks`: 14行削除（リポジトリのsaveBrokenLinksに置き換え）
+   - `_deleteResultBrokenLinks`: 18行削除（リポジトリのdeleteResultBrokenLinksに置き換え）
+   - `_cleanupOldResults`: 45行削除（リポジトリのcleanupOldResultsに置き換え）
+
+4. **未使用コレクション参照削除**（8行削減）
+   - `_resultsCollection`: 3行削除
+   - `_brokenLinksCollection`: 5行削除
+
+5. **メインロジック更新**
+   - `_createAndSaveResult`メソッド: Firestoreへの直接書き込みをリポジトリ経由に変更
+     ```dart
+     // Before
+     final docRef = await _resultsCollection(_currentUserId!).add(result.toFirestore());
+     final resultId = docRef.id;
+     await _saveBrokenLinks(resultId, allBrokenLinks);
+     
+     // After
+     final resultId = await _repo.saveResult(result);
+     await _repo.saveBrokenLinks(resultId, allBrokenLinks);
+     ```
+
+**Phase 5総削減量**:
+- 開始: 1142行
+- Phase 5-1後: 1086行（56行削減）
+- Phase 5-2後: 840行（246行削減）
+- Phase 5-3後: **722行**（118行削減）
+- **合計削減: 420行（37%削減）** ✅
+
+**分割後のファイル構成**:
+```
+lib/services/
+  link_checker_service.dart (722行) - メインロジック・公開API
+  link_checker/
+    models.dart (54行) - データクラス4個
+    http_client.dart (117行) - HTTP/HTML処理
+    sitemap_parser.dart (165行) - Sitemap XML解析
+    result_repository.dart (180行) - Firestore CRUD操作
+```
+
+**Repository Pattern採用の効果**:
+- データアクセス層の完全分離
+- 単体テスト容易性の向上（モック・スタブ化が可能）
+- Firestore実装の変更時の影響範囲局所化
+- コード重複の削減（コレクション参照の一元管理）
+
+**テスト結果**:
+- 実施テスト: `test/link_check_models_test.dart`, `test/link_checker_provider_test.dart`
+- 結果: **19テスト全て通過** ✅
+- コンパイルエラー: なし
+
+**次のフェーズ候補**:
+- Phase 6: エラーハンドリング・リトライロジックの共通化（検討中）
+- Phase 7: ログ出力の整理・構造化（検討中）
+
+---
+
 **Phase 5-3予定 - Firestore操作の抽出**:
 
 **問題点**:
