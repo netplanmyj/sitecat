@@ -60,9 +60,7 @@ class _LinkCheckButtonState extends State<LinkCheckButton> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed:
-                    state == LinkCheckState.checking ||
-                        (!canCheck && !widget.showContinueScan)
+                onPressed: state == LinkCheckState.checking || !canCheck
                     ? null
                     : () => widget.showContinueScan
                           ? _continueScan(context)
@@ -98,8 +96,8 @@ class _LinkCheckButtonState extends State<LinkCheckButton> {
               ),
             ),
 
-            // Cooldown timer (only show for new scans, not for continue)
-            if (timeUntilNext != null && !widget.showContinueScan) ...[
+            // Cooldown timer (applies to start/continue)
+            if (timeUntilNext != null) ...[
               const SizedBox(height: 8),
               CountdownTimer(
                 initialDuration: timeUntilNext,

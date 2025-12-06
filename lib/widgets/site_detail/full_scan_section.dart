@@ -187,6 +187,7 @@ class _FullScanSectionState extends State<FullScanSection> {
                       child: (() {
                         final isContinueDisabled =
                             isCheckingLinks ||
+                            !canCheckLinks ||
                             currentSite.lastScannedPageIndex == 0 ||
                             (latestResult?.scanCompleted ?? false);
                         return OutlinedButton.icon(

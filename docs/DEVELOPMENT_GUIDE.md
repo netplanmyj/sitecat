@@ -45,6 +45,47 @@
 - **feature/***: 機能開発ブランチ
 - **hotfix/***: 緊急修正ブランチ
 
+### 1.1 PR作成前チェックリスト
+
+**PR作成前に必ず以下を実行してください。これにより CIエラーを事前に防ぐことができます。**
+
+```bash
+# 1. 静的解析（コード品質チェック）
+flutter analyze
+
+# 2. フォーマット（コードスタイル統一）
+dart format --set-exit-if-changed .
+
+# 3. テスト実行（機能動作確認）
+flutter test
+
+# 4. すべてOKなら、修正をコミット・プッシュ
+git add -A
+git commit -m "fix: Changes based on analyze and format results"
+git push origin <branch-name>
+```
+
+**各チェックの詳細:**
+- `flutter analyze`: Lintエラー、型チェック、その他の潜在的な問題を検出
+- `dart format --set-exit-if-changed .`: コード自動フォーマット。変更がある場合は終了コード1を返す
+- `flutter test`: 全ユニット・ウィジェットテストを実行
+
+**一括実行:**
+```bash
+flutter analyze && dart format --set-exit-if-changed . && flutter test
+```
+
+⚠️ **注意**:  
+これらをスキップして PR を作成すると、CI/CD パイプラインで失敗し、マージが遅延します。
+
+### 1.2 Full Scan カウントダウン仕様
+
+- 対象: Site Detail > Full Scan タブの Start / Stop / Continue
+- トリガー: Start/Continue 押下時、Stop 押下時、バッチ完了時（例: 100ページ終了）
+- 挙動: 30秒間 Start/Continue を無効化（Stop は常に有効、緊急停止用）
+- UI: 残り時間を CountdownTimer で表示（Start/Continue 共通で表示）
+- 設定: 30秒に固定。将来は設定画面で変更可能にする（別Issueで対応）
+
 ### 2. コード規約
 - Dart公式のlintルールに従う
 - `analysis_options.yaml`の設定を遵守
