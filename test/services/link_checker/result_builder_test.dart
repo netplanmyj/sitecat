@@ -26,7 +26,9 @@ void main() {
         () async {
           // Arrange
           final newLinks = [
-            BrokenLink(siteId: testSiteId, userId: testUserId, 
+            BrokenLink(
+              siteId: testSiteId,
+              userId: testUserId,
               id: '1',
               url: 'https://example.com/new1',
               foundOn: 'https://example.com',
@@ -34,7 +36,9 @@ void main() {
               statusCode: 404,
               timestamp: DateTime.now(),
             ),
-            BrokenLink(siteId: testSiteId, userId: testUserId, 
+            BrokenLink(
+              siteId: testSiteId,
+              userId: testUserId,
               id: '2',
               url: 'https://example.com/new2',
               foundOn: 'https://example.com',
@@ -45,7 +49,9 @@ void main() {
           ];
 
           final previousLinks = [
-            BrokenLink(siteId: testSiteId, userId: testUserId, 
+            BrokenLink(
+              siteId: testSiteId,
+              userId: testUserId,
               id: '3',
               url: 'https://example.com/old1',
               foundOn: 'https://example.com',
@@ -74,7 +80,9 @@ void main() {
         () async {
           // Arrange
           final newLinks = [
-            BrokenLink(siteId: testSiteId, userId: testUserId, 
+            BrokenLink(
+              siteId: testSiteId,
+              userId: testUserId,
               id: '1',
               url: 'https://example.com/new1',
               foundOn: 'https://example.com',
@@ -85,7 +93,9 @@ void main() {
           ];
 
           final previousLinks = [
-            BrokenLink(siteId: testSiteId, userId: testUserId, 
+            BrokenLink(
+              siteId: testSiteId,
+              userId: testUserId,
               id: '2',
               url: 'https://example.com/old1',
               foundOn: 'https://example.com',
@@ -93,7 +103,9 @@ void main() {
               statusCode: 404,
               timestamp: DateTime.now(),
             ),
-            BrokenLink(siteId: testSiteId, userId: testUserId, 
+            BrokenLink(
+              siteId: testSiteId,
+              userId: testUserId,
               id: '3',
               url: 'https://example.com/old2',
               foundOn: 'https://example.com',
@@ -123,7 +135,9 @@ void main() {
         () async {
           // Arrange
           final newLinks = [
-            BrokenLink(siteId: testSiteId, userId: testUserId, 
+            BrokenLink(
+              siteId: testSiteId,
+              userId: testUserId,
               id: '1',
               url: 'https://example.com/new1',
               foundOn: 'https://example.com',
@@ -173,7 +187,9 @@ void main() {
           // Arrange
           final newLinks = <BrokenLink>[];
           final previousLinks = [
-            BrokenLink(siteId: testSiteId, userId: testUserId, 
+            BrokenLink(
+              siteId: testSiteId,
+              userId: testUserId,
               id: '1',
               url: 'https://example.com/old1',
               foundOn: 'https://example.com',
@@ -201,7 +217,9 @@ void main() {
         () async {
           // Arrange
           final newLinks = [
-            BrokenLink(siteId: testSiteId, userId: testUserId, 
+            BrokenLink(
+              siteId: testSiteId,
+              userId: testUserId,
               id: 'new1',
               url: 'https://example.com/new1',
               foundOn: 'https://example.com',
@@ -209,7 +227,9 @@ void main() {
               statusCode: 404,
               timestamp: DateTime.now(),
             ),
-            BrokenLink(siteId: testSiteId, userId: testUserId, 
+            BrokenLink(
+              siteId: testSiteId,
+              userId: testUserId,
               id: 'new2',
               url: 'https://example.com/new2',
               foundOn: 'https://example.com',
@@ -220,7 +240,9 @@ void main() {
           ];
 
           final previousLinks = [
-            BrokenLink(siteId: testSiteId, userId: testUserId, 
+            BrokenLink(
+              siteId: testSiteId,
+              userId: testUserId,
               id: 'old1',
               url: 'https://example.com/old1',
               foundOn: 'https://example.com',
@@ -228,7 +250,9 @@ void main() {
               statusCode: 404,
               timestamp: DateTime.now(),
             ),
-            BrokenLink(siteId: testSiteId, userId: testUserId, 
+            BrokenLink(
+              siteId: testSiteId,
+              userId: testUserId,
               id: 'old2',
               url: 'https://example.com/old2',
               foundOn: 'https://example.com',
@@ -257,7 +281,9 @@ void main() {
       test('should not modify original lists', () async {
         // Arrange
         final newLinks = [
-          BrokenLink(siteId: testSiteId, userId: testUserId, 
+          BrokenLink(
+            siteId: testSiteId,
+            userId: testUserId,
             id: '1',
             url: 'https://example.com/new1',
             foundOn: 'https://example.com',
@@ -268,7 +294,9 @@ void main() {
         ];
 
         final previousLinks = [
-          BrokenLink(siteId: testSiteId, userId: testUserId, 
+          BrokenLink(
+            siteId: testSiteId,
+            userId: testUserId,
             id: '2',
             url: 'https://example.com/old1',
             foundOn: 'https://example.com',
