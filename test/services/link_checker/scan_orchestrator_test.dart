@@ -5,7 +5,8 @@ import 'package:sitecat/services/link_checker/scan_orchestrator.dart';
 import 'package:sitecat/services/link_checker/sitemap_parser.dart';
 
 class MockLinkCheckerHttpClient implements LinkCheckerHttpClient {
-  final Map<String, ({int statusCode, String? contentType})> _headResponses = {};
+  final Map<String, ({int statusCode, String? contentType})> _headResponses =
+      {};
   Exception? _headException;
 
   void setHeadResponse(String url, int statusCode) {
@@ -17,7 +18,9 @@ class MockLinkCheckerHttpClient implements LinkCheckerHttpClient {
   }
 
   @override
-  Future<({int statusCode, String? contentType})> checkUrlHead(String url) async {
+  Future<({int statusCode, String? contentType})> checkUrlHead(
+    String url,
+  ) async {
     if (_headException != null) {
       throw _headException!;
     }
@@ -45,7 +48,7 @@ class MockSitemapParser implements SitemapParser {
   Future<List<Uri>> fetchSitemapUrls(
     String sitemapUrl,
     Future<({int statusCode, String? contentType})> Function(String)
-        checkUrlHead,
+    checkUrlHead,
   ) async {
     if (_fetchException != null) {
       throw _fetchException!;
@@ -138,7 +141,6 @@ void main() {
       });
 
       test('Case 4: HEAD exception -> statusCode 0 + fallback', () async {
-        final sitemapUrl = 'https://example.com/sitemap.xml';
         final site = testSite.copyWith(sitemapUrl: '/sitemap.xml');
         httpClient.setHeadException(Exception('Connection timeout'));
 
@@ -216,7 +218,9 @@ void main() {
 
         // 200
         httpClient.setHeadResponse(sitemapUrl, 200);
-        sitemapParser.setSitemapUrls(sitemapUrl, [Uri.parse('https://example.com/p1')]);
+        sitemapParser.setSitemapUrls(sitemapUrl, [
+          Uri.parse('https://example.com/p1'),
+        ]);
         await orchestrator.loadSitemapUrls(
           site: site,
           baseUrl: baseUrl,
