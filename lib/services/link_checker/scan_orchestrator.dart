@@ -135,6 +135,7 @@ class ScanOrchestrator {
   }
 
   /// Filter out URLs that match excluded paths
+  /// Supports both prefix matching and wildcard patterns (e.g., '*/admin/')
   List<Uri> _filterExcludedPaths(List<Uri> urls, List<String> excludedPaths) {
     final normalizedExcludedPaths = excludedPaths.map((path) {
       return path.startsWith('/') ? path : '/$path';
@@ -142,9 +143,24 @@ class ScanOrchestrator {
 
     return urls.where((url) {
       final urlPath = url.path;
-      return !normalizedExcludedPaths.any(
+
+      // Check for prefix matches
+      final prefixExcluded = normalizedExcludedPaths.any(
         (excluded) => urlPath.startsWith(excluded),
       );
+      if (prefixExcluded) return false;
+
+      // Check for wildcard segment matches (e.g., '*/admin/')
+      final wildcardExcluded = excludedPaths.any((excludedPath) {
+        if (excludedPath.startsWith('*/')) {
+          final pattern = excludedPath.substring(2).replaceAll('/', '');
+          final pathSegments = urlPath.split('/');
+          return pathSegments.any((segment) => segment == pattern);
+        }
+        return false;
+      });
+
+      return !wildcardExcluded;
     }).toList();
   }
 }

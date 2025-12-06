@@ -42,7 +42,11 @@ class LinkCheckerService {
       httpClient: _httpHelper,
       sitemapParser: _sitemapParser,
     );
-    _resultBuilder = ResultBuilder(repository: _repo, logger: _logger);
+    _resultBuilder = ResultBuilder(
+      firestore: _firestore,
+      logger: _logger,
+      historyLimit: _historyLimit,
+    );
   }
 
   // Get repository instance (lazy initialization)
@@ -74,6 +78,12 @@ class LinkCheckerService {
     _historyLimit = isPremium
         ? AppConstants.premiumHistoryLimit
         : AppConstants.freePlanHistoryLimit;
+    // Recreate ResultBuilder with new history limit
+    _resultBuilder = ResultBuilder(
+      firestore: _firestore,
+      logger: _logger,
+      historyLimit: _historyLimit,
+    );
   }
 
   /// Set page limit based on premium status
@@ -214,6 +224,7 @@ class LinkCheckerService {
     // STEP 6: Create and save result to Firestore
     // ========================================================================
     return await _resultBuilder.createAndSaveResult(
+      userId: _currentUserId!,
       site: site,
       sitemapStatusCode: sitemapStatusCode,
       endIndex: endIndex,

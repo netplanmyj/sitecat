@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:logger/logger.dart';
 import '../../models/broken_link.dart';
 import '../../models/site.dart';
@@ -5,14 +6,17 @@ import 'result_repository.dart';
 
 /// Builds and saves scan results
 class ResultBuilder {
-  final LinkCheckResultRepository _repository;
+  final FirebaseFirestore _firestore;
   final Logger _logger;
+  final int _historyLimit;
 
   ResultBuilder({
-    required LinkCheckResultRepository repository,
+    required FirebaseFirestore firestore,
     required Logger logger,
-  }) : _repository = repository,
-       _logger = logger;
+    required int historyLimit,
+  }) : _firestore = firestore,
+       _logger = logger,
+       _historyLimit = historyLimit;
 
   /// Merge broken links with previous scan results
   List<BrokenLink> mergeBrokenLinks({
@@ -28,6 +32,7 @@ class ResultBuilder {
 
   /// Create and save scan result to Firestore
   Future<LinkCheckResult> createAndSaveResult({
+    required String userId,
     required Site site,
     required int? sitemapStatusCode,
     required int endIndex,
@@ -78,14 +83,22 @@ class ResultBuilder {
       newLastScannedPageIndex: newLastScannedPageIndex,
     );
 
+    // Create repository instance for this operation
+    final repository = LinkCheckResultRepository(
+      firestore: _firestore,
+      userId: userId,
+      logger: _logger,
+      historyLimit: _historyLimit,
+    );
+
     // Save to Firestore
-    final resultId = await _repository.saveResult(result);
+    final resultId = await repository.saveResult(result);
 
     // Save broken links as subcollection
-    await _repository.saveBrokenLinks(resultId, allBrokenLinks);
+    await repository.saveBrokenLinks(resultId, allBrokenLinks);
 
     // Cleanup old results (async, non-blocking)
-    _repository.cleanupOldResults(site.id).catchError((error) {
+    repository.cleanupOldResults(site.id).catchError((error) {
       _logger.e('Failed to cleanup old link check results', error: error);
     });
 
