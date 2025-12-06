@@ -181,102 +181,96 @@ void main() {
         },
       );
 
-      test(
-        'should handle empty new links with continueFromLastScan true',
-        () {
-          // Arrange
-          final newLinks = <BrokenLink>[];
-          final previousLinks = [
-            BrokenLink(
-              siteId: testSiteId,
-              userId: testUserId,
-              id: '1',
-              url: 'https://example.com/old1',
-              foundOn: 'https://example.com',
-              linkType: LinkType.internal,
-              statusCode: 404,
-              timestamp: DateTime.now(),
-            ),
-          ];
+      test('should handle empty new links with continueFromLastScan true', () {
+        // Arrange
+        final newLinks = <BrokenLink>[];
+        final previousLinks = [
+          BrokenLink(
+            siteId: testSiteId,
+            userId: testUserId,
+            id: '1',
+            url: 'https://example.com/old1',
+            foundOn: 'https://example.com',
+            linkType: LinkType.internal,
+            statusCode: 404,
+            timestamp: DateTime.now(),
+          ),
+        ];
 
-          // Act
-          final result = resultBuilder.mergeBrokenLinks(
-            newBrokenLinks: newLinks,
-            previousBrokenLinks: previousLinks,
-            continueFromLastScan: true,
-          );
+        // Act
+        final result = resultBuilder.mergeBrokenLinks(
+          newBrokenLinks: newLinks,
+          previousBrokenLinks: previousLinks,
+          continueFromLastScan: true,
+        );
 
-          // Assert
-          expect(result, hasLength(1));
-          expect(result, equals(previousLinks));
-        },
-      );
+        // Assert
+        expect(result, hasLength(1));
+        expect(result, equals(previousLinks));
+      });
 
-      test(
-        'should preserve order: previous links first, then new links',
-        () {
-          // Arrange
-          final newLinks = [
-            BrokenLink(
-              siteId: testSiteId,
-              userId: testUserId,
-              id: 'new1',
-              url: 'https://example.com/new1',
-              foundOn: 'https://example.com',
-              linkType: LinkType.internal,
-              statusCode: 404,
-              timestamp: DateTime.now(),
-            ),
-            BrokenLink(
-              siteId: testSiteId,
-              userId: testUserId,
-              id: 'new2',
-              url: 'https://example.com/new2',
-              foundOn: 'https://example.com',
-              linkType: LinkType.internal,
-              statusCode: 500,
-              timestamp: DateTime.now(),
-            ),
-          ];
+      test('should preserve order: previous links first, then new links', () {
+        // Arrange
+        final newLinks = [
+          BrokenLink(
+            siteId: testSiteId,
+            userId: testUserId,
+            id: 'new1',
+            url: 'https://example.com/new1',
+            foundOn: 'https://example.com',
+            linkType: LinkType.internal,
+            statusCode: 404,
+            timestamp: DateTime.now(),
+          ),
+          BrokenLink(
+            siteId: testSiteId,
+            userId: testUserId,
+            id: 'new2',
+            url: 'https://example.com/new2',
+            foundOn: 'https://example.com',
+            linkType: LinkType.internal,
+            statusCode: 500,
+            timestamp: DateTime.now(),
+          ),
+        ];
 
-          final previousLinks = [
-            BrokenLink(
-              siteId: testSiteId,
-              userId: testUserId,
-              id: 'old1',
-              url: 'https://example.com/old1',
-              foundOn: 'https://example.com',
-              linkType: LinkType.internal,
-              statusCode: 404,
-              timestamp: DateTime.now(),
-            ),
-            BrokenLink(
-              siteId: testSiteId,
-              userId: testUserId,
-              id: 'old2',
-              url: 'https://example.com/old2',
-              foundOn: 'https://example.com',
-              linkType: LinkType.internal,
-              statusCode: 500,
-              timestamp: DateTime.now(),
-            ),
-          ];
+        final previousLinks = [
+          BrokenLink(
+            siteId: testSiteId,
+            userId: testUserId,
+            id: 'old1',
+            url: 'https://example.com/old1',
+            foundOn: 'https://example.com',
+            linkType: LinkType.internal,
+            statusCode: 404,
+            timestamp: DateTime.now(),
+          ),
+          BrokenLink(
+            siteId: testSiteId,
+            userId: testUserId,
+            id: 'old2',
+            url: 'https://example.com/old2',
+            foundOn: 'https://example.com',
+            linkType: LinkType.internal,
+            statusCode: 500,
+            timestamp: DateTime.now(),
+          ),
+        ];
 
-          // Act
-          final result = resultBuilder.mergeBrokenLinks(
-            newBrokenLinks: newLinks,
-            previousBrokenLinks: previousLinks,
-            continueFromLastScan: true,
-          );
+        // Act
+        final result = resultBuilder.mergeBrokenLinks(
+          newBrokenLinks: newLinks,
+          previousBrokenLinks: previousLinks,
+          continueFromLastScan: true,
+        );
 
-          // Assert
-          expect(result, hasLength(4));
-          expect(result[0].id, 'old1');
-          expect(result[1].id, 'old2');
-          expect(result[2].id, 'new1');
-          expect(result[3].id, 'new2');
-        },
-      );
+        // Assert
+        expect(result, hasLength(4));
+        expect(result[0].id, 'old1');
+        expect(result[1].id, 'old2');
+        expect(result[2].id, 'new1');
+        expect(result[3].id, 'new2');
+      });
 
       test('should not modify original lists', () {
         // Arrange
