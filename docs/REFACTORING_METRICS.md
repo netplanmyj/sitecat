@@ -129,8 +129,17 @@ Future<_SitemapLoadResult> _loadSitemapUrls(...)
 - エッジケースのテスト
 - エラーハンドリングのテスト
 
-### Phase 5: ファイル分割（重要 🔴）
-**現状**: 1139行（Phase 3完了時点）
+### Phase 5: ファイル分割（進行中🔄）
+**現状**: 1086行（Phase 5-1完了時点）
+
+**Phase 5-1完了✅ - データクラス抽出**:
+- lib/services/link_checker/models.dart作成（54行）
+- 4つのデータクラスを分離
+- link_checker_service.dart: 1142行 → 1086行（56行削減）
+- テスト結果: 19/19通過
+- コミット: 438fcaa
+
+**Phase 5-2予定 - 残りのファイル分割**:
 
 **問題点**:
 - 1ファイル1000行超えは保守性・可読性の観点で問題
