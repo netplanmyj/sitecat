@@ -87,8 +87,8 @@ void main() {
         userId: 'user-1',
         url: baseUrl.toString(),
         name: 'Example',
-        createdAt: DateTime(2024, 1, 1),
-        updatedAt: DateTime(2024, 1, 1),
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
       );
     });
 

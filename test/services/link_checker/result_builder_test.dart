@@ -328,5 +328,7 @@ void main() {
   });
 }
 
-/// Fake Firestore instance for testing (minimal implementation)
+/// Minimal fake Firestore instance for testing.
+/// This class is only intended for tests of pure logic methods that do not require any Firestore functionality.
+/// If Firestore methods are needed, use a more complete mock or fake.
 class FakeFirebaseFirestore extends Fake implements FirebaseFirestore {}

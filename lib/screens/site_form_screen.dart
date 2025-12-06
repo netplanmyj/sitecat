@@ -129,7 +129,7 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
                 _buildActionButtons(),
                 const SizedBox(height: 16),
                 if (siteProvider.error != null)
-                  _buildErrorMessage(siteProvider),
+                  _buildErrorMessage(siteProvider.error!),
                 _buildHelpCard(),
               ],
             ),
@@ -222,8 +222,8 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
     );
   }
 
-  Widget _buildErrorMessage(SiteProvider siteProvider) {
-    return SiteFormFields.buildErrorMessage(error: siteProvider.error!);
+  Widget _buildErrorMessage(String error) {
+    return SiteFormFields.buildErrorMessage(error: error);
   }
 
   Widget _buildHelpCard() {

@@ -3,6 +3,9 @@ import '../../providers/site_provider.dart';
 
 /// Form fields for site registration/editing
 class SiteFormFields {
+  // Private constructor to prevent instantiation
+  SiteFormFields._();
+
   /// Build site name input field
   static Widget buildSiteNameField({
     required TextEditingController controller,
