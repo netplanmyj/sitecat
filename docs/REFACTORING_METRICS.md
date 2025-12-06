@@ -13,7 +13,7 @@
 
 | 優先度 | ファイル | 行数 | ステータス | Issue |
 |--------|---------|------|-----------|-------|
-| 🔴 | lib/services/link_checker_service.dart | 1142 | Phase 3完了 | #212 |
+| ✅ | lib/services/link_checker_service.dart | 295 | Phase 7完了 | #212 |
 | 🟡 | lib/screens/site_form_screen.dart | 780 | 未着手 | #220予定 |
 | 🟢 | lib/screens/profile_screen.dart | 426 | 未着手 | - |
 | 🟢 | lib/providers/link_checker_provider.dart | 414 | 未着手 | - |
@@ -249,7 +249,135 @@ lib/services/
 - コンパイルエラー: なし
 
 **次のフェーズ候補**:
-- Phase 6: リンク検証ロジックの共通化（実施中）
+- Phase 7: さらなる最適化（完了✅）
+
+---
+
+### Phase 7: 徹底的なリファクタリング - 3クラス抽出 ✅
+
+**実施日**: 2025-12-06  
+**削減**: 295行（Phase 6: 622行 → Phase 7: 295行、327行削減）
+
+**背景・設計原則**:
+ユーザーからの重要な指摘:
+> "1ファイルの行数が多いと、このようなチャットで実装を依頼するたびに、現状分析が重たい処理になってしまう。中心になるファイルはメインの流れをできる限りコンパクトに実装して、そこから呼び出される処理を、しっかりと役割分担して別クラスに書き出す流れを重視したい"
+
+**アプローチ**: 徹底的な役割分離
+- メインファイルをコンパクトなコーディネーターに変更
+- 各処理ステップを専門クラスに抽出
+- checkSiteLinksメソッドを薄いラッパーに変更（各ステップをヘルパークラスに委譲）
+
+**作業内容**:
+
+1. **ScanOrchestratorクラス作成**（155行、新規）
+   - パス: `lib/services/link_checker/scan_orchestrator.dart`
+   - 責務: スキャンプロセス全体の調整役
+   - メソッド数: 5個
+     * `loadSitemapUrls`: sitemap読み込み・アクセシビリティチェック（60行）
+     * `loadPreviousScanData`: 前回スキャンデータ読み込み（20行）
+     * `calculateScanRange`: スキャン範囲計算（15行）
+     * `_buildFullUrl`: URL構築ヘルパー
+     * `_filterExcludedPaths`: 除外パスフィルタリング（40行）
+
+2. **LinkExtractorクラス作成**（105行、新規）
+   - パス: `lib/services/link_checker/link_extractor.dart`
+   - 責務: ページスキャン・リンク抽出
+   - メソッド数: 3個
+     * `scanPagesAndExtractLinks`: メインの抽出ロジック（80行）
+     * `_isSameDomain`: ドメイン判定
+     * `_normalizeEmulatorHost`: Androidエミュレータ対応
+
+3. **ResultBuilderクラス作成**（115行、新規）
+   - パス: `lib/services/link_checker/result_builder.dart`
+   - 責務: 結果構築・保存
+   - メソッド数: 2個
+     * `mergeBrokenLinks`: 壊れたリンクのマージ（10行）
+     * `createAndSaveResult`: 結果構築・Firestore保存（105行）
+       - 累積統計計算
+       - Firestore保存
+       - 非同期クリーンアップ
+
+4. **link_checker_service.dart大幅簡略化**
+   - コンストラクタ更新（ヘルパークラス初期化）
+     ```dart
+     _orchestrator = ScanOrchestrator(...)
+     _extractor = LinkExtractor(...)
+     _resultBuilder = ResultBuilder(...)
+     ```
+   - checkSiteLinksメソッド簡略化（全6ステップ）
+     ```dart
+     // STEP 1: Sitemap読み込み
+     final sitemapData = await _orchestrator.loadSitemapUrls(...)
+     
+     // STEP 1b: 前回スキャンデータ読み込み
+     final previousData = await _orchestrator.loadPreviousScanData(...)
+     
+     // STEP 1c: スキャン範囲計算
+     final scanRange = await _orchestrator.calculateScanRange(...)
+     
+     // STEP 2: ページスキャン・リンク抽出
+     final linkData = await _extractor.scanPagesAndExtractLinks(...)
+     
+     // STEP 3&4: リンクチェック
+     final brokenLinks = await validator.checkAllLinks(...)
+     
+     // STEP 5: 結果マージ
+     final allBrokenLinks = _resultBuilder.mergeBrokenLinks(...)
+     
+     // STEP 6: 結果保存
+     return await _resultBuilder.createAndSaveResult(...)
+     ```
+   - 古いプライベートメソッド317行を削除
+     * _loadSitemapUrls（60行）
+     * _loadPreviousScanData（20行）
+     * _calculateScanRange（15行）
+     * _scanPagesAndExtractLinks（80行）
+     * _mergeBrokenLinks（10行）
+     * _createAndSaveResult（100行）
+     * ヘルパーメソッド群（32行）
+
+**Phase 7削減量**:
+- Phase 6完了時: 622行
+- Phase 7完了時: **295行**（327行削減、約53%削減）
+
+**Phase 5-7合計削減量**:
+- 開始: 1142行
+- 完了: 295行
+- **合計削減: 847行（74%削減）** ✅🎉
+
+**分割後のファイル構成**:
+```
+lib/services/
+  link_checker_service.dart (295行) - メインロジック・公開API（コンパクトなコーディネーター）
+  link_checker/
+    models.dart (54行) - データクラス4個
+    http_client.dart (117行) - HTTP/HTML処理
+    sitemap_parser.dart (165行) - Sitemap XML解析
+    result_repository.dart (180行) - Firestore CRUD操作
+    link_validator.dart (145行) - リンク検証ロジック
+    scan_orchestrator.dart (155行) - スキャンプロセスのオーケストレーション
+    link_extractor.dart (105行) - ページスキャン・リンク抽出
+    result_builder.dart (115行) - 結果構築・保存
+```
+
+**改善効果**:
+- ✅ メインファイルが295行に削減（約74%削減）
+- ✅ 中心ファイルをコンパクトなコーディネーターに変更
+- ✅ 各処理ステップが専門クラスに分離
+- ✅ 単一責任原則の徹底
+- ✅ チャットベース開発でのコンテキスト負荷を大幅削減
+- ✅ checkSiteLinksメソッドがメインの流れのみを表現（薄いラッパー）
+- ✅ テスタビリティ向上（各クラスを独立してテスト可能）
+- ✅ 並行開発が可能
+
+**テスト結果**:
+- 全193テスト通過 ✅
+- コンパイルエラー: なし
+
+**設計原則の達成**:
+✅ "中心になるファイルはメインの流れをできる限りコンパクトに実装"
+✅ "そこから呼び出される処理を、しっかりと役割分担して別クラスに書き出す"
+✅ "チャットで実装を依頼するたびに、現状分析が重たい処理になる"問題を解決
 
 ---
 

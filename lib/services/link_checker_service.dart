@@ -6,11 +6,13 @@ import '../models/broken_link.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
 import '../utils/url_helper.dart';
-import 'link_checker/models.dart';
 import 'link_checker/http_client.dart';
 import 'link_checker/sitemap_parser.dart';
 import 'link_checker/result_repository.dart';
 import 'link_checker/link_validator.dart';
+import 'link_checker/scan_orchestrator.dart';
+import 'link_checker/link_extractor.dart';
+import 'link_checker/result_builder.dart';
 
 /// Service for checking broken links on websites
 class LinkCheckerService {
@@ -22,12 +24,25 @@ class LinkCheckerService {
   // Helper classes
   late final LinkCheckerHttpClient _httpHelper;
   late final SitemapParser _sitemapParser;
+  late final ScanOrchestrator _orchestrator;
+  late final LinkExtractor _extractor;
+  late final ResultBuilder _resultBuilder;
   LinkCheckResultRepository? _repository;
   String? _repositoryUserId;
 
   LinkCheckerService() {
     _httpHelper = LinkCheckerHttpClient(_httpClient);
     _sitemapParser = SitemapParser(_httpClient);
+    _orchestrator = ScanOrchestrator(
+      httpClient: _httpHelper,
+      sitemapParser: _sitemapParser,
+      pageLimit: _pageLimit,
+    );
+    _extractor = LinkExtractor(
+      httpClient: _httpHelper,
+      sitemapParser: _sitemapParser,
+    );
+    _resultBuilder = ResultBuilder(repository: _repo, logger: _logger);
   }
 
   // Get repository instance (lazy initialization)
@@ -111,11 +126,11 @@ class LinkCheckerService {
     // ========================================================================
     // STEP 1: Load sitemap URLs and check accessibility
     // ========================================================================
-    final sitemapData = await _loadSitemapUrls(
-      site,
-      baseUrl,
-      originalBaseUrl,
-      onSitemapStatusUpdate,
+    final sitemapData = await _orchestrator.loadSitemapUrls(
+      site: site,
+      baseUrl: baseUrl,
+      originalBaseUrl: originalBaseUrl,
+      onSitemapStatusUpdate: onSitemapStatusUpdate,
     );
     final allInternalPages = sitemapData.urls;
     final totalPagesInSitemap = sitemapData.totalPages;
@@ -125,10 +140,12 @@ class LinkCheckerService {
     // STEP 1b: Load previous scan data (if continuing from last scan)
     // ========================================================================
     final startIndex = continueFromLastScan ? site.lastScannedPageIndex : 0;
-    final previousData = await _loadPreviousScanData(
-      site.id,
-      continueFromLastScan,
-      startIndex,
+    final previousData = await _orchestrator.loadPreviousScanData(
+      continueFromLastScan: continueFromLastScan,
+      startIndex: startIndex,
+      getLatestResult: getLatestCheckResult,
+      getBrokenLinks: getBrokenLinks,
+      siteId: site.id,
     );
     final previousResult = previousData.result;
     final previousBrokenLinks = previousData.brokenLinks;
@@ -136,7 +153,10 @@ class LinkCheckerService {
     // ========================================================================
     // STEP 1c: Calculate scan range for this batch
     // ========================================================================
-    final scanRange = _calculateScanRange(allInternalPages, startIndex);
+    final scanRange = _orchestrator.calculateScanRange(
+      allPages: allInternalPages,
+      startIndex: startIndex,
+    );
     final pagesToScan = scanRange.pagesToScan;
     final endIndex = scanRange.endIndex;
     final scanCompleted = scanRange.scanCompleted;
@@ -144,13 +164,13 @@ class LinkCheckerService {
     // ========================================================================
     // STEP 2: Scan pages and extract all links
     // ========================================================================
-    final linkData = await _scanPagesAndExtractLinks(
-      pagesToScan,
-      originalBaseUrl,
-      startIndex,
-      totalPagesInSitemap,
-      onProgress,
-      shouldCancel,
+    final linkData = await _extractor.scanPagesAndExtractLinks(
+      pagesToScan: pagesToScan,
+      originalBaseUrl: originalBaseUrl,
+      startIndex: startIndex,
+      totalPagesInSitemap: totalPagesInSitemap,
+      onProgress: onProgress,
+      shouldCancel: shouldCancel,
     );
     final internalLinks = linkData.internalLinks;
     final externalLinks = linkData.externalLinks;
@@ -184,59 +204,28 @@ class LinkCheckerService {
     // ========================================================================
     // STEP 5: Merge broken links with previous results (if continuing)
     // ========================================================================
-    final allBrokenLinks = _mergeBrokenLinks(
-      brokenLinks,
-      previousBrokenLinks,
-      continueFromLastScan,
+    final allBrokenLinks = _resultBuilder.mergeBrokenLinks(
+      newBrokenLinks: brokenLinks,
+      previousBrokenLinks: previousBrokenLinks,
+      continueFromLastScan: continueFromLastScan,
     );
 
     // ========================================================================
     // STEP 6: Create and save result to Firestore
     // ========================================================================
-    return await _createAndSaveResult(
-      site,
-      sitemapStatusCode,
-      endIndex,
-      scanCompleted,
-      totalPagesInSitemap,
-      totalInternalLinksCount,
-      totalExternalLinksCount,
-      allBrokenLinks,
-      previousResult,
-      continueFromLastScan,
-      startTime,
+    return await _resultBuilder.createAndSaveResult(
+      site: site,
+      sitemapStatusCode: sitemapStatusCode,
+      endIndex: endIndex,
+      scanCompleted: scanCompleted,
+      totalPagesInSitemap: totalPagesInSitemap,
+      totalInternalLinksCount: totalInternalLinksCount,
+      totalExternalLinksCount: totalExternalLinksCount,
+      allBrokenLinks: allBrokenLinks,
+      previousResult: previousResult,
+      continueFromLastScan: continueFromLastScan,
+      startTime: startTime,
     );
-  }
-
-  /// Check if two URLs are from the same domain
-  bool _isSameDomain(Uri url1, Uri url2) {
-    // Android emulator special case: treat localhost and 10.0.2.2 as the same domain
-    final host1 = _normalizeEmulatorHost(url1.host);
-    final host2 = _normalizeEmulatorHost(url2.host);
-    return host1 == host2;
-  }
-
-  /// Normalize Android emulator special addresses
-  String _normalizeEmulatorHost(String host) {
-    // Treat 10.0.2.2 (Android emulator's host machine) as localhost
-    if (host == '10.0.2.2') return 'localhost';
-    return host;
-  }
-
-  /// Build full URL from base URL and path
-  /// If path is already a full URL, return it as-is
-  /// Otherwise, combine base URL with the path
-  String _buildFullUrl(Uri baseUrl, String path) {
-    // Check if path is already a full URL
-    if (path.startsWith('http://') || path.startsWith('https://')) {
-      return path;
-    }
-
-    // Combine base URL with path
-    // Remove trailing slash from base, and leading slash from path if present
-    final baseStr = baseUrl.toString().replaceAll(RegExp(r'/$'), '');
-    final pathStr = path.startsWith('/') ? path : '/$path';
-    return '$baseStr$pathStr';
   }
 
   /// Get broken links for a specific result
@@ -303,320 +292,4 @@ class LinkCheckerService {
   /// A filtered list containing only URLs that don't match any excluded path prefix
   ///
   // ==========================================================================
-  // Private helper methods for checkSiteLinks (extracted for better readability)
-  // ==========================================================================
-
-  /// Load sitemap URLs and check accessibility
-  /// Returns the list of URLs to scan, total count, and HTTP status code
-  Future<SitemapLoadResult> _loadSitemapUrls(
-    Site site,
-    Uri baseUrl,
-    Uri originalBaseUrl,
-    void Function(int? statusCode)? onSitemapStatusUpdate,
-  ) async {
-    List<Uri> allInternalPages = [];
-    int? sitemapStatusCode;
-
-    if (site.sitemapUrl != null && site.sitemapUrl!.isNotEmpty) {
-      try {
-        final fullSitemapUrl = _buildFullUrl(baseUrl, site.sitemapUrl!);
-
-        try {
-          final convertedUrl = UrlHelper.convertLocalhostForPlatform(
-            fullSitemapUrl,
-          );
-          final headCheck = await _httpHelper.checkUrlHead(convertedUrl);
-          sitemapStatusCode = headCheck.statusCode;
-
-          onSitemapStatusUpdate?.call(sitemapStatusCode);
-
-          if (sitemapStatusCode == 200) {
-            allInternalPages = await _sitemapParser.fetchSitemapUrls(
-              fullSitemapUrl,
-              _httpHelper.checkUrlHead,
-            );
-          } else {
-            allInternalPages = [originalBaseUrl];
-          }
-        } catch (e) {
-          sitemapStatusCode = 0;
-          onSitemapStatusUpdate?.call(sitemapStatusCode);
-          allInternalPages = [originalBaseUrl];
-        }
-
-        if (site.excludedPaths.isNotEmpty) {
-          allInternalPages = _filterExcludedPaths(
-            allInternalPages,
-            site.excludedPaths,
-          );
-        }
-
-        if (allInternalPages.isEmpty) {
-          allInternalPages = [originalBaseUrl];
-        }
-      } catch (e) {
-        allInternalPages = [originalBaseUrl];
-      }
-    } else {
-      allInternalPages = [originalBaseUrl];
-    }
-
-    return SitemapLoadResult(
-      urls: allInternalPages,
-      totalPages: allInternalPages.length,
-      statusCode: sitemapStatusCode,
-    );
-  }
-
-  /// Load previous scan data if continuing from last scan
-  Future<PreviousScanData> _loadPreviousScanData(
-    String siteId,
-    bool continueFromLastScan,
-    int startIndex,
-  ) async {
-    if (!continueFromLastScan || startIndex == 0) {
-      return const PreviousScanData(result: null, brokenLinks: <BrokenLink>[]);
-    }
-
-    final previousResult = await getLatestCheckResult(siteId);
-    if (previousResult == null || previousResult.id == null) {
-      return const PreviousScanData(result: null, brokenLinks: <BrokenLink>[]);
-    }
-
-    final previousBrokenLinks = await getBrokenLinks(previousResult.id!);
-    return PreviousScanData(
-      result: previousResult,
-      brokenLinks: previousBrokenLinks,
-    );
-  }
-
-  /// Calculate the range of pages to scan in this batch
-  ScanRange _calculateScanRange(List<Uri> allPages, int startIndex) {
-    const maxPagesToScan = 100;
-    final remainingPageLimit = _pageLimit - startIndex;
-    final actualPagesToScan = maxPagesToScan.clamp(0, remainingPageLimit);
-
-    final endIndex = (startIndex + actualPagesToScan).clamp(0, allPages.length);
-    final pagesToScan = allPages.sublist(startIndex, endIndex);
-    final scanCompleted = endIndex >= allPages.length || endIndex >= _pageLimit;
-
-    return ScanRange(
-      pagesToScan: pagesToScan,
-      endIndex: endIndex,
-      scanCompleted: scanCompleted,
-    );
-  }
-
-  /// Scan pages and extract all links (internal and external)
-  Future<LinkExtractionResult> _scanPagesAndExtractLinks(
-    List<Uri> pagesToScan,
-    Uri originalBaseUrl,
-    int startIndex,
-    int totalPagesInSitemap,
-    void Function(int checked, int total)? onProgress,
-    bool Function()? shouldCancel,
-  ) async {
-    final internalLinks = <Uri>{};
-    final externalLinks = <Uri>{};
-    final linkSourceMap = <String, List<String>>{};
-    final visitedPages = <String>{};
-
-    int totalInternalLinksCount = 0;
-    int totalExternalLinksCount = 0;
-    int pagesScanned = 0;
-
-    for (final page in pagesToScan) {
-      if (shouldCancel?.call() ?? false) {
-        break;
-      }
-
-      final pageUrl = page.toString();
-
-      if (visitedPages.contains(pageUrl)) continue;
-      visitedPages.add(pageUrl);
-
-      pagesScanned++;
-      final cumulativePagesScanned = startIndex + pagesScanned;
-      onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
-
-      if (pagesScanned > 1) {
-        await Future.delayed(const Duration(milliseconds: 200));
-      }
-
-      final htmlContent = await _httpHelper.fetchHtmlContent(pageUrl);
-      if (htmlContent == null) continue;
-
-      final links = _httpHelper.extractLinks(htmlContent, page);
-
-      for (final link in links) {
-        final normalizedLink = _sitemapParser.normalizeSitemapUrl(link);
-        final linkUrl = normalizedLink.toString();
-
-        if (!linkSourceMap.containsKey(linkUrl)) {
-          linkSourceMap[linkUrl] = [pageUrl];
-        } else if (!(linkSourceMap[linkUrl]?.contains(pageUrl) ?? false)) {
-          linkSourceMap[linkUrl]!.add(pageUrl);
-        }
-
-        if (_isSameDomain(normalizedLink, originalBaseUrl)) {
-          if (internalLinks.add(normalizedLink)) {
-            totalInternalLinksCount++;
-          }
-        } else {
-          if (externalLinks.add(normalizedLink)) {
-            totalExternalLinksCount++;
-          }
-        }
-      }
-    }
-
-    return LinkExtractionResult(
-      internalLinks: internalLinks,
-      externalLinks: externalLinks,
-      linkSourceMap: linkSourceMap,
-      totalInternalLinksCount: totalInternalLinksCount,
-      totalExternalLinksCount: totalExternalLinksCount,
-      pagesScanned: pagesScanned,
-    );
-  }
-
-  /// Merge broken links with previous scan results
-  List<BrokenLink> _mergeBrokenLinks(
-    List<BrokenLink> newBrokenLinks,
-    List<BrokenLink> previousBrokenLinks,
-    bool continueFromLastScan,
-  ) {
-    if (continueFromLastScan && previousBrokenLinks.isNotEmpty) {
-      return [...previousBrokenLinks, ...newBrokenLinks];
-    }
-    return newBrokenLinks;
-  }
-
-  /// Create and save scan result to Firestore
-  Future<LinkCheckResult> _createAndSaveResult(
-    Site site,
-    int? sitemapStatusCode,
-    int endIndex,
-    bool scanCompleted,
-    int totalPagesInSitemap,
-    int totalInternalLinksCount,
-    int totalExternalLinksCount,
-    List<BrokenLink> allBrokenLinks,
-    LinkCheckResult? previousResult,
-    bool continueFromLastScan,
-    DateTime startTime,
-  ) async {
-    final endTime = DateTime.now();
-    final newLastScannedPageIndex = scanCompleted ? 0 : endIndex;
-
-    // Calculate cumulative statistics
-    final previousTotalLinks = previousResult?.totalLinks ?? 0;
-    final previousInternalLinks = previousResult?.internalLinks ?? 0;
-    final previousExternalLinks = previousResult?.externalLinks ?? 0;
-
-    final totalLinksCount = totalInternalLinksCount + totalExternalLinksCount;
-    final cumulativeTotalLinks = continueFromLastScan && previousResult != null
-        ? previousTotalLinks + totalLinksCount
-        : totalLinksCount;
-    final cumulativeInternalLinks =
-        continueFromLastScan && previousResult != null
-        ? previousInternalLinks + totalInternalLinksCount
-        : totalInternalLinksCount;
-    final cumulativeExternalLinks =
-        continueFromLastScan && previousResult != null
-        ? previousExternalLinks + totalExternalLinksCount
-        : totalExternalLinksCount;
-
-    final result = LinkCheckResult(
-      siteId: site.id,
-      checkedUrl: site.url,
-      checkedSitemapUrl: site.sitemapUrl,
-      sitemapStatusCode: sitemapStatusCode,
-      timestamp: DateTime.now(),
-      totalLinks: cumulativeTotalLinks,
-      brokenLinks: allBrokenLinks.length,
-      internalLinks: cumulativeInternalLinks,
-      externalLinks: cumulativeExternalLinks,
-      scanDuration: endTime.difference(startTime),
-      pagesScanned: endIndex,
-      totalPagesInSitemap: totalPagesInSitemap,
-      scanCompleted: scanCompleted,
-      newLastScannedPageIndex: newLastScannedPageIndex,
-    );
-
-    // Save to Firestore
-    final resultId = await _repo.saveResult(result);
-
-    // Save broken links as subcollection
-    await _repo.saveBrokenLinks(resultId, allBrokenLinks);
-
-    // Cleanup old results (async, non-blocking)
-    _repo.cleanupOldResults(site.id).catchError((error) {
-      _logger.e('Failed to cleanup old link check results', error: error);
-    });
-
-    // Return result with Firestore document ID
-    return LinkCheckResult(
-      id: resultId,
-      siteId: result.siteId,
-      checkedUrl: result.checkedUrl,
-      checkedSitemapUrl: result.checkedSitemapUrl,
-      sitemapStatusCode: result.sitemapStatusCode,
-      timestamp: result.timestamp,
-      totalLinks: result.totalLinks,
-      brokenLinks: result.brokenLinks,
-      internalLinks: result.internalLinks,
-      externalLinks: result.externalLinks,
-      scanDuration: result.scanDuration,
-      pagesScanned: result.pagesScanned,
-      totalPagesInSitemap: result.totalPagesInSitemap,
-      scanCompleted: result.scanCompleted,
-      newLastScannedPageIndex: result.newLastScannedPageIndex,
-    );
-  }
-
-  /// **Example:**
-  /// ```dart
-  /// final urls = [
-  ///   Uri.parse('https://example.com/posts/article-1'),
-  ///   Uri.parse('https://example.com/tags/tag-1'),
-  ///   Uri.parse('https://example.com/categories/cat-1'),
-  /// ];
-  /// final filtered = _filterExcludedPaths(urls, ['tags/', 'categories/']);
-  /// // Result: Only the posts URL remains
-  /// ```
-  List<Uri> _filterExcludedPaths(List<Uri> urls, List<String> excludedPaths) {
-    if (excludedPaths.isEmpty) return urls;
-
-    return urls.where((url) {
-      final path = url.path;
-
-      // Check if the path matches any of the excluded paths
-      for (final excludedPath in excludedPaths) {
-        // Handle wildcard pattern (e.g., */admin/)
-        if (excludedPath.startsWith('*/')) {
-          final pattern = excludedPath.substring(2); // Remove the leading */
-          // Check if the pattern appears as a complete path segment
-          // This ensures */admin/ matches /blog/admin/ but not /administrator/
-          final pathSegments = path.split('/');
-          if (pathSegments.any(
-            (segment) => segment == pattern.replaceAll('/', ''),
-          )) {
-            return false; // Exclude this URL
-          }
-        } else {
-          // Handle simple prefix pattern (e.g., tags/ or /tags/)
-          final normalizedExcludedPath = excludedPath.startsWith('/')
-              ? excludedPath
-              : '/$excludedPath';
-
-          if (path.startsWith(normalizedExcludedPath)) {
-            return false; // Exclude this URL
-          }
-        }
-      }
-
-      return true; // Include this URL
-    }).toList();
-  }
 }
