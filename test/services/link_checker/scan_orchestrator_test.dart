@@ -304,7 +304,10 @@ void main() {
             startIndex: 40,
           );
 
-          expect(result.pagesToScan.length, 60); // 40-99 inclusive
+          expect(
+            result.pagesToScan.length,
+            60,
+          ); // 40-99 (60 pages, 0-indexed range)
           expect(result.endIndex, 100);
           expect(result.scanCompleted, false);
         },

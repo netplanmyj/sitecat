@@ -111,17 +111,12 @@ class ScanOrchestrator {
     required int startIndex,
   }) {
     const batchPageCap = 100;
-    final remainingPlanLimit = max(0, pageLimit - startIndex);
-    final remainingPages = max(0, allPages.length - startIndex);
 
     // Next boundary is the next multiple of 100 pages (1-100, 101-200, ...)
     final nextBoundary = ((startIndex ~/ batchPageCap) + 1) * batchPageCap;
     final batchEnd = min(nextBoundary, min(pageLimit, allPages.length));
 
-    final actualPagesToScan = max(
-      0,
-      batchEnd - startIndex,
-    ).clamp(0, min(remainingPages, remainingPlanLimit)).toInt();
+    final actualPagesToScan = max(0, batchEnd - startIndex);
 
     final endIndex = min(allPages.length, startIndex + actualPagesToScan);
     final pagesToScan = allPages.sublist(startIndex, endIndex);

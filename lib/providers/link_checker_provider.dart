@@ -310,7 +310,7 @@ class LinkCheckerProvider extends ChangeNotifier {
       // Update state based on whether all pages were scanned
       // - If scanCompleted=true: Mark as LinkCheckState.completed (full scan done)
       // - If scanCompleted=false: Keep as LinkCheckState.checking (batch complete, can continue)
-      //   This ensures clowdown timer and Stop button remain visible after batch completion
+      //   This ensures cooldown timer and Stop button remain visible after batch completion
       if (result.scanCompleted) {
         _checkStates[siteId] = LinkCheckState.completed;
       }
