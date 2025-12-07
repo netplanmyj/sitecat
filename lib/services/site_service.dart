@@ -2,7 +2,11 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/site.dart';
 
-class SiteService {
+abstract class SiteUpdater {
+  Future<void> updateSite(Site site);
+}
+
+class SiteService implements SiteUpdater {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
@@ -63,6 +67,7 @@ class SiteService {
   }
 
   // Update an existing site
+  @override
   Future<void> updateSite(Site site) async {
     if (_currentUserId == null) {
       throw Exception('User must be authenticated to update a site');

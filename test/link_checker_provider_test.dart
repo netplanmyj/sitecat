@@ -3,6 +3,84 @@ import 'package:sitecat/models/broken_link.dart';
 import 'package:sitecat/models/site.dart';
 import 'package:sitecat/providers/link_checker_provider.dart';
 import 'package:sitecat/utils/url_utils.dart';
+import 'package:sitecat/services/site_service.dart';
+import 'package:sitecat/services/link_checker_service.dart';
+
+class _FakeSiteService implements SiteUpdater {
+  int callCount = 0;
+  int? lastSavedIndex;
+  bool shouldFail = false;
+
+  @override
+  Future<void> updateSite(Site site) async {
+    callCount++;
+    if (shouldFail) {
+      throw Exception('save-failed');
+    }
+    lastSavedIndex = site.lastScannedPageIndex;
+  }
+}
+
+class _FakeLinkCheckerService implements LinkCheckerClient {
+  @override
+  Future<LinkCheckResult> checkSiteLinks(
+    Site site, {
+    bool checkExternalLinks = true,
+    bool continueFromLastScan = false,
+    void Function(int p1, int p2)? onProgress,
+    void Function(int p1, int p2)? onExternalLinksProgress,
+    void Function(int? p1)? onSitemapStatusUpdate,
+    bool Function()? shouldCancel,
+  }) async {
+    // Not needed for these tests
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<void> deleteLinkCheckResult(String resultId) async {}
+
+  @override
+  Future<List<LinkCheckResult>> getAllCheckResults({int limit = 50}) async {
+    return [];
+  }
+
+  @override
+  Future<List<BrokenLink>> getBrokenLinks(String resultId) async {
+    return [];
+  }
+
+  @override
+  Future<List<LinkCheckResult>> getCheckResults(
+    String siteId, {
+    int limit = 50,
+  }) async {
+    return [];
+  }
+
+  @override
+  Future<LinkCheckResult?> getLatestCheckResult(String siteId) async {
+    return null;
+  }
+
+  @override
+  void setHistoryLimit(bool isPremium) {}
+
+  @override
+  void setPageLimit(bool isPremium) {}
+}
+
+Site _buildSite({int lastScannedPageIndex = 0}) {
+  final now = DateTime.now();
+  return Site(
+    id: 'site_1',
+    userId: 'user_1',
+    url: 'https://example.com',
+    name: 'Example',
+    createdAt: now,
+    updatedAt: now,
+    lastScannedPageIndex: lastScannedPageIndex,
+  );
+}
 
 void main() {
   group('LinkCheckerProvider - State Management Logic', () {
@@ -465,6 +543,56 @@ void main() {
 
       expect(newCooldownEnd.isAfter(completionTime), isTrue);
       expect(newCooldownEnd.difference(completionTime).inSeconds, equals(30));
+    });
+  });
+
+  group('LinkCheckerProvider - Progress save on interruption', () {
+    test('saves current progress to site service when progress > 0', () async {
+      final fakeSiteService = _FakeSiteService();
+      final provider = LinkCheckerProvider(
+        siteService: fakeSiteService,
+        linkCheckerService: _FakeLinkCheckerService(),
+      );
+      final site = _buildSite();
+
+      provider.setCheckedCounts(site.id, 17);
+
+      await provider.saveProgressOnInterruption(site: site, siteId: site.id);
+
+      expect(fakeSiteService.callCount, equals(1));
+      expect(fakeSiteService.lastSavedIndex, equals(17));
+    });
+
+    test('does not save when progress is zero', () async {
+      final fakeSiteService = _FakeSiteService();
+      final provider = LinkCheckerProvider(
+        siteService: fakeSiteService,
+        linkCheckerService: _FakeLinkCheckerService(),
+      );
+      final site = _buildSite();
+
+      provider.setCheckedCounts(site.id, 0);
+
+      await provider.saveProgressOnInterruption(site: site, siteId: site.id);
+
+      expect(fakeSiteService.callCount, equals(0));
+      expect(fakeSiteService.lastSavedIndex, isNull);
+    });
+
+    test('captures error message when save fails', () async {
+      final fakeSiteService = _FakeSiteService()..shouldFail = true;
+      final provider = LinkCheckerProvider(
+        siteService: fakeSiteService,
+        linkCheckerService: _FakeLinkCheckerService(),
+      );
+      final site = _buildSite();
+
+      provider.setCheckedCounts(site.id, 5);
+
+      await provider.saveProgressOnInterruption(site: site, siteId: site.id);
+
+      final error = provider.getError(site.id);
+      expect(error, contains('Failed to save progress'));
     });
   });
 }

@@ -35,8 +35,9 @@ class ResultBuilder {
     required String userId,
     required Site site,
     required int? sitemapStatusCode,
-    required int endIndex,
+    required int pagesScannedCount,
     required bool scanCompleted,
+    required int resumeFromIndex,
     required int totalPagesInSitemap,
     required int totalInternalLinksCount,
     required int totalExternalLinksCount,
@@ -46,7 +47,7 @@ class ResultBuilder {
     required DateTime startTime,
   }) async {
     final endTime = DateTime.now();
-    final newLastScannedPageIndex = scanCompleted ? 0 : endIndex;
+    final newLastScannedPageIndex = scanCompleted ? 0 : resumeFromIndex;
 
     // Calculate cumulative statistics
     final previousTotalLinks = previousResult?.totalLinks ?? 0;
@@ -77,7 +78,7 @@ class ResultBuilder {
       internalLinks: cumulativeInternalLinks,
       externalLinks: cumulativeExternalLinks,
       scanDuration: endTime.difference(startTime),
-      pagesScanned: endIndex,
+      pagesScanned: pagesScannedCount,
       totalPagesInSitemap: totalPagesInSitemap,
       scanCompleted: scanCompleted,
       newLastScannedPageIndex: newLastScannedPageIndex,
