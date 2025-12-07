@@ -16,8 +16,8 @@ class LinkCheckerProvider extends ChangeNotifier {
   bool _isDemoMode = false;
   bool _hasLifetimeAccess = false;
 
-  // Minimum interval between checks (1 minute for debugging)
-  static const Duration minimumCheckInterval = Duration(minutes: 1);
+  // Cooldown interval after any scan-related action (Start/Stop/Continue)
+  static const Duration defaultCooldown = Duration(seconds: 30);
 
   // State variables
   final Map<String, LinkCheckState> _checkStates = {};
@@ -26,7 +26,7 @@ class LinkCheckerProvider extends ChangeNotifier {
   final Map<String, String> _errors = {};
   final Map<String, int> _checkedCounts = {};
   final Map<String, int> _totalCounts = {};
-  final Map<String, DateTime> _lastCheckTime = {};
+  final Map<String, DateTime> _cooldownUntil = {};
   final Map<String, List<LinkCheckResult>> _checkHistory = {};
   final Map<String, bool> _isProcessingExternalLinks = {};
   final Map<String, int> _externalLinksChecked = {};
@@ -111,6 +111,7 @@ class LinkCheckerProvider extends ChangeNotifier {
   /// Request cancellation of ongoing scan
   void cancelScan(String siteId) {
     _cancelRequested[siteId] = true;
+    _startCooldown(siteId);
     notifyListeners();
   }
 
@@ -124,23 +125,30 @@ class LinkCheckerProvider extends ChangeNotifier {
     return _checkStates[siteId] == LinkCheckState.checking;
   }
 
-  /// Check if a site can be checked (respects minimum interval)
-  bool canCheckSite(String siteId) {
-    final lastCheck = _lastCheckTime[siteId];
-    if (lastCheck == null) return true;
+  /// Trigger cooldown for a site (used after any scan-related action)
+  void _startCooldown(String siteId, {Duration? duration}) {
+    _cooldownUntil[siteId] = DateTime.now().add(duration ?? defaultCooldown);
+    notifyListeners();
+  }
 
-    final timeSinceLastCheck = DateTime.now().difference(lastCheck);
-    return timeSinceLastCheck >= minimumCheckInterval;
+  /// Check if a site is currently in cooldown window
+  bool isInCooldown(String siteId) {
+    final cooldownUntil = _cooldownUntil[siteId];
+    if (cooldownUntil == null) return false;
+    return DateTime.now().isBefore(cooldownUntil);
+  }
+
+  /// Check if a site can be checked (respects cooldown window)
+  bool canCheckSite(String siteId) {
+    return !isInCooldown(siteId);
   }
 
   /// Get remaining time until next check is allowed
   Duration? getTimeUntilNextCheck(String siteId) {
-    final lastCheck = _lastCheckTime[siteId];
-    if (lastCheck == null) return null;
+    final cooldownUntil = _cooldownUntil[siteId];
+    if (cooldownUntil == null) return null;
 
-    final timeSinceLastCheck = DateTime.now().difference(lastCheck);
-    final remaining = minimumCheckInterval - timeSinceLastCheck;
-
+    final remaining = cooldownUntil.difference(DateTime.now());
     return remaining.isNegative ? null : remaining;
   }
 
@@ -190,8 +198,8 @@ class LinkCheckerProvider extends ChangeNotifier {
       return;
     }
 
-    // Check if minimum interval has passed (skip for continue scan)
-    if (!continueFromLastScan && !canCheckSite(siteId)) {
+    // Enforce cooldown before starting any scan (start/continue)
+    if (isInCooldown(siteId)) {
       final remaining = getTimeUntilNextCheck(siteId);
       if (remaining != null) {
         final minutes = remaining.inMinutes;
@@ -201,6 +209,9 @@ class LinkCheckerProvider extends ChangeNotifier {
         );
       }
     }
+
+    // Start cooldown immediately on user action
+    _startCooldown(siteId);
 
     // Reset state
     _checkStates[siteId] = LinkCheckState.checking;
@@ -272,8 +283,11 @@ class LinkCheckerProvider extends ChangeNotifier {
         site.copyWith(lastScannedPageIndex: result.newLastScannedPageIndex),
       );
 
-      // Record check time
-      _lastCheckTime[siteId] = DateTime.now();
+      // Always enforce cooldown after a completed scan batch.
+      // This is intentional: cooldown is set both at scan start (line 215) and
+      // completion (here). This ensures minimum spacing between consecutive batches.
+      // Do not remove unless you fully understand the cooldown design.
+      _startCooldown(siteId);
 
       // Notify again after broken links are loaded
       notifyListeners();
@@ -289,6 +303,10 @@ class LinkCheckerProvider extends ChangeNotifier {
         _checkedCounts[siteId] = previousChecked;
         _totalCounts[siteId] = previousTotal;
       }
+
+      // Enforce cooldown after an error to prevent immediate retries.
+      // Cooldown is set even on failure to maintain consistent rate limiting.
+      _startCooldown(siteId);
 
       notifyListeners();
       rethrow;
