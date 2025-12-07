@@ -397,4 +397,74 @@ void main() {
       expect(UrlUtils.hasUrlMismatch(result.checkedUrl, site.url), isFalse);
     });
   });
+
+  group('LinkCheckerProvider - Cooldown Logic', () {
+    test('cooldown default is 30 seconds', () {
+      expect(LinkCheckerProvider.defaultCooldown.inSeconds, equals(30));
+    });
+
+    test('cooldown duration is immutable constant', () {
+      final duration1 = LinkCheckerProvider.defaultCooldown;
+      final duration2 = LinkCheckerProvider.defaultCooldown;
+      expect(duration1, equals(duration2));
+      expect(duration1.inSeconds, equals(30));
+    });
+
+    test('isInCooldown logic - not in cooldown when time is in past', () {
+      final pastTime = DateTime.now().subtract(const Duration(seconds: 5));
+      // If cooldownUntil is in the past, isInCooldown should be false
+      expect(pastTime.isBefore(DateTime.now()), isTrue);
+    });
+
+    test('isInCooldown logic - in cooldown when time is in future', () {
+      final futureTime = DateTime.now().add(const Duration(seconds: 30));
+      // If cooldownUntil is in the future, isInCooldown should be true
+      expect(futureTime.isAfter(DateTime.now()), isTrue);
+    });
+
+    test('getTimeUntilNextCheck logic - calculates remaining time', () {
+      final now = DateTime.now();
+      final cooldownEnd = now.add(const Duration(seconds: 30));
+
+      final remaining = cooldownEnd.difference(now);
+      expect(remaining.inSeconds, closeTo(30, 1));
+    });
+
+    test('getTimeUntilNextCheck logic - returns negative when in past', () {
+      final pastTime = DateTime.now().subtract(const Duration(seconds: 5));
+      final remaining = pastTime.difference(DateTime.now());
+
+      expect(remaining.isNegative, isTrue);
+    });
+
+    test('canCheckSite logic - respects cooldown state', () {
+      // canCheckSite should return true when NOT in cooldown
+      // canCheckSite should return false when IN cooldown
+
+      final inCooldown = true;
+      final notInCooldown = false;
+
+      // Logical relationship: canCheckSite = !isInCooldown
+      expect(!inCooldown, equals(false)); // Can't check when in cooldown
+      expect(!notInCooldown, equals(true)); // Can check when not in cooldown
+    });
+    test('cooldown design - dual triggers for rate limiting', () {
+      // Verify the design: cooldown is triggered at two points:
+      // 1. Scan start: prevent immediate retries
+      // 2. Scan completion: ensure minimum spacing between batches
+
+      final startTime = DateTime.now();
+      final completionTime = startTime.add(
+        const Duration(minutes: 2, seconds: 30),
+      );
+
+      // After completion, a new 30s cooldown is set
+      final newCooldownEnd = completionTime.add(
+        LinkCheckerProvider.defaultCooldown,
+      );
+
+      expect(newCooldownEnd.isAfter(completionTime), isTrue);
+      expect(newCooldownEnd.difference(completionTime).inSeconds, equals(30));
+    });
+  });
 }

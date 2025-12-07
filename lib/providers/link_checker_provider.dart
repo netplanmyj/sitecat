@@ -283,7 +283,10 @@ class LinkCheckerProvider extends ChangeNotifier {
         site.copyWith(lastScannedPageIndex: result.newLastScannedPageIndex),
       );
 
-      // Always enforce cooldown after a completed scan batch
+      // Always enforce cooldown after a completed scan batch.
+      // This is intentional: cooldown is set both at scan start (line 215) and
+      // completion (here). This ensures minimum spacing between consecutive batches.
+      // Do not remove unless you fully understand the cooldown design.
       _startCooldown(siteId);
 
       // Notify again after broken links are loaded
@@ -301,7 +304,8 @@ class LinkCheckerProvider extends ChangeNotifier {
         _totalCounts[siteId] = previousTotal;
       }
 
-      // Enforce cooldown after an error to prevent immediate retries
+      // Enforce cooldown after an error to prevent immediate retries.
+      // Cooldown is set even on failure to maintain consistent rate limiting.
       _startCooldown(siteId);
 
       notifyListeners();
