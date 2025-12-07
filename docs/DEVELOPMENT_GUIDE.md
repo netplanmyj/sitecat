@@ -756,6 +756,12 @@ SiteCatのアーキテクチャは以下のように整理されています：
 - ✅ **除外パス設定（バックエンド実装完了、PR #195マージ）**
 - ✅ **Flutter 3.38.3へのアップグレード（PR #196マージ）**
 - ✅ **168テスト成功**
+- ✅ **Quick Scan廃止してSite Scanに統合（Issue #215、PR #230マージ）**
+  - ✅ MonitoringResultにsitemapStatusCodeフィールド追加
+  - ✅ MonitoringProviderにセッション別キャッシュ機能実装
+  - ✅ Site Scanタブにサイトマップ状態セクション追加
+  - ✅ 画面オープン時に自動でquick scanを実行
+  - ✅ Quick Scanタブ削除（UIシンプル化）
 
 **実装された技術要素:**
 - `html`/`xml` パッケージでサイトマップ解析

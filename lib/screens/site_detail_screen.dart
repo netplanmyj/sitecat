@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/site.dart';
+import '../models/monitoring_result.dart';
 import '../providers/monitoring_provider.dart';
 import '../providers/link_checker_provider.dart';
 import '../providers/site_provider.dart';
 import '../widgets/site_info_card.dart';
 import '../widgets/link_check_section.dart';
-import '../widgets/monitoring_result_card.dart';
-import '../widgets/site_detail/quick_check_section.dart';
 import '../widgets/site_detail/full_scan_section.dart';
 import 'broken_links_screen.dart';
 
@@ -28,13 +27,15 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 1, vsync: this);
 
-    // Start listening to monitoring results
+    // Start listening to monitoring results and auto-trigger quick scan
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<MonitoringProvider>().listenToSiteResults(widget.site.id);
       // Load latest link check result
       context.read<LinkCheckerProvider>().loadLatestResult(widget.site.id);
+      // Auto-trigger quick scan to get fresh sitemap status
+      context.read<MonitoringProvider>().checkSite(widget.site);
     });
   }
 
@@ -53,44 +54,20 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
         foregroundColor: Colors.white,
         bottom: TabBar(
           controller: _tabController,
-          tabs: const [
-            Tab(text: 'Quick Check', icon: Icon(Icons.speed)),
-            Tab(text: 'Full Scan', icon: Icon(Icons.link)),
-          ],
+          tabs: const [Tab(text: 'Site Scan', icon: Icon(Icons.link))],
         ),
       ),
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Quick Check Tab
-          _buildQuickCheckTab(),
-          // Full Scan Tab
+          // Site Scan Tab (integrated Full Scan with sitemap status)
           _buildFullScanTab(),
         ],
       ),
     );
   }
 
-  // Quick Check Tab
-  Widget _buildQuickCheckTab() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SiteInfoCard(site: widget.site),
-            const SizedBox(height: 16),
-            QuickCheckSection(site: widget.site, onQuickCheck: _quickCheck),
-            const SizedBox(height: 16),
-            MonitoringResultCard(site: widget.site),
-          ],
-        ),
-      ),
-    );
-  }
-
-  // Full Scan Tab
+  // Full Scan Tab (Site Scan)
   Widget _buildFullScanTab() {
     return SingleChildScrollView(
       child: Padding(
@@ -99,6 +76,9 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             SiteInfoCard(site: widget.site),
+            const SizedBox(height: 16),
+            // Sitemap Status Section (Quick Scan equivalent)
+            _buildSitemapStatusSection(),
             const SizedBox(height: 16),
             FullScanSection(
               site: widget.site,
@@ -262,5 +242,108 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
+  }
+
+  /// Build Sitemap Status Section (integrated Quick Scan)
+  Widget _buildSitemapStatusSection() {
+    return Consumer<MonitoringProvider>(
+      builder: (context, monitoringProvider, child) {
+        final isChecking = monitoringProvider.isChecking(widget.site.id);
+        final canCheck = monitoringProvider.canCheckSite(widget.site.id);
+        final latestResult = monitoringProvider.getLatestResult(widget.site.id);
+        final cachedStatusCode = monitoringProvider.getCachedSitemapStatus(
+          widget.site.id,
+        );
+
+        return Card(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.map, size: 24),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Sitemap Status',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.refresh),
+                      onPressed: isChecking || !canCheck ? null : _quickCheck,
+                      tooltip: 'Refresh sitemap status',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                if (isChecking)
+                  const SizedBox(
+                    height: 40,
+                    child: Center(child: CircularProgressIndicator()),
+                  )
+                else if (latestResult != null)
+                  _buildSitemapStatusContent(latestResult, cachedStatusCode)
+                else
+                  const Text(
+                    'No status check yet',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  /// Build sitemap status display content
+  Widget _buildSitemapStatusContent(
+    MonitoringResult result,
+    int? cachedStatusCode,
+  ) {
+    final statusCode = cachedStatusCode ?? result.sitemapStatusCode;
+    String statusText;
+    Color statusColor;
+
+    if (statusCode == null) {
+      statusText = 'Not checked';
+      statusColor = Colors.grey;
+    } else if (statusCode == 200) {
+      statusText = '✓ Sitemap found (200 OK)';
+      statusColor = Colors.green;
+    } else if (statusCode == 404) {
+      statusText = '✗ Sitemap not found (404)';
+      statusColor = Colors.red;
+    } else if (statusCode == 0) {
+      statusText = '✗ Network error';
+      statusColor = Colors.red;
+    } else {
+      statusText = 'Status: $statusCode';
+      statusColor = Colors.orange;
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          statusText,
+          style: TextStyle(
+            fontSize: 16,
+            color: statusColor,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'Last checked: ${result.timestamp.toString().split('.')[0]}',
+          style: const TextStyle(fontSize: 12, color: Colors.grey),
+        ),
+      ],
+    );
   }
 }

@@ -10,6 +10,8 @@ class MonitoringResult {
   final int responseTime; // milliseconds
   final bool isUp;
   final String? error;
+  final int?
+  sitemapStatusCode; // HTTP status from sitemap check (200=OK, 404=Not Found, 0=Network Error)
 
   MonitoringResult({
     required this.id,
@@ -20,6 +22,7 @@ class MonitoringResult {
     required this.responseTime,
     required this.isUp,
     this.error,
+    this.sitemapStatusCode,
   });
 
   /// Create MonitoringResult from Firestore document
@@ -34,6 +37,7 @@ class MonitoringResult {
       responseTime: data['responseTime'] ?? 0,
       isUp: data['isUp'] ?? false,
       error: data['error'],
+      sitemapStatusCode: data['sitemapStatusCode'] as int?,
     );
   }
 
@@ -47,6 +51,7 @@ class MonitoringResult {
       'responseTime': responseTime,
       'isUp': isUp,
       'error': error,
+      'sitemapStatusCode': sitemapStatusCode,
     };
   }
 
@@ -60,6 +65,7 @@ class MonitoringResult {
     int? responseTime,
     bool? isUp,
     String? error,
+    int? sitemapStatusCode,
   }) {
     return MonitoringResult(
       id: id ?? this.id,
@@ -70,6 +76,7 @@ class MonitoringResult {
       responseTime: responseTime ?? this.responseTime,
       isUp: isUp ?? this.isUp,
       error: error ?? this.error,
+      sitemapStatusCode: sitemapStatusCode ?? this.sitemapStatusCode,
     );
   }
 

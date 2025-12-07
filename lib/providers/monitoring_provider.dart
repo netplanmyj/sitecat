@@ -16,6 +16,8 @@ class MonitoringProvider extends ChangeNotifier {
   final Map<String, List<MonitoringResult>> _resultsBySite = {};
   final Map<String, bool> _isChecking = {};
   final Map<String, DateTime> _lastCheckTime = {};
+  final Map<String, int?> _sitemapStatusCache =
+      {}; // Cache for sitemap status code
   String? _error;
   Map<String, StreamSubscription<List<MonitoringResult>>>? _subscriptions;
 
@@ -170,6 +172,11 @@ class MonitoringProvider extends ChangeNotifier {
       final existingResults = _resultsBySite[site.id] ?? [];
       _resultsBySite[site.id] = [result, ...existingResults];
 
+      // Cache sitemap status if available
+      if (result.sitemapStatusCode != null) {
+        cacheSitemapStatus(site.id, result.sitemapStatusCode);
+      }
+
       // Record check time
       _lastCheckTime[site.id] = DateTime.now();
 
@@ -215,5 +222,20 @@ class MonitoringProvider extends ChangeNotifier {
   /// Clear error after displaying
   void clearError() {
     _clearError();
+  }
+
+  /// Get cached sitemap status for a site
+  int? getCachedSitemapStatus(String siteId) {
+    return _sitemapStatusCache[siteId];
+  }
+
+  /// Cache sitemap status for a site
+  void cacheSitemapStatus(String siteId, int? statusCode) {
+    _sitemapStatusCache[siteId] = statusCode;
+  }
+
+  /// Clear sitemap status cache for a site
+  void clearSitemapStatusCache(String siteId) {
+    _sitemapStatusCache.remove(siteId);
   }
 }
