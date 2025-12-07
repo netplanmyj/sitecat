@@ -345,5 +345,163 @@ void main() {
         expect(progressCalls.last, 2); // Completed
       });
     });
+
+    group('checkLinksFromPage', () {
+      test(
+        'should validate internal and external links from a single page',
+        () async {
+          // Arrange
+          final internalUrl = Uri.parse('https://example.com/page1');
+          final externalUrl = Uri.parse('https://external.com/page');
+          final internalLinks = {internalUrl};
+          final externalLinks = {externalUrl};
+          final linkSourceMap = {
+            internalUrl.toString(): ['https://example.com/source'],
+            externalUrl.toString(): ['https://example.com/source'],
+          };
+
+          mockHttpClient.setSuccess(internalUrl);
+          mockHttpClient.setSuccess(externalUrl);
+
+          // Act
+          final result = await validator.checkLinksFromPage(
+            siteId: testSiteId,
+            internalLinks: internalLinks,
+            externalLinks: externalLinks,
+            linkSourceMap: linkSourceMap,
+            checkExternalLinks: true,
+          );
+
+          // Assert
+          expect(result, isEmpty); // No broken links
+        },
+      );
+
+      test('should detect broken internal links', () async {
+        // Arrange
+        final internalUrl = Uri.parse('https://example.com/page1');
+        final internalLinks = {internalUrl};
+        final externalLinks = <Uri>{};
+        final linkSourceMap = {
+          internalUrl.toString(): ['https://example.com/source'],
+        };
+
+        mockHttpClient.setResponse(
+          internalUrl,
+          statusCode: 404,
+          error: 'Not Found',
+        );
+
+        // Act
+        final result = await validator.checkLinksFromPage(
+          siteId: testSiteId,
+          internalLinks: internalLinks,
+          externalLinks: externalLinks,
+          linkSourceMap: linkSourceMap,
+          checkExternalLinks: false,
+        );
+
+        // Assert
+        expect(result.length, 1);
+        expect(result.first.url, internalUrl.toString());
+        expect(result.first.linkType, LinkType.internal);
+      });
+
+      test(
+        'should skip external links when checkExternalLinks is false',
+        () async {
+          // Arrange
+          final internalUrl = Uri.parse('https://example.com/page1');
+          final externalUrl = Uri.parse('https://external.com/page');
+          final internalLinks = {internalUrl};
+          final externalLinks = {externalUrl};
+          final linkSourceMap = {
+            internalUrl.toString(): ['https://example.com/source'],
+            externalUrl.toString(): ['https://example.com/source'],
+          };
+
+          mockHttpClient.setSuccess(internalUrl);
+          mockHttpClient.setResponse(
+            externalUrl,
+            statusCode: 404,
+            error: 'Not Found',
+          ); // This should not be detected
+
+          // Act
+          final result = await validator.checkLinksFromPage(
+            siteId: testSiteId,
+            internalLinks: internalLinks,
+            externalLinks: externalLinks,
+            linkSourceMap: linkSourceMap,
+            checkExternalLinks: false,
+          );
+
+          // Assert
+          expect(result, isEmpty); // External link not checked
+        },
+      );
+
+      test('should invoke progress callback with correct values', () async {
+        // Arrange
+        final internalUrl1 = Uri.parse('https://example.com/page1');
+        final internalUrl2 = Uri.parse('https://example.com/page2');
+        final externalUrl = Uri.parse('https://external.com/page');
+        final internalLinks = {internalUrl1, internalUrl2};
+        final externalLinks = {externalUrl};
+        final linkSourceMap = {
+          internalUrl1.toString(): ['https://example.com/source'],
+          internalUrl2.toString(): ['https://example.com/source'],
+          externalUrl.toString(): ['https://example.com/source'],
+        };
+
+        mockHttpClient.setSuccess(internalUrl1);
+        mockHttpClient.setSuccess(internalUrl2);
+        mockHttpClient.setSuccess(externalUrl);
+
+        final progressCalls = <(int checked, int total)>[];
+
+        // Act
+        await validator.checkLinksFromPage(
+          siteId: testSiteId,
+          internalLinks: internalLinks,
+          externalLinks: externalLinks,
+          linkSourceMap: linkSourceMap,
+          checkExternalLinks: true,
+          onExternalLinksProgress: (checked, total) {
+            progressCalls.add((checked, total));
+          },
+        );
+
+        // Assert
+        expect(progressCalls.isNotEmpty, true);
+        expect(progressCalls.first.$2, 3); // Total = 2 internal + 1 external
+        expect(progressCalls.last.$1, 3); // All checked
+      });
+
+      test('should handle cancellation via shouldCancel', () async {
+        // Arrange
+        final internalUrl = Uri.parse('https://example.com/page1');
+        final internalLinks = {internalUrl};
+        final externalLinks = <Uri>{};
+        final linkSourceMap = {
+          internalUrl.toString(): ['https://example.com/source'],
+        };
+
+        mockHttpClient.setSuccess(internalUrl);
+
+        // Act
+        final result = await validator.checkLinksFromPage(
+          siteId: testSiteId,
+          internalLinks: internalLinks,
+          externalLinks: externalLinks,
+          linkSourceMap: linkSourceMap,
+          checkExternalLinks: false,
+          shouldCancel: () => true, // Simulate cancellation
+        );
+
+        // Assert - With cancellation, result may be empty or partial
+        expect(result, isEmpty);
+      });
+    });
   });
 }

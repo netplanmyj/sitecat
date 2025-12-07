@@ -362,5 +362,132 @@ void main() {
         expect(result.pagesScanned, 1); // Page was scanned
       });
     });
+
+    group('scanAndExtractLinksForPage', () {
+      test('should successfully extract links from a single page', () async {
+        // Arrange
+        final baseUrl = Uri.parse('https://example.com');
+        final page = Uri.parse('https://example.com/page1');
+        final internalLink = Uri.parse('https://example.com/page2');
+        final externalLink = Uri.parse('https://external.com/page');
+
+        mockHttpClient.setHtmlContent(page, '<html>mock content</html>');
+        mockHttpClient.setExtractedLinks(page, [internalLink, externalLink]);
+
+        // Act
+        final result = await extractor.scanAndExtractLinksForPage(
+          page: page,
+          originalBaseUrl: baseUrl,
+        );
+
+        // Assert
+        expect(result.wasSuccessful, true);
+        expect(result.internalLinks, contains(internalLink));
+        expect(result.externalLinks, contains(externalLink));
+        expect(result.internalLinksCount, 1);
+        expect(result.externalLinksCount, 1);
+        expect(result.linkSourceMap[internalLink.toString()], [
+          page.toString(),
+        ]);
+        expect(result.linkSourceMap[externalLink.toString()], [
+          page.toString(),
+        ]);
+      });
+
+      test('should handle failed page fetch gracefully', () async {
+        // Arrange
+        final baseUrl = Uri.parse('https://example.com');
+        final page = Uri.parse('https://example.com/page1');
+
+        mockHttpClient.setHtmlContent(page, null); // Simulate fetch failure
+
+        // Act
+        final result = await extractor.scanAndExtractLinksForPage(
+          page: page,
+          originalBaseUrl: baseUrl,
+        );
+
+        // Assert
+        expect(result.wasSuccessful, false);
+        expect(result.internalLinks, isEmpty);
+        expect(result.externalLinks, isEmpty);
+        expect(result.internalLinksCount, 0);
+        expect(result.externalLinksCount, 0);
+        expect(result.linkSourceMap, isEmpty);
+      });
+
+      test('should handle cancellation via shouldCancel', () async {
+        // Arrange
+        final baseUrl = Uri.parse('https://example.com');
+        final page = Uri.parse('https://example.com/page1');
+
+        // Act
+        final result = await extractor.scanAndExtractLinksForPage(
+          page: page,
+          originalBaseUrl: baseUrl,
+          shouldCancel: () => true, // Simulate cancellation
+        );
+
+        // Assert
+        expect(result.wasSuccessful, false);
+        expect(result.internalLinks, isEmpty);
+        expect(result.externalLinks, isEmpty);
+        expect(result.internalLinksCount, 0);
+        expect(result.externalLinksCount, 0);
+      });
+
+      test('should count link occurrences correctly', () async {
+        // Arrange
+        final baseUrl = Uri.parse('https://example.com');
+        final page = Uri.parse('https://example.com/page1');
+        final link1 = Uri.parse('https://example.com/page2');
+        final link2 = Uri.parse('https://example.com/page3');
+
+        mockHttpClient.setHtmlContent(page, '<html>mock content</html>');
+        mockHttpClient.setExtractedLinks(page, [
+          link1,
+          link2,
+          link1,
+        ]); // link1 appears twice
+
+        // Act
+        final result = await extractor.scanAndExtractLinksForPage(
+          page: page,
+          originalBaseUrl: baseUrl,
+        );
+
+        // Assert
+        expect(result.wasSuccessful, true);
+        expect(result.internalLinks.length, 2); // Unique links
+        expect(result.internalLinksCount, 2); // Unique count (set behavior)
+      });
+
+      test('should track link source map correctly', () async {
+        // Arrange
+        final baseUrl = Uri.parse('https://example.com');
+        final page = Uri.parse('https://example.com/page1');
+        final internalLink = Uri.parse('https://example.com/page2');
+        final externalLink = Uri.parse('https://external.com/page');
+
+        mockHttpClient.setHtmlContent(page, '<html>mock content</html>');
+        mockHttpClient.setExtractedLinks(page, [internalLink, externalLink]);
+
+        // Act
+        final result = await extractor.scanAndExtractLinksForPage(
+          page: page,
+          originalBaseUrl: baseUrl,
+        );
+
+        // Assert
+        expect(result.linkSourceMap.containsKey(internalLink.toString()), true);
+        expect(result.linkSourceMap.containsKey(externalLink.toString()), true);
+        expect(result.linkSourceMap[internalLink.toString()], [
+          page.toString(),
+        ]);
+        expect(result.linkSourceMap[externalLink.toString()], [
+          page.toString(),
+        ]);
+      });
+    });
   });
 }

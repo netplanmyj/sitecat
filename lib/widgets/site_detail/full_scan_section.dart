@@ -63,6 +63,14 @@ class _FullScanSectionState extends State<FullScanSection> {
                 ) ??
                 latestResult?.sitemapStatusCode;
 
+            // Determine if batch is complete (partial scan done, but not all pages scanned)
+            final isBatchComplete =
+                !isCheckingLinks &&
+                (latestResult?.scanCompleted ?? false) == false &&
+                (currentSite.lastScannedPageIndex > 0 ||
+                    latestResult != null) &&
+                timeUntilNext != null;
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -158,30 +166,48 @@ class _FullScanSectionState extends State<FullScanSection> {
                 // Full scan button and Continue scan button
                 Row(
                   children: [
-                    // Full scan / Stop button
+                    // Full scan / Stop button (or Batch Complete indicator)
                     Expanded(
-                      child: ElevatedButton.icon(
-                        onPressed: isCheckingLinks
-                            ? () =>
-                                  linkCheckerProvider.cancelScan(widget.site.id)
-                            : (canCheckLinks
-                                  ? () => widget.onFullScan(_checkExternalLinks)
-                                  : null),
-                        icon: Icon(
-                          isCheckingLinks ? Icons.stop : Icons.search,
-                          size: 20,
-                        ),
-                        label: Text(
-                          isCheckingLinks ? 'Stop Scan' : 'Start Scan',
-                        ),
-                        style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12),
-                          backgroundColor: isCheckingLinks
-                              ? Colors.red
-                              : Colors.green,
-                          foregroundColor: Colors.white,
-                        ),
-                      ),
+                      child: isBatchComplete
+                          ? ElevatedButton.icon(
+                              onPressed: null, // Disabled during cooldown
+                              icon: const Icon(Icons.pause_circle, size: 20),
+                              label: const Text('Batch Complete'),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                backgroundColor: Colors.orange,
+                                foregroundColor: Colors.white,
+                              ),
+                            )
+                          : ElevatedButton.icon(
+                              onPressed: isCheckingLinks
+                                  ? () => linkCheckerProvider.cancelScan(
+                                      widget.site.id,
+                                    )
+                                  : (canCheckLinks
+                                        ? () => widget.onFullScan(
+                                            _checkExternalLinks,
+                                          )
+                                        : null),
+                              icon: Icon(
+                                isCheckingLinks ? Icons.stop : Icons.search,
+                                size: 20,
+                              ),
+                              label: Text(
+                                isCheckingLinks ? 'Stop Scan' : 'Start Scan',
+                              ),
+                              style: ElevatedButton.styleFrom(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 12,
+                                ),
+                                backgroundColor: isCheckingLinks
+                                    ? Colors.red
+                                    : Colors.green,
+                                foregroundColor: Colors.white,
+                              ),
+                            ),
                     ),
 
                     const SizedBox(width: 12),
@@ -189,24 +215,40 @@ class _FullScanSectionState extends State<FullScanSection> {
                     // Continue scan button (always visible, disabled if no previous scan)
                     Expanded(
                       child: (() {
+                        // Detect batch completion state:
+                        // - Latest result shows partial scan (not completed)
+                        // - Cooldown timer is active (batch just finished, in cooldown)
+                        // This allows Continue to be enabled immediately after batch completes,
+                        // even while link validation is still running in the background
+                        final isBatchCompleteState =
+                            (latestResult?.scanCompleted ?? false) == false &&
+                            latestResult != null &&
+                            currentSite.lastScannedPageIndex > 0 &&
+                            timeUntilNext != null;
+
                         final isContinueDisabled =
                             isCheckingLinks ||
                             !canCheckLinks ||
                             currentSite.lastScannedPageIndex == 0 ||
                             (latestResult?.scanCompleted ?? false);
+
+                        // If batch is complete, show Continue as enabled (ready after cooldown)
+                        final effectiveDisabled =
+                            isContinueDisabled && !isBatchCompleteState;
+
                         return OutlinedButton.icon(
-                          onPressed: isContinueDisabled
+                          onPressed: effectiveDisabled
                               ? null
                               : widget.onContinueScan,
                           icon: const Icon(Icons.play_arrow, size: 20),
                           label: const Text('Continue'),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            foregroundColor: isContinueDisabled
+                            foregroundColor: effectiveDisabled
                                 ? Colors.grey
                                 : Colors.orange,
                             side: BorderSide(
-                              color: isContinueDisabled
+                              color: effectiveDisabled
                                   ? Colors.grey
                                   : Colors.orange,
                               width: 1.5,

@@ -86,6 +86,90 @@ class LinkExtractor {
     );
   }
 
+  /// Scan and extract links from a single page
+  /// This method is used for per-page processing in the new page-wise validation flow.
+  ///
+  /// Returns a [SinglePageExtractionResult] containing:
+  /// - internalLinks: Links from the same domain
+  /// - externalLinks: Links from other domains
+  /// - linkSourceMap: Mapping of links to the source page
+  /// - wasSuccessful: true if page was successfully fetched and processed
+  ///
+  /// Note: The delay between page fetches is applied in the calling code
+  /// (checkSiteLinks) to allow for better control over rate limiting.
+  Future<SinglePageExtractionResult> scanAndExtractLinksForPage({
+    required Uri page,
+    required Uri originalBaseUrl,
+    bool Function()? shouldCancel,
+  }) async {
+    if (shouldCancel?.call() ?? false) {
+      return SinglePageExtractionResult(
+        pageUrl: page,
+        internalLinks: {},
+        externalLinks: {},
+        linkSourceMap: {},
+        internalLinksCount: 0,
+        externalLinksCount: 0,
+        wasSuccessful: false,
+      );
+    }
+
+    final pageUrl = page.toString();
+    final internalLinks = <Uri>{};
+    final externalLinks = <Uri>{};
+    final linkSourceMap = <String, List<String>>{};
+
+    int internalLinksCount = 0;
+    int externalLinksCount = 0;
+
+    final htmlContent = await _httpClient.fetchHtmlContent(pageUrl);
+    if (htmlContent == null) {
+      return SinglePageExtractionResult(
+        pageUrl: page,
+        internalLinks: internalLinks,
+        externalLinks: externalLinks,
+        linkSourceMap: linkSourceMap,
+        internalLinksCount: internalLinksCount,
+        externalLinksCount: externalLinksCount,
+        wasSuccessful: false,
+      );
+    }
+
+    final links = _httpClient.extractLinks(htmlContent, page);
+
+    for (final link in links) {
+      final normalizedLink = _sitemapParser.normalizeSitemapUrl(link);
+      final linkUrl = normalizedLink.toString();
+
+      // Track which page this link was found on
+      if (!linkSourceMap.containsKey(linkUrl)) {
+        linkSourceMap[linkUrl] = [pageUrl];
+      } else if (!(linkSourceMap[linkUrl]?.contains(pageUrl) ?? false)) {
+        linkSourceMap[linkUrl]!.add(pageUrl);
+      }
+
+      if (_isSameDomain(normalizedLink, originalBaseUrl)) {
+        if (internalLinks.add(normalizedLink)) {
+          internalLinksCount++;
+        }
+      } else {
+        if (externalLinks.add(normalizedLink)) {
+          externalLinksCount++;
+        }
+      }
+    }
+
+    return SinglePageExtractionResult(
+      pageUrl: page,
+      internalLinks: internalLinks,
+      externalLinks: externalLinks,
+      linkSourceMap: linkSourceMap,
+      internalLinksCount: internalLinksCount,
+      externalLinksCount: externalLinksCount,
+      wasSuccessful: true,
+    );
+  }
+
   /// Check if two URLs are from the same domain
   bool _isSameDomain(Uri url1, Uri url2) {
     final host1 = _normalizeEmulatorHost(url1.host);

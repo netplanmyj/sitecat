@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import '../../models/broken_link.dart';
 import '../../models/site.dart';
 import '../../utils/url_helper.dart';
@@ -108,11 +110,15 @@ class ScanOrchestrator {
     required List<Uri> allPages,
     required int startIndex,
   }) {
-    const maxPagesToScan = 100;
-    final remainingPageLimit = pageLimit - startIndex;
-    final actualPagesToScan = maxPagesToScan.clamp(0, remainingPageLimit);
+    const batchPageCap = 100;
 
-    final endIndex = (startIndex + actualPagesToScan).clamp(0, allPages.length);
+    // Next boundary is the next multiple of 100 pages (1-100, 101-200, ...)
+    final nextBoundary = ((startIndex ~/ batchPageCap) + 1) * batchPageCap;
+    final batchEnd = min(nextBoundary, min(pageLimit, allPages.length));
+
+    final actualPagesToScan = max(0, batchEnd - startIndex);
+
+    final endIndex = min(allPages.length, startIndex + actualPagesToScan);
     final pagesToScan = allPages.sublist(startIndex, endIndex);
     final scanCompleted = endIndex >= allPages.length || endIndex >= pageLimit;
 

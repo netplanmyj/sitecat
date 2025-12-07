@@ -244,9 +244,6 @@ class LinkCheckerProvider extends ChangeNotifier {
       }
     }
 
-    // Start cooldown immediately on user action
-    _startCooldown(siteId);
-
     // Reset state
     _checkStates[siteId] = LinkCheckState.checking;
     _errors.remove(siteId);
@@ -256,9 +253,20 @@ class LinkCheckerProvider extends ChangeNotifier {
     final previousChecked = _checkedCounts[siteId] ?? 0;
     final previousTotal = _totalCounts[siteId] ?? 0;
 
-    // Reset progress counters at the start of scan (both new and continue)
-    _checkedCounts[siteId] = 0;
-    _totalCounts[siteId] = 0;
+    // Reset progress counters for a fresh scan, but keep previous progress when continuing
+    if (!continueFromLastScan) {
+      _checkedCounts[siteId] = 0;
+      _totalCounts[siteId] = 0;
+    } else {
+      // Preserve existing progress to avoid flashing 0 on resume
+      // Prefer pagesCompleted from cached result for accuracy
+      final latestResult = _resultCache[siteId];
+      _checkedCounts[siteId] =
+          latestResult?.pagesCompleted ??
+          latestResult?.pagesScanned ??
+          site.lastScannedPageIndex;
+      _totalCounts[siteId] = latestResult?.totalPagesInSitemap ?? previousTotal;
+    }
     _isProcessingExternalLinks[siteId] = false;
     _externalLinksChecked[siteId] = 0;
     _externalLinksTotal[siteId] = 0;
@@ -299,8 +307,14 @@ class LinkCheckerProvider extends ChangeNotifier {
       // Cache the result
       _resultCache[siteId] = result;
 
-      // Update state to completed and notify immediately
-      _checkStates[siteId] = LinkCheckState.completed;
+      // Update state based on whether all pages were scanned
+      // - If scanCompleted=true: Mark as LinkCheckState.completed (full scan done)
+      // - If scanCompleted=false: Keep as LinkCheckState.checking (batch complete, can continue)
+      //   This ensures cooldown timer and Stop button remain visible after batch completion
+      if (result.scanCompleted) {
+        _checkStates[siteId] = LinkCheckState.completed;
+      }
+      // If not fully completed, keep state as checking to show cooldown timer and Stop button
       // Keep progress display (don't reset _isProcessingExternalLinks)
       notifyListeners(); // Immediate UI update with scan results
 

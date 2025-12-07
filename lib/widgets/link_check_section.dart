@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../models/site.dart';
 import '../models/broken_link.dart';
 import '../providers/link_checker_provider.dart';
-import 'link_check/link_check_progress.dart';
 import 'link_check/full_scan_card.dart';
 
 /// Widget for link check results display (read-only)
@@ -33,13 +32,7 @@ class LinkCheckSection extends StatelessWidget {
       builder: (context, linkChecker, _) {
         final state = linkChecker.getCheckState(site.id);
         final result = linkChecker.getCachedResult(site.id);
-        final progress = linkChecker.getProgress(site.id);
-        final externalLinksProgress = linkChecker.getExternalLinksProgress(
-          site.id,
-        );
-        final isProcessingExternalLinks = linkChecker.isProcessingExternalLinks(
-          site.id,
-        );
+        // Progress is now shown in the Full Scan action area to avoid duplication
 
         return Card(
           child: Padding(
@@ -61,18 +54,6 @@ class LinkCheckSection extends StatelessWidget {
                     ),
                   ],
                 ),
-
-                // Progress indicator (when checking)
-                if (state == LinkCheckState.checking) ...[
-                  const SizedBox(height: 16),
-                  LinkCheckProgress(
-                    checked: progress.$1,
-                    total: progress.$2,
-                    isProcessingExternalLinks: isProcessingExternalLinks,
-                    externalLinksChecked: externalLinksProgress.$1,
-                    externalLinksTotal: externalLinksProgress.$2,
-                  ),
-                ],
 
                 // Results (when available) - Use FullScanCard for consistency
                 if (result != null) ...[

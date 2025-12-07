@@ -45,6 +45,7 @@ class ResultBuilder {
     required LinkCheckResult? previousResult,
     required bool continueFromLastScan,
     required DateTime startTime,
+    required int startIndex,
   }) async {
     final endTime = DateTime.now();
     final newLastScannedPageIndex = scanCompleted ? 0 : resumeFromIndex;
@@ -67,6 +68,11 @@ class ResultBuilder {
         ? previousExternalLinks + totalExternalLinksCount
         : totalExternalLinksCount;
 
+    // Compute batch range (1-based for UI display)
+    final batchStart = startIndex + 1;
+    final batchEnd = pagesScannedCount;
+    final pagesCompleted = pagesScannedCount;
+
     final result = LinkCheckResult(
       siteId: site.id,
       checkedUrl: site.url,
@@ -82,6 +88,9 @@ class ResultBuilder {
       totalPagesInSitemap: totalPagesInSitemap,
       scanCompleted: scanCompleted,
       newLastScannedPageIndex: newLastScannedPageIndex,
+      pagesCompleted: pagesCompleted,
+      currentBatchStart: batchStart,
+      currentBatchEnd: batchEnd,
     );
 
     // Create repository instance for this operation
@@ -120,6 +129,9 @@ class ResultBuilder {
       totalPagesInSitemap: result.totalPagesInSitemap,
       scanCompleted: result.scanCompleted,
       newLastScannedPageIndex: result.newLastScannedPageIndex,
+      pagesCompleted: result.pagesCompleted,
+      currentBatchStart: result.currentBatchStart,
+      currentBatchEnd: result.currentBatchEnd,
     );
   }
 }

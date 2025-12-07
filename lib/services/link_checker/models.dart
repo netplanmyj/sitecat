@@ -52,3 +52,24 @@ class LinkExtractionResult {
     required this.pagesScanned,
   });
 }
+
+/// Result of link extraction from a single page
+class SinglePageExtractionResult {
+  final Uri pageUrl;
+  final Set<Uri> internalLinks;
+  final Set<Uri> externalLinks;
+  final Map<String, List<String>> linkSourceMap;
+  final int internalLinksCount;
+  final int externalLinksCount;
+  final bool wasSuccessful;
+
+  const SinglePageExtractionResult({
+    required this.pageUrl,
+    required this.internalLinks,
+    required this.externalLinks,
+    required this.linkSourceMap,
+    required this.internalLinksCount,
+    required this.externalLinksCount,
+    required this.wasSuccessful,
+  });
+}

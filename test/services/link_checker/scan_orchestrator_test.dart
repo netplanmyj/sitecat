@@ -263,5 +263,172 @@ void main() {
         expect(statuses, [200, 404, 0]);
       });
     });
+
+    group('calculateScanRange', () {
+      test('Batch 1: startIndex=0, should scan pages 0-99 (100 pages)', () {
+        orchestrator = ScanOrchestrator(
+          httpClient: httpClient,
+          sitemapParser: sitemapParser,
+          pageLimit: 500, // High enough to not interfere
+        );
+        final allPages = List.generate(
+          350,
+          (i) => Uri.parse('https://example.com/page$i'),
+        );
+
+        final result = orchestrator.calculateScanRange(
+          allPages: allPages,
+          startIndex: 0,
+        );
+
+        expect(result.pagesToScan.length, 100);
+        expect(result.endIndex, 100);
+        expect(result.scanCompleted, false);
+      });
+
+      test(
+        'Batch 2: startIndex=40 (mid-batch stop), should scan 40-99 (60 pages)',
+        () {
+          orchestrator = ScanOrchestrator(
+            httpClient: httpClient,
+            sitemapParser: sitemapParser,
+            pageLimit: 500,
+          );
+          final allPages = List.generate(
+            350,
+            (i) => Uri.parse('https://example.com/page$i'),
+          );
+
+          final result = orchestrator.calculateScanRange(
+            allPages: allPages,
+            startIndex: 40,
+          );
+
+          expect(
+            result.pagesToScan.length,
+            60,
+          ); // 40-99 (60 pages, 0-indexed range)
+          expect(result.endIndex, 100);
+          expect(result.scanCompleted, false);
+        },
+      );
+
+      test(
+        'Batch 2: startIndex=100, should scan pages 100-199 (100 pages)',
+        () {
+          orchestrator = ScanOrchestrator(
+            httpClient: httpClient,
+            sitemapParser: sitemapParser,
+            pageLimit: 500,
+          );
+          final allPages = List.generate(
+            350,
+            (i) => Uri.parse('https://example.com/page$i'),
+          );
+
+          final result = orchestrator.calculateScanRange(
+            allPages: allPages,
+            startIndex: 100,
+          );
+
+          expect(result.pagesToScan.length, 100);
+          expect(result.endIndex, 200);
+          expect(result.scanCompleted, false);
+        },
+      );
+
+      test(
+        'Batch 4: startIndex=300, totalPages=350, should scan 300-349 (50 pages)',
+        () {
+          orchestrator = ScanOrchestrator(
+            httpClient: httpClient,
+            sitemapParser: sitemapParser,
+            pageLimit: 500,
+          );
+          final allPages = List.generate(
+            350,
+            (i) => Uri.parse('https://example.com/page$i'),
+          );
+
+          final result = orchestrator.calculateScanRange(
+            allPages: allPages,
+            startIndex: 300,
+          );
+
+          expect(result.pagesToScan.length, 50); // 300-349
+          expect(result.endIndex, 350);
+          expect(result.scanCompleted, true); // Last batch
+        },
+      );
+
+      test('Edge case: totalPages < 100, should scan all and complete', () {
+        orchestrator = ScanOrchestrator(
+          httpClient: httpClient,
+          sitemapParser: sitemapParser,
+          pageLimit: 500,
+        );
+        final allPages = List.generate(
+          50,
+          (i) => Uri.parse('https://example.com/page$i'),
+        );
+
+        final result = orchestrator.calculateScanRange(
+          allPages: allPages,
+          startIndex: 0,
+        );
+
+        expect(result.pagesToScan.length, 50);
+        expect(result.endIndex, 50);
+        expect(result.scanCompleted, true);
+      });
+
+      test(
+        'Edge case: pageLimit=50, should stop at 50 even if totalPages=350',
+        () {
+          orchestrator = ScanOrchestrator(
+            httpClient: httpClient,
+            sitemapParser: sitemapParser,
+            pageLimit: 50,
+          );
+          final allPages = List.generate(
+            350,
+            (i) => Uri.parse('https://example.com/page$i'),
+          );
+
+          final result = orchestrator.calculateScanRange(
+            allPages: allPages,
+            startIndex: 0,
+          );
+
+          expect(result.pagesToScan.length, 50);
+          expect(result.endIndex, 50);
+          expect(result.scanCompleted, true); // Limited by pageLimit
+        },
+      );
+
+      test(
+        'Edge case: startIndex at exact boundary (200), next batch starts correctly',
+        () {
+          orchestrator = ScanOrchestrator(
+            httpClient: httpClient,
+            sitemapParser: sitemapParser,
+            pageLimit: 500,
+          );
+          final allPages = List.generate(
+            350,
+            (i) => Uri.parse('https://example.com/page$i'),
+          );
+
+          final result = orchestrator.calculateScanRange(
+            allPages: allPages,
+            startIndex: 200,
+          );
+
+          expect(result.pagesToScan.length, 100); // 200-299
+          expect(result.endIndex, 300);
+          expect(result.scanCompleted, false);
+        },
+      );
+    });
   });
 }
