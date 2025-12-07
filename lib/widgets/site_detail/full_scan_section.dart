@@ -215,40 +215,30 @@ class _FullScanSectionState extends State<FullScanSection> {
                     // Continue scan button (always visible, disabled if no previous scan)
                     Expanded(
                       child: (() {
-                        // Detect batch completion state:
-                        // - Latest result shows partial scan (not completed)
-                        // - Cooldown timer is active (batch just finished, in cooldown)
-                        // This allows Continue to be enabled immediately after batch completes,
-                        // even while link validation is still running in the background
-                        final isBatchCompleteState =
-                            (latestResult?.scanCompleted ?? false) == false &&
-                            latestResult != null &&
-                            currentSite.lastScannedPageIndex > 0 &&
-                            timeUntilNext != null;
-
+                        // Continue is disabled when:
+                        // - Currently scanning (isCheckingLinks)
+                        // - No previous scan exists (lastScannedPageIndex == 0)
+                        // - Scan is fully completed (scanCompleted == true)
+                        // - In cooldown window (!canCheckLinks)
                         final isContinueDisabled =
                             isCheckingLinks ||
-                            !canCheckLinks ||
                             currentSite.lastScannedPageIndex == 0 ||
-                            (latestResult?.scanCompleted ?? false);
-
-                        // If batch is complete, show Continue as enabled (ready after cooldown)
-                        final effectiveDisabled =
-                            isContinueDisabled && !isBatchCompleteState;
+                            (latestResult?.scanCompleted ?? false) ||
+                            !canCheckLinks;
 
                         return OutlinedButton.icon(
-                          onPressed: effectiveDisabled
+                          onPressed: isContinueDisabled
                               ? null
                               : widget.onContinueScan,
                           icon: const Icon(Icons.play_arrow, size: 20),
                           label: const Text('Continue'),
                           style: OutlinedButton.styleFrom(
                             padding: const EdgeInsets.symmetric(vertical: 12),
-                            foregroundColor: effectiveDisabled
+                            foregroundColor: isContinueDisabled
                                 ? Colors.grey
                                 : Colors.orange,
                             side: BorderSide(
-                              color: effectiveDisabled
+                              color: isContinueDisabled
                                   ? Colors.grey
                                   : Colors.orange,
                               width: 1.5,

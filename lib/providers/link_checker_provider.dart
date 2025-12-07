@@ -309,12 +309,13 @@ class LinkCheckerProvider extends ChangeNotifier {
 
       // Update state based on whether all pages were scanned
       // - If scanCompleted=true: Mark as LinkCheckState.completed (full scan done)
-      // - If scanCompleted=false: Keep as LinkCheckState.checking (batch complete, can continue)
-      //   This ensures cooldown timer and Stop button remain visible after batch completion
+      // - If scanCompleted=false: Mark as LinkCheckState.idle (batch complete, ready to continue)
+      //   This ensures Stop button becomes disabled and Start/Continue become available after cooldown
       if (result.scanCompleted) {
         _checkStates[siteId] = LinkCheckState.completed;
+      } else {
+        _checkStates[siteId] = LinkCheckState.idle;
       }
-      // If not fully completed, keep state as checking to show cooldown timer and Stop button
       // Keep progress display (don't reset _isProcessingExternalLinks)
       notifyListeners(); // Immediate UI update with scan results
 
