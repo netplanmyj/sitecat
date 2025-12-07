@@ -43,6 +43,7 @@ class MonitoringService {
     int statusCode = 0;
     bool isUp = false;
     String? error;
+    int? sitemapStatusCode;
 
     try {
       // Convert localhost to platform-specific address (10.0.2.2 for Android emulator)
@@ -63,10 +64,50 @@ class MonitoringService {
       error = 'Error: $e';
     }
 
+    // Check sitemap if site has sitemapUrl and base URL is accessible
+    if (site.sitemapUrl != null && site.sitemapUrl!.isNotEmpty && isUp) {
+      try {
+        // Build full sitemap URL
+        final baseUri = Uri.parse(
+          UrlHelper.convertLocalhostForPlatform(site.url),
+        );
+        final baseUrl =
+            '${baseUri.scheme}://${baseUri.host}${baseUri.port != 80 && baseUri.port != 443 ? ':${baseUri.port}' : ''}';
+
+        // Normalize sitemap URL path
+        String sitemapUrlPath = site.sitemapUrl!;
+        if (!sitemapUrlPath.startsWith('/')) {
+          sitemapUrlPath = '/$sitemapUrlPath';
+        }
+
+        final fullSitemapUrl = '$baseUrl$sitemapUrlPath';
+        final convertedSitemapUrl = UrlHelper.convertLocalhostForPlatform(
+          fullSitemapUrl,
+        );
+
+        // Perform HEAD request to check sitemap availability
+        final sitemapResponse = await http
+            .head(Uri.parse(convertedSitemapUrl))
+            .timeout(const Duration(seconds: 5));
+
+        sitemapStatusCode = sitemapResponse.statusCode;
+      } catch (e) {
+        // Network error checking sitemap, set status code to 0
+        sitemapStatusCode = 0;
+        _logger.d('Sitemap check failed for ${site.id}: $e');
+      }
+    } else if (site.sitemapUrl == null || site.sitemapUrl!.isEmpty) {
+      // No sitemap URL configured
+      sitemapStatusCode = null;
+    } else {
+      // Base URL is not accessible, sitemap check cannot be performed
+      sitemapStatusCode = null;
+    }
+
     final endTime = DateTime.now();
     final responseTime = endTime.difference(startTime).inMilliseconds;
 
-    // Create monitoring result
+    // Create monitoring result with sitemap status
     final result = MonitoringResult(
       id: '', // Will be set by Firestore
       siteId: site.id,
@@ -76,6 +117,7 @@ class MonitoringService {
       responseTime: responseTime,
       isUp: isUp,
       error: error,
+      sitemapStatusCode: sitemapStatusCode,
     );
 
     // Generate document reference with auto-generated ID
