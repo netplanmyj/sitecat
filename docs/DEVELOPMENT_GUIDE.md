@@ -787,10 +787,10 @@ SiteCatのアーキテクチャは以下のように整理されています：
 
 ---
 
-### Phase 3a: 買い切り有料版 🔄 (次のフェーズ)
-**予定**: 2025年Q4～  
+### Phase 3a: 買い切り有料版 ✅ (完了)
+**期間**: 2025年Q4  
 **価格**: ¥1,220（一度の購入）  
-**バージョン**: v1.1.x予定
+**バージョン**: v1.0.x～v1.1.x
 
 **目標**: 買い切り型有料機能を実装し、収益化を開始
 
@@ -800,31 +800,29 @@ SiteCatのアーキテクチャは以下のように整理されています：
   - ✅ 課金状態管理（Firestore `users/{userId}/subscription`）
   - ✅ リストア機能
   - ✅ 購入フロー実装
+  - ✅ **App Storeリリース完了**
 
 - ✅ **サイト数制限解除**
   - ✅ 定数変更（1サイト → 無制限）
   - ✅ UI側で課金状態チェック
   - ✅ 無料版での制限表示
 
-**実装予定機能:**
-- [ ] **除外パス設定UI** (#197)
-  - [ ] 設定画面実装
-  - [ ] パス入力・検証UI
-  - [ ] プレビュー機能
-  - [ ] バックエンド連携（実装済み）
+- ✅ **除外パス設定UI** (#197)
+  - ✅ バックエンド実装完了（PR #195マージ済み）
+  - ✅ 設定画面UI実装
+  - ✅ パス入力・検証UI
 
-- [ ] **Full Scan中断・再開機能** (#193)
-  - [ ] Isolate管理の改善
-  - [ ] 一時停止・再開ロジック
-  - [ ] 進捗状態の永続化
-  - [ ] UI実装
+- ✅ **Full Scan中断・再開機能** (#193)
+  - ✅ Isolate管理の改善
+  - ✅ 一時停止・再開ロジック
+  - ✅ UI実装
 
-- [ ] **履歴表示拡張**
-  - [ ] Quick Check: 10件 → 50件
-  - [ ] Full Scan: 10件 → 50件
-  - [ ] クリーンアップロジック更新
+- ✅ **履歴表示拡張**
+  - ✅ Site Scan: 10件 → 50件
+  - ✅ Full Scan: 10件 → 50件
+  - ✅ クリーンアップロジック更新
 
-**技術的な実装:**
+**技術的な実装（完了済み）:**
 ```dart
 // 課金状態管理
 class SubscriptionService {
@@ -842,11 +840,20 @@ class HistoryService {
   static const int PAID_HISTORY_LIMIT = 50;
   
   Future<void> cleanupOldResults(String siteId) async {
-    await _cleanupByType(siteId, 'quick_check', PAID_HISTORY_LIMIT);
+    await _cleanupByType(siteId, 'site_scan', PAID_HISTORY_LIMIT);
     await _cleanupByType(siteId, 'full_scan', PAID_HISTORY_LIMIT);
   }
 }
 ```
+
+**成果物:**
+- 買い切り型課金システム実装完了
+- App Storeで販売開始（¥1,220）
+- サイト数無制限機能リリース
+- 除外パス設定機能完全実装（バックエンド + UI）
+- Full Scan中断・再開機能実装
+- 履歴表示を50件に拡張（有料版）
+- Phase 3a の全機能リリース完了
 
 ---
 
