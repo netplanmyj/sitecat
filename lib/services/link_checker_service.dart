@@ -14,8 +14,27 @@ import 'link_checker/scan_orchestrator.dart';
 import 'link_checker/link_extractor.dart';
 import 'link_checker/result_builder.dart';
 
+abstract class LinkCheckerClient {
+  void setHistoryLimit(bool isPremium);
+  void setPageLimit(bool isPremium);
+  Future<LinkCheckResult> checkSiteLinks(
+    Site site, {
+    bool checkExternalLinks,
+    bool continueFromLastScan,
+    void Function(int checked, int total)? onProgress,
+    void Function(int checked, int total)? onExternalLinksProgress,
+    void Function(int? statusCode)? onSitemapStatusUpdate,
+    bool Function()? shouldCancel,
+  });
+  Future<List<BrokenLink>> getBrokenLinks(String resultId);
+  Future<LinkCheckResult?> getLatestCheckResult(String siteId);
+  Future<List<LinkCheckResult>> getCheckResults(String siteId, {int limit});
+  Future<List<LinkCheckResult>> getAllCheckResults({int limit});
+  Future<void> deleteLinkCheckResult(String resultId);
+}
+
 /// Service for checking broken links on websites
-class LinkCheckerService {
+class LinkCheckerService implements LinkCheckerClient {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final http.Client _httpClient = http.Client();
@@ -74,6 +93,7 @@ class LinkCheckerService {
   String? get _currentUserId => _auth.currentUser?.uid;
 
   /// Set history limit based on premium status
+  @override
   void setHistoryLimit(bool isPremium) {
     _historyLimit = isPremium
         ? AppConstants.premiumHistoryLimit
@@ -87,6 +107,7 @@ class LinkCheckerService {
   }
 
   /// Set page limit based on premium status
+  @override
   void setPageLimit(bool isPremium) {
     _pageLimit = isPremium
         ? AppConstants.premiumPlanPageLimit
@@ -116,6 +137,7 @@ class LinkCheckerService {
   ///
   /// [shouldCancel] is called periodically to check if scan should be cancelled.
   /// Return true to stop the scan gracefully.
+  @override
   Future<LinkCheckResult> checkSiteLinks(
     Site site, {
     bool checkExternalLinks = true,
@@ -168,8 +190,6 @@ class LinkCheckerService {
       startIndex: startIndex,
     );
     final pagesToScan = scanRange.pagesToScan;
-    final endIndex = scanRange.endIndex;
-    final scanCompleted = scanRange.scanCompleted;
 
     // ========================================================================
     // STEP 2: Scan pages and extract all links
@@ -187,8 +207,22 @@ class LinkCheckerService {
     final linkSourceMap = linkData.linkSourceMap;
     final totalInternalLinksCount = linkData.totalInternalLinksCount;
     final totalExternalLinksCount = linkData.totalExternalLinksCount;
-    final pagesScanned = linkData.pagesScanned;
 
+    // Use actual scanned pages to set endIndex so we don't skip pages when
+    // a scan stops early (e.g., user pressed stop mid-batch).
+    final pagesScanned = linkData.pagesScanned;
+    final pagesScannedCount = startIndex + pagesScanned;
+    final scanCompleted =
+        scanRange.scanCompleted && pagesScanned == pagesToScan.length;
+
+    // If the scan stops early, resume from the last completed page to avoid
+    // skipping an in-flight page. For a fully completed batch, resume from the
+    // next page.
+    final resumeFromIndex = scanCompleted
+        ? 0
+        : (pagesScanned < pagesToScan.length
+              ? (pagesScanned > 0 ? pagesScannedCount - 1 : startIndex)
+              : pagesScannedCount);
     // ========================================================================
     // STEP 3 & 4: Check internal and external links for broken pages
     // ========================================================================
@@ -227,8 +261,9 @@ class LinkCheckerService {
       userId: _currentUserId!,
       site: site,
       sitemapStatusCode: sitemapStatusCode,
-      endIndex: endIndex,
+      pagesScannedCount: pagesScannedCount,
       scanCompleted: scanCompleted,
+      resumeFromIndex: resumeFromIndex,
       totalPagesInSitemap: totalPagesInSitemap,
       totalInternalLinksCount: totalInternalLinksCount,
       totalExternalLinksCount: totalExternalLinksCount,
@@ -240,18 +275,21 @@ class LinkCheckerService {
   }
 
   /// Get broken links for a specific result
+  @override
   Future<List<BrokenLink>> getBrokenLinks(String resultId) async {
     if (_currentUserId == null) return [];
     return _repo.getBrokenLinks(resultId);
   }
 
   /// Get latest check result for a site
+  @override
   Future<LinkCheckResult?> getLatestCheckResult(String siteId) async {
     if (_currentUserId == null) return null;
     return _repo.getLatestCheckResult(siteId);
   }
 
   /// Get check results history for a site
+  @override
   Future<List<LinkCheckResult>> getCheckResults(
     String siteId, {
     int limit = 50,
@@ -261,6 +299,7 @@ class LinkCheckerService {
   }
 
   /// Get all check results across all sites
+  @override
   Future<List<LinkCheckResult>> getAllCheckResults({int limit = 50}) async {
     if (_currentUserId == null) return [];
     return _repo.getAllCheckResults(limit: limit);
@@ -273,6 +312,7 @@ class LinkCheckerService {
   }
 
   /// Delete a specific link check result by document ID
+  @override
   Future<void> deleteLinkCheckResult(String resultId) async {
     if (_currentUserId == null) return;
     await _repo.deleteLinkCheckResult(resultId);

@@ -11,8 +11,8 @@ enum LinkCheckState { idle, checking, completed, error }
 
 /// Provider for managing link checking operations
 class LinkCheckerProvider extends ChangeNotifier {
-  final LinkCheckerService _linkCheckerService = LinkCheckerService();
-  final SiteService _siteService = SiteService();
+  final LinkCheckerClient _linkCheckerService;
+  final SiteUpdater _siteService;
   bool _isDemoMode = false;
   bool _hasLifetimeAccess = false;
 
@@ -38,6 +38,12 @@ class LinkCheckerProvider extends ChangeNotifier {
   List<({String siteId, LinkCheckResult result})> _allCheckHistory = [];
 
   // Getters
+
+  LinkCheckerProvider({
+    LinkCheckerClient? linkCheckerService,
+    SiteUpdater? siteService,
+  }) : _linkCheckerService = linkCheckerService ?? LinkCheckerService(),
+       _siteService = siteService ?? SiteService();
 
   /// Update premium status and configure service accordingly
   // TODO(#210): Security - Move premium limit enforcement to backend
@@ -113,6 +119,34 @@ class LinkCheckerProvider extends ChangeNotifier {
     _cancelRequested[siteId] = true;
     _startCooldown(siteId);
     notifyListeners();
+  }
+
+  @visibleForTesting
+  void setCheckedCounts(String siteId, int value) {
+    _checkedCounts[siteId] = value;
+  }
+
+  @visibleForTesting
+  Future<void> saveProgressOnInterruption({
+    required Site site,
+    required String siteId,
+  }) async {
+    final currentProgress = _checkedCounts[siteId] ?? 0;
+    if (currentProgress <= 0) {
+      return; // Nothing to save
+    }
+
+    try {
+      await _siteService.updateSite(
+        site.copyWith(lastScannedPageIndex: currentProgress),
+      );
+    } catch (updateError) {
+      // Log but don't fail if update fails
+      final previous = _errors[siteId];
+      final message =
+          'Failed to save progress: $updateError${previous != null ? '\n$previous' : ''}';
+      _errors[siteId] = message;
+    }
   }
 
   /// Check if cancellation was requested for a site
@@ -298,28 +332,23 @@ class LinkCheckerProvider extends ChangeNotifier {
       _isProcessingExternalLinks[siteId] = false; // Reset flag on error
 
       // Save current progress on cancellation or error
-      final currentProgress = _checkedCounts[siteId] ?? 0;
-      if (currentProgress > 0) {
-        // Update site's lastScannedPageIndex to current progress
-        // This allows Continue to resume from the exact point of interruption
-        try {
-          await _siteService.updateSite(
-            site.copyWith(lastScannedPageIndex: currentProgress),
-          );
-        } catch (updateError) {
-          // Log but don't fail if update fails
-          _errors[siteId] =
-              '${_errors[siteId]}\nFailed to save progress: $updateError';
-        }
-      }
+      await saveProgressOnInterruption(site: site, siteId: siteId);
 
-      // Restore previous progress if this was a new scan that failed early
-      // This ensures Continue button works correctly after an error
-      if (!continueFromLastScan &&
-          previousChecked > 0 &&
-          currentProgress == 0) {
-        _checkedCounts[siteId] = previousChecked;
-        _totalCounts[siteId] = previousTotal;
+      // Restore previous progress display if a NEW scan (not continue) failed
+      // BEFORE making any progress. This preserves the old completion indicator
+      // in the UI while keeping the actual lastScannedPageIndex unchanged in DB.
+      // If currentProgress > 0, we've already saved it above.
+      //
+      // This only applies when:
+      // - Starting a fresh scan (!continueFromLastScan)
+      // - The scan fails immediately (currentProgress == 0)
+      // - There was previous progress to display (previousChecked > 0)
+      if (!continueFromLastScan && previousChecked > 0) {
+        final currentProgress = _checkedCounts[siteId] ?? 0;
+        if (currentProgress == 0) {
+          _checkedCounts[siteId] = previousChecked;
+          _totalCounts[siteId] = previousTotal;
+        }
       }
 
       // Enforce cooldown after an error to prevent immediate retries.
