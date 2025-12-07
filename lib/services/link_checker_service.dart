@@ -116,16 +116,21 @@ class LinkCheckerService implements LinkCheckerClient {
 
   /// Check all links on a site
   ///
-  /// This method performs a comprehensive link check in 6 main steps:
+  /// This method performs a comprehensive link check in the following steps:
   /// 1. Load sitemap URLs and check accessibility
   ///    - 1a: Load sitemap URLs from configured sitemap.xml
   ///    - 1b: Load previous scan data (if continuing)
   ///    - 1c: Calculate scan range for this batch
-  /// 2. Scan pages and extract all links (internal & external)
-  /// 3. Check internal links for broken pages
-  /// 4. Check external links (if requested)
-  /// 5. Merge with previous scan results (if continuing)
-  /// 6. Create and save the final result to Firestore
+  /// 2. Per-page cycle (for each page in the batch):
+  ///    - 2a: Fetch page and extract links (internal & external)
+  ///    - 2b: Validate links from that page immediately
+  ///    - 2c: Increment pagesCompleted and emit progress
+  /// 3. Merge with previous scan results (if continuing)
+  /// 4. Create and save the final result to Firestore
+  ///
+  /// ⚠️ [仕様変更] v1.0.4以降：
+  /// - 旧仕様（v1.0.3）: 全ページ抽出 → 全リンク一括検証
+  /// - 新仕様（v1.0.4〜）: ページ単位の抽出→検証ループで、Stop時に途中結果を保存可能
   ///
   /// [onSitemapStatusUpdate] is called immediately after checking sitemap accessibility.
   /// The statusCode represents:
@@ -192,25 +197,79 @@ class LinkCheckerService implements LinkCheckerClient {
     final pagesToScan = scanRange.pagesToScan;
 
     // ========================================================================
-    // STEP 2: Scan pages and extract all links
+    // STEP 2 & 3-4: Per-page cycle (extract links, validate per page)
     // ========================================================================
-    final linkData = await _extractor.scanPagesAndExtractLinks(
-      pagesToScan: pagesToScan,
-      originalBaseUrl: originalBaseUrl,
-      startIndex: startIndex,
-      totalPagesInSitemap: totalPagesInSitemap,
-      onProgress: onProgress,
-      shouldCancel: shouldCancel,
+    final validator = LinkValidator(
+      httpClient: _httpHelper,
+      userId: _currentUserId!,
+      siteUrl: site.url,
     );
-    final internalLinks = linkData.internalLinks;
-    final externalLinks = linkData.externalLinks;
-    final linkSourceMap = linkData.linkSourceMap;
-    final totalInternalLinksCount = linkData.totalInternalLinksCount;
-    final totalExternalLinksCount = linkData.totalExternalLinksCount;
+
+    final allInternalLinks = <Uri>{};
+    final allExternalLinks = <Uri>{};
+    final allLinkSourceMap = <String, List<String>>{};
+    final allBrokenLinks = <BrokenLink>[];
+
+    int pagesCompleted = 0;
+    int pagesScanned = 0;
+
+    for (final page in pagesToScan) {
+      if (shouldCancel?.call() ?? false) {
+        break;
+      }
+
+      // Step 2a: Fetch page and extract links from this page
+      final pageExtractionResult = await _extractor.scanAndExtractLinksForPage(
+        page: page,
+        originalBaseUrl: originalBaseUrl,
+        shouldCancel: shouldCancel,
+      );
+
+      pagesScanned++;
+
+      if (!pageExtractionResult.wasSuccessful) {
+        // Page fetch failed, but continue to next page
+        continue;
+      }
+
+      // Accumulate links from all pages
+      allInternalLinks.addAll(pageExtractionResult.internalLinks);
+      allExternalLinks.addAll(pageExtractionResult.externalLinks);
+
+      // Merge link source map
+      for (final entry in pageExtractionResult.linkSourceMap.entries) {
+        if (!allLinkSourceMap.containsKey(entry.key)) {
+          allLinkSourceMap[entry.key] = entry.value;
+        } else {
+          allLinkSourceMap[entry.key]!.addAll(
+            entry.value.where(
+              (url) => !allLinkSourceMap[entry.key]!.contains(url),
+            ),
+          );
+        }
+      }
+
+      // Step 3-4: Validate links from this page immediately
+      final pageBrokenLinks = await validator.checkLinksFromPage(
+        siteId: site.id,
+        internalLinks: pageExtractionResult.internalLinks,
+        externalLinks: pageExtractionResult.externalLinks,
+        linkSourceMap: pageExtractionResult.linkSourceMap,
+        checkExternalLinks: checkExternalLinks,
+        onExternalLinksProgress: onExternalLinksProgress,
+        shouldCancel: shouldCancel,
+      );
+
+      allBrokenLinks.addAll(pageBrokenLinks);
+
+      // Increment pagesCompleted and emit progress
+      pagesCompleted++;
+      final cumulativePagesScanned = startIndex + pagesCompleted;
+      onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
+    }
 
     // Use actual scanned pages to set endIndex so we don't skip pages when
     // a scan stops early (e.g., user pressed stop mid-batch).
-    final pagesScanned = linkData.pagesScanned;
     final pagesScannedCount = startIndex + pagesScanned;
     final scanCompleted =
         scanRange.scanCompleted && pagesScanned == pagesToScan.length;
@@ -223,33 +282,12 @@ class LinkCheckerService implements LinkCheckerClient {
         : (pagesScanned < pagesToScan.length
               ? (pagesScanned > 0 ? pagesScannedCount - 1 : startIndex)
               : pagesScannedCount);
-    // ========================================================================
-    // STEP 3 & 4: Check internal and external links for broken pages
-    // ========================================================================
-    final validator = LinkValidator(
-      httpClient: _httpHelper,
-      userId: _currentUserId!,
-      siteUrl: site.url,
-    );
-    final brokenLinks = await validator.checkAllLinks(
-      siteId: site.id,
-      internalLinks: internalLinks,
-      externalLinks: externalLinks,
-      linkSourceMap: linkSourceMap,
-      checkExternalLinks: checkExternalLinks,
-      startIndex: startIndex,
-      pagesScanned: pagesScanned,
-      totalPagesInSitemap: totalPagesInSitemap,
-      onProgress: onProgress,
-      onExternalLinksProgress: onExternalLinksProgress,
-      shouldCancel: shouldCancel,
-    );
 
     // ========================================================================
     // STEP 5: Merge broken links with previous results (if continuing)
     // ========================================================================
-    final allBrokenLinks = _resultBuilder.mergeBrokenLinks(
-      newBrokenLinks: brokenLinks,
+    final mergedBrokenLinks = _resultBuilder.mergeBrokenLinks(
+      newBrokenLinks: allBrokenLinks,
       previousBrokenLinks: previousBrokenLinks,
       continueFromLastScan: continueFromLastScan,
     );
@@ -265,12 +303,13 @@ class LinkCheckerService implements LinkCheckerClient {
       scanCompleted: scanCompleted,
       resumeFromIndex: resumeFromIndex,
       totalPagesInSitemap: totalPagesInSitemap,
-      totalInternalLinksCount: totalInternalLinksCount,
-      totalExternalLinksCount: totalExternalLinksCount,
-      allBrokenLinks: allBrokenLinks,
+      totalInternalLinksCount: allInternalLinks.length,
+      totalExternalLinksCount: allExternalLinks.length,
+      allBrokenLinks: mergedBrokenLinks,
       previousResult: previousResult,
       continueFromLastScan: continueFromLastScan,
       startTime: startTime,
+      startIndex: startIndex,
     );
   }
 

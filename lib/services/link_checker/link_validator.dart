@@ -76,6 +76,65 @@ class LinkValidator {
     return brokenLinks;
   }
 
+  /// Check links from a single page for broken ones
+  /// This method is used for per-page processing in the new page-wise validation flow.
+  ///
+  /// Returns a list of broken links found in the provided links.
+  Future<List<BrokenLink>> checkLinksFromPage({
+    required String siteId,
+    required Set<Uri> internalLinks,
+    required Set<Uri> externalLinks,
+    required Map<String, List<String>> linkSourceMap,
+    required bool checkExternalLinks,
+    void Function(int checked, int total)? onExternalLinksProgress,
+    bool Function()? shouldCancel,
+  }) async {
+    final brokenLinks = <BrokenLink>[];
+    final internalLinksList = internalLinks.toList();
+    final totalInternalLinks = internalLinksList.length;
+
+    final externalLinksCount = checkExternalLinks ? externalLinks.length : 0;
+    final totalAllLinks = totalInternalLinks + externalLinksCount;
+
+    // Report initial state
+    if (totalAllLinks > 0) {
+      onExternalLinksProgress?.call(0, totalAllLinks);
+    }
+
+    // Check internal links from this page
+    final internalBrokenLinks = await _checkLinks(
+      siteId: siteId,
+      links: internalLinksList,
+      linkSourceMap: linkSourceMap,
+      linkType: LinkType.internal,
+      onProgress: (checked) {
+        if (totalAllLinks > 0) {
+          onExternalLinksProgress?.call(checked, totalAllLinks);
+        }
+      },
+      shouldCancel: shouldCancel,
+    );
+    brokenLinks.addAll(internalBrokenLinks);
+
+    // Check external links from this page (if requested)
+    if (checkExternalLinks) {
+      final externalBrokenLinks = await _checkLinks(
+        siteId: siteId,
+        links: externalLinks.toList(),
+        linkSourceMap: linkSourceMap,
+        linkType: LinkType.external,
+        onProgress: (checkedExternal) {
+          final totalChecked = internalLinksList.length + checkedExternal;
+          onExternalLinksProgress?.call(totalChecked, totalAllLinks);
+        },
+        shouldCancel: shouldCancel,
+      );
+      brokenLinks.addAll(externalBrokenLinks);
+    }
+
+    return brokenLinks;
+  }
+
   /// Check a list of links for broken ones
   Future<List<BrokenLink>> _checkLinks({
     required String siteId,

@@ -123,6 +123,11 @@ class FullScanCard extends StatelessWidget {
               const Divider(height: 1),
               const SizedBox(height: 12),
 
+              // Page range info
+              _buildPageRangeInfo(),
+
+              const SizedBox(height: 8),
+
               // Stats
               Row(
                 children: [
@@ -161,6 +166,46 @@ class FullScanCard extends StatelessWidget {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildPageRangeInfo() {
+    final start = result.currentBatchStart ?? 1;
+    final end = result.currentBatchEnd ?? result.pagesScanned;
+    final total = result.totalPagesInSitemap;
+    final completed = result.scanCompleted;
+
+    String rangeText;
+    if (completed) {
+      rangeText = 'All pages scanned';
+    } else if (start == 1 && end == total) {
+      rangeText = 'Pages 1-$total';
+    } else {
+      rangeText = 'Pages $start-$end';
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      decoration: BoxDecoration(
+        color: Colors.blue.shade50,
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.blue.shade200),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.article_outlined, size: 14, color: Colors.blue.shade700),
+          const SizedBox(width: 6),
+          Text(
+            rangeText,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.blue.shade700,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -122,6 +122,10 @@ class LinkCheckResult {
   final int totalPagesInSitemap; // Total pages found in sitemap
   final bool scanCompleted; // Whether all pages were scanned
   final int newLastScannedPageIndex; // Index to continue from next time
+  final int?
+  pagesCompleted; // Number of pages fully processed (page-wise tracking)
+  final int? currentBatchStart; // Start index (1-based) of current batch
+  final int? currentBatchEnd; // End index (1-based) of current batch
 
   LinkCheckResult({
     this.id,
@@ -139,6 +143,9 @@ class LinkCheckResult {
     required this.totalPagesInSitemap,
     required this.scanCompleted,
     required this.newLastScannedPageIndex,
+    this.pagesCompleted,
+    this.currentBatchStart,
+    this.currentBatchEnd,
   });
 
   /// Create LinkCheckResult from Firestore document
@@ -160,6 +167,9 @@ class LinkCheckResult {
       totalPagesInSitemap: (data['totalPagesInSitemap'] as int?) ?? 0,
       scanCompleted: (data['scanCompleted'] as bool?) ?? false,
       newLastScannedPageIndex: (data['newLastScannedPageIndex'] as int?) ?? 0,
+      pagesCompleted: data['pagesCompleted'] as int?,
+      currentBatchStart: data['currentBatchStart'] as int?,
+      currentBatchEnd: data['currentBatchEnd'] as int?,
     );
   }
 
@@ -180,6 +190,9 @@ class LinkCheckResult {
       'totalPagesInSitemap': totalPagesInSitemap,
       'scanCompleted': scanCompleted,
       'newLastScannedPageIndex': newLastScannedPageIndex,
+      'pagesCompleted': pagesCompleted,
+      'currentBatchStart': currentBatchStart,
+      'currentBatchEnd': currentBatchEnd,
     };
   }
 }
