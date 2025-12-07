@@ -173,12 +173,15 @@ git commit -m "Replace old feature with new implementation
 
 **🟡 警告レベル（500-999行）**
 
-1. **lib/screens/site_form_screen.dart** (780行)
-   - サイト登録・編集フォーム
-   - 対応: ウィジェット分割（FormSection単位）
-   - 予想: 5-7ウィジェットに分割可能
+（現在該当なし）
 
-**🟢 経過観察（400-499行）**
+**🟢 経過観察（200-499行）**
+
+1. **lib/screens/site_form_screen.dart** (246行 → 最適化済み)
+   - Phase 1完了（ウィジェット分割済み）
+   - 5ウィジェットに分割: SiteLimitCard, SiteFormBody, ActionButtons, UrlChangeWarningDialog, WarningItem
+   - 旧: 780行 → 新: 246行 + 408行 (5ウィジェット) = 654行（126行削減、16%削減）
+
 2. **lib/providers/link_checker_provider.dart** (414行)
 3. **lib/screens/profile_screen.dart** (426行)
 4. **lib/widgets/site_detail/full_scan_section.dart** (405行)
@@ -188,6 +191,11 @@ git commit -m "Replace old feature with new implementation
   - Phase 5完了（ファイル分割・主要ロジック整理済み）
   - 4ファイルに分割: models.dart, http_client.dart, sitemap_parser.dart, result_repository.dart
   - 旧: 1142行 → 新: 722行（420行削減、37%削減）
+
+- ✅ **lib/screens/site_form_screen.dart** (246行 → 最適化済み)
+  - Phase 1完了（ウィジェット分割済み）
+  - 5ウィジェットに分割: SiteLimitCard, SiteFormBody, ActionButtons, UrlChangeWarningDialog, WarningItem
+  - 旧: 780行 → 新: 246行 + 408行 (5ウィジェット) = 654行（126行削減、16%削減）
 
 #### リファクタリング実施の流れ
 
