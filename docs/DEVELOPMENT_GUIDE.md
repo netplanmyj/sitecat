@@ -173,21 +173,21 @@ git commit -m "Replace old feature with new implementation
 
 **🟡 警告レベル（500-999行）**
 
-1. **lib/services/link_checker_service.dart** (722行)
-   - Phase 5完了（ファイル分割・主要ロジック整理済み）
-   - 4ファイルに分割: models.dart, http_client.dart, sitemap_parser.dart, result_repository.dart
-   - 旧: 1142行 → 新: 722行（420行削減、37%削減）
-   - 詳細: [REFACTORING_METRICS.md](./REFACTORING_METRICS.md)
-
-2. **lib/screens/site_form_screen.dart** (780行)
+1. **lib/screens/site_form_screen.dart** (780行)
    - サイト登録・編集フォーム
    - 対応: ウィジェット分割（FormSection単位）
    - 予想: 5-7ウィジェットに分割可能
 
 **🟢 経過観察（400-499行）**
-3. **lib/providers/link_checker_provider.dart** (414行)
-4. **lib/screens/profile_screen.dart** (426行)
-5. **lib/widgets/site_detail/full_scan_section.dart** (405行)
+2. **lib/providers/link_checker_provider.dart** (414行)
+3. **lib/screens/profile_screen.dart** (426行)
+4. **lib/widgets/site_detail/full_scan_section.dart** (405行)
+
+**✅ 完了済み（最適化済み）**
+- ✅ **lib/services/link_checker_service.dart** (722行 → 最適化済み)
+  - Phase 5完了（ファイル分割・主要ロジック整理済み）
+  - 4ファイルに分割: models.dart, http_client.dart, sitemap_parser.dart, result_repository.dart
+  - 旧: 1142行 → 新: 722行（420行削減、37%削減）
 
 #### リファクタリング実施の流れ
 
@@ -786,18 +786,19 @@ SiteCatのアーキテクチャは以下のように整理されています：
 
 **目標**: 買い切り型有料機能を実装し、収益化を開始
 
+**完了した機能:**
+- ✅ **In-App Purchase統合**
+  - ✅ StoreKit 2対応
+  - ✅ 課金状態管理（Firestore `users/{userId}/subscription`）
+  - ✅ リストア機能
+  - ✅ 購入フロー実装
+
+- ✅ **サイト数制限解除**
+  - ✅ 定数変更（1サイト → 無制限）
+  - ✅ UI側で課金状態チェック
+  - ✅ 無料版での制限表示
+
 **実装予定機能:**
-- [ ] **In-App Purchase統合**
-  - [ ] StoreKit 2対応
-  - [ ] 課金状態管理（Firestore `users/{userId}/subscription`）
-  - [ ] リストア機能
-  - [ ] 購入フロー実装
-
-- [ ] **サイト数制限解除**
-  - [ ] 定数変更（1サイト → 無制限）
-  - [ ] UI側で課金状態チェック
-  - [ ] 無料版での制限表示
-
 - [ ] **除外パス設定UI** (#197)
   - [ ] 設定画面実装
   - [ ] パス入力・検証UI
@@ -929,26 +930,8 @@ class SubscriptionService {
 - ✅ UI大規模リファクタリング（4画面、1,163行削減）
 - ✅ 13個の再利用可能ウィジェット作成
 - ✅ コード可読性・保守性の向上
-
-### 開発の優先順位（Phase 3: リリース準備）
-
-#### UI/UX 最終調整
-- [ ] アイコン・スプラッシュ画面の作成
-- [ ] 各画面の操作性確認
-- [ ] エラーメッセージの改善
-- [ ] アクセシビリティ対応
-
-#### ドキュメント整備
-- [ ] ユーザーマニュアル作成
-- [ ] プライバシーポリシー作成
-- [ ] 利用規約作成
-- [ ] スクリーンショット準備
-
-#### テストとQA
-- [ ] 実機テスト（iOS/Android複数デバイス）
-- [ ] パフォーマンステスト
-- [ ] セキュリティチェック
-- [ ] ストア申請資料準備
+- ✅ **App Store審査通過・配信開始（175カ国）**
+- ✅ **実機テスト、セキュリティチェック完了**
 
 ## 実装のポイント
 
