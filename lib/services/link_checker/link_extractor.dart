@@ -94,6 +94,9 @@ class LinkExtractor {
   /// - externalLinks: Links from other domains
   /// - linkSourceMap: Mapping of links to the source page
   /// - wasSuccessful: true if page was successfully fetched and processed
+  ///
+  /// Note: The delay between page fetches is applied in the calling code
+  /// (checkSiteLinks) to allow for better control over rate limiting.
   Future<SinglePageExtractionResult> scanAndExtractLinksForPage({
     required Uri page,
     required Uri originalBaseUrl,
@@ -118,9 +121,6 @@ class LinkExtractor {
 
     int internalLinksCount = 0;
     int externalLinksCount = 0;
-
-    // Add delay between page fetches to avoid overwhelming the server
-    await Future.delayed(const Duration(milliseconds: 200));
 
     final htmlContent = await _httpClient.fetchHtmlContent(pageUrl);
     if (htmlContent == null) {

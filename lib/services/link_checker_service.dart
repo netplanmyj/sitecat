@@ -218,6 +218,12 @@ class LinkCheckerService implements LinkCheckerClient {
         break;
       }
 
+      // Add minimal delay between page fetches (100ms after first page)
+      // to avoid overwhelming the server while maintaining performance
+      if (pagesScanned > 0) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
+
       // Step 2a: Fetch page and extract links from this page
       final pageExtractionResult = await _extractor.scanAndExtractLinksForPage(
         page: page,

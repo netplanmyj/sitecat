@@ -136,6 +136,8 @@ class LinkValidator {
   }
 
   /// Check a list of links for broken ones
+  /// Uses concurrent checking with backpressure to avoid overwhelming the server.
+  /// The first link is checked immediately, subsequent links have minimal delay.
   Future<List<BrokenLink>> _checkLinks({
     required String siteId,
     required List<Uri> links,
@@ -154,8 +156,10 @@ class LinkValidator {
 
       final linkUrl = link.toString();
 
+      // Add minimal delay (50ms) between link checks to throttle requests
+      // This is much less than the previous 100ms and allows faster processing
       if (checked > 0) {
-        await Future.delayed(const Duration(milliseconds: 100));
+        await Future.delayed(const Duration(milliseconds: 50));
       }
 
       final isBroken = await _httpClient.checkLink(link);
