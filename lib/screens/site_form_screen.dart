@@ -3,8 +3,10 @@ import 'package:provider/provider.dart';
 import '../providers/site_provider.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
-import '../widgets/site_form/excluded_paths_editor.dart';
-import '../widgets/site_form/site_form_fields.dart';
+import '../widgets/site_form/site_form_body.dart';
+import '../widgets/site_form/action_buttons.dart';
+import '../widgets/site_form/site_limit_card.dart';
+import '../widgets/site_form/url_change_warning_dialog.dart';
 
 class SiteFormScreen extends StatefulWidget {
   final Site? site; // null for create, Site for edit
@@ -74,160 +76,44 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
         builder: (context, siteProvider, child) {
           // Check site limit for new sites
           if (!widget.isEdit && !siteProvider.canAddSite) {
-            return Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24.0),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      Icons.lock_outline,
-                      size: 64,
-                      color: Colors.grey.shade400,
-                    ),
-                    const SizedBox(height: 24),
-                    Text(
-                      AppConstants.siteLimitReachedMessage,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'Current sites: ${siteProvider.siteCount} / ${AppConstants.freePlanSiteLimit}',
-                      style: TextStyle(color: Colors.grey.shade600),
-                    ),
-                    const SizedBox(height: 24),
-                    ElevatedButton.icon(
-                      onPressed: () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.arrow_back),
-                      label: const Text('Back to Sites'),
-                    ),
-                  ],
-                ),
-              ),
+            return SiteLimitCard(
+              siteCount: siteProvider.siteCount,
+              siteLimit: AppConstants.freePlanSiteLimit,
+              onBackPressed: () => Navigator.of(context).pop(),
             );
           }
 
-          return Form(
-            key: _formKey,
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _buildHeaderCard(),
-                const SizedBox(height: 16),
-                _buildSiteNameField(siteProvider),
-                const SizedBox(height: 16),
-                _buildSiteUrlField(siteProvider),
-                const SizedBox(height: 16),
-                _buildSitemapUrlField(),
-                const SizedBox(height: 16),
-                _buildExcludedPathsSection(),
-                const SizedBox(height: 24),
-                _buildActionButtons(),
-                const SizedBox(height: 16),
-                if (siteProvider.error != null)
-                  _buildErrorMessage(siteProvider.error!),
-                _buildHelpCard(),
-              ],
-            ),
+          return Column(
+            children: [
+              Expanded(
+                child: SiteFormBody(
+                  formKey: _formKey,
+                  nameController: _nameController,
+                  urlController: _urlController,
+                  sitemapUrlController: _sitemapUrlController,
+                  newPathController: _newPathController,
+                  excludedPaths: _excludedPaths,
+                  isEdit: widget.isEdit,
+                  editingSite: widget.site,
+                  onAddPath: _addExcludedPath,
+                  onRemovePath: _removeExcludedPath,
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.all(16),
+                color: Colors.white,
+                child: ActionButtons(
+                  isLoading: _isLoading,
+                  isEdit: widget.isEdit,
+                  onCancel: () => Navigator.of(context).pop(),
+                  onSave: _saveSite,
+                ),
+              ),
+            ],
           );
         },
       ),
     );
-  }
-
-  Widget _buildHeaderCard() {
-    return SiteFormFields.buildHeaderCard(
-      isEdit: widget.isEdit,
-      context: context,
-    );
-  }
-
-  Widget _buildSiteNameField(SiteProvider siteProvider) {
-    return SiteFormFields.buildSiteNameField(
-      controller: _nameController,
-      siteProvider: siteProvider,
-    );
-  }
-
-  Widget _buildSiteUrlField(SiteProvider siteProvider) {
-    return SiteFormFields.buildSiteUrlField(
-      controller: _urlController,
-      siteProvider: siteProvider,
-      excludeSiteId: widget.site?.id,
-    );
-  }
-
-  Widget _buildSitemapUrlField() {
-    return SiteFormFields.buildSitemapUrlField(
-      controller: _sitemapUrlController,
-    );
-  }
-
-  Widget _buildExcludedPathsSection() {
-    return ExcludedPathsEditor(
-      pathController: _newPathController,
-      excludedPaths: _excludedPaths,
-      onAddPath: _addExcludedPath,
-      onRemovePath: _removeExcludedPath,
-    );
-  }
-
-  Widget _buildActionButtons() {
-    if (_isLoading) {
-      return const Card(
-        child: Padding(
-          padding: EdgeInsets.all(16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              SizedBox(
-                width: 20,
-                height: 20,
-                child: CircularProgressIndicator(strokeWidth: 2),
-              ),
-              SizedBox(width: 12),
-              Text('Saving site...'),
-            ],
-          ),
-        ),
-      );
-    }
-
-    return Row(
-      children: [
-        Expanded(
-          child: OutlinedButton(
-            onPressed: () => Navigator.of(context).pop(),
-            style: OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            child: const Text('Cancel'),
-          ),
-        ),
-        const SizedBox(width: 16),
-        Expanded(
-          child: ElevatedButton(
-            onPressed: _saveSite,
-            style: ElevatedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-            ),
-            child: Text(widget.isEdit ? 'Update' : 'Add Site'),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildErrorMessage(String error) {
-    return SiteFormFields.buildErrorMessage(error: error);
-  }
-
-  Widget _buildHelpCard() {
-    return SiteFormFields.buildHelpCard();
   }
 
   void _addExcludedPath() {
@@ -350,74 +236,11 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
   Future<bool> _showUrlChangeWarningDialog() async {
     final result = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Row(
-          children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.orange),
-            SizedBox(width: 8),
-            Text('URL Change Detected'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'You are changing the site URL. This will affect:',
-              style: TextStyle(fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 12),
-            _buildWarningItem('Previous check results will show as mismatched'),
-            const SizedBox(height: 8),
-            _buildWarningItem('Link check history will be cleared'),
-            const SizedBox(height: 8),
-            _buildWarningItem('You may need to run a new full scan'),
-            const SizedBox(height: 16),
-            Text(
-              'Old URL: ${widget.site!.url}',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey.shade700,
-                fontFamily: 'monospace',
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'New URL: ${_urlController.text.trim()}',
-              style: const TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w500,
-                fontFamily: 'monospace',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange,
-              foregroundColor: Colors.white,
-            ),
-            child: const Text('Update URL'),
-          ),
-        ],
+      builder: (context) => UrlChangeWarningDialog(
+        oldUrl: widget.site!.url,
+        newUrl: _urlController.text.trim(),
       ),
     );
     return result ?? false;
-  }
-
-  Widget _buildWarningItem(String text) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('• ', style: TextStyle(fontSize: 16)),
-        Expanded(child: Text(text, style: const TextStyle(fontSize: 13))),
-      ],
-    );
   }
 }
