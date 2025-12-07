@@ -52,6 +52,10 @@ class _FullScanSectionState extends State<FullScanSection> {
               widget.site.id,
             );
 
+            // Get real-time progress during scan
+            final (currentChecked, currentTotal) = linkCheckerProvider
+                .getProgress(widget.site.id);
+
             // Get current sitemap status (updated during scan, or from latest result)
             final currentSitemapStatus =
                 linkCheckerProvider.getCurrentSitemapStatusCode(
@@ -215,7 +219,7 @@ class _FullScanSectionState extends State<FullScanSection> {
                 ),
 
                 // Progress indicator - show current scan progress when available
-                if (currentSite.lastScannedPageIndex > 0 &&
+                if ((currentSite.lastScannedPageIndex > 0 || isCheckingLinks) &&
                     latestResult != null) ...[
                   const SizedBox(height: 12),
                   Container(
@@ -249,7 +253,9 @@ class _FullScanSectionState extends State<FullScanSection> {
                         const SizedBox(height: 8),
                         LinearProgressIndicator(
                           value: latestResult.totalPagesInSitemap > 0
-                              ? currentSite.lastScannedPageIndex /
+                              ? (isCheckingLinks
+                                        ? currentChecked
+                                        : currentSite.lastScannedPageIndex) /
                                     latestResult.totalPagesInSitemap
                               : 0,
                           backgroundColor: Colors.blue.shade100,
@@ -260,7 +266,7 @@ class _FullScanSectionState extends State<FullScanSection> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '${currentSite.lastScannedPageIndex} / ${latestResult.totalPagesInSitemap} pages scanned',
+                          '${isCheckingLinks ? currentChecked : currentSite.lastScannedPageIndex} / ${latestResult.totalPagesInSitemap} pages scanned',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.blue.shade700,

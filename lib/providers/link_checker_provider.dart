@@ -297,9 +297,27 @@ class LinkCheckerProvider extends ChangeNotifier {
       _errors[siteId] = e.toString();
       _isProcessingExternalLinks[siteId] = false; // Reset flag on error
 
+      // Save current progress on cancellation or error
+      final currentProgress = _checkedCounts[siteId] ?? 0;
+      if (currentProgress > 0) {
+        // Update site's lastScannedPageIndex to current progress
+        // This allows Continue to resume from the exact point of interruption
+        try {
+          await _siteService.updateSite(
+            site.copyWith(lastScannedPageIndex: currentProgress),
+          );
+        } catch (updateError) {
+          // Log but don't fail if update fails
+          _errors[siteId] =
+              '${_errors[siteId]}\nFailed to save progress: $updateError';
+        }
+      }
+
       // Restore previous progress if this was a new scan that failed early
       // This ensures Continue button works correctly after an error
-      if (!continueFromLastScan && previousChecked > 0) {
+      if (!continueFromLastScan &&
+          previousChecked > 0 &&
+          currentProgress == 0) {
         _checkedCounts[siteId] = previousChecked;
         _totalCounts[siteId] = previousTotal;
       }
