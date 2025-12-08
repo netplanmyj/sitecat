@@ -89,6 +89,12 @@ class _SiteScanSectionState extends State<SiteScanSection> {
                             fontWeight: FontWeight.bold,
                             color: Colors.orange.shade900,
                           ),
+                          onComplete: () {
+                            // Force UI refresh when countdown completes
+                            if (mounted) {
+                              setState(() {});
+                            }
+                          },
                         ),
                       ),
                   ],

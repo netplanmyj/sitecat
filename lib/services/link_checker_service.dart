@@ -205,6 +205,11 @@ class LinkCheckerService implements LinkCheckerClient {
       siteUrl: site.url,
     );
 
+    // Clear cache only when starting a new scan (not when continuing)
+    if (!continueFromLastScan) {
+      validator.clearCache();
+    }
+
     final allInternalLinks = <Uri>{};
     final allExternalLinks = <Uri>{};
     final allLinkSourceMap = <String, List<String>>{};

@@ -7,11 +7,19 @@ class LinkValidator {
   final String userId;
   final String siteUrl;
 
+  // Cache for link check results (URL -> {statusCode, error})
+  final Map<String, ({int statusCode, String? error})?> _linkCheckCache = {};
+
   LinkValidator({
     required LinkCheckerHttpClient httpClient,
     required this.userId,
     required this.siteUrl,
   }) : _httpClient = httpClient;
+
+  /// Clear the link check cache
+  void clearCache() {
+    _linkCheckCache.clear();
+  }
 
   /// Check all links (internal and external) for broken pages
   Future<List<BrokenLink>> checkAllLinks({
@@ -136,8 +144,8 @@ class LinkValidator {
   }
 
   /// Check a list of links for broken ones
-  /// Uses concurrent checking with backpressure to avoid overwhelming the server.
-  /// The first link is checked immediately, subsequent links have minimal delay.
+  /// Uses concurrent checking with limited parallelism to optimize speed while avoiding server overload.
+  /// Implements caching to avoid checking the same URL multiple times across pages.
   Future<List<BrokenLink>> _checkLinks({
     required String siteId,
     required List<Uri> links,
@@ -149,39 +157,81 @@ class LinkValidator {
     final brokenLinks = <BrokenLink>[];
     int checked = 0;
 
-    for (final link in links) {
+    // Process links in parallel batches of 5 for better performance
+    const batchSize = 5;
+
+    for (var i = 0; i < links.length; i += batchSize) {
       if (shouldCancel?.call() ?? false) {
         break;
       }
 
-      final linkUrl = link.toString();
+      final batch = links.skip(i).take(batchSize).toList();
+      final futures =
+          <Future<({Uri link, ({int statusCode, String? error})? result})>>[];
 
-      // Add minimal delay (50ms) between link checks to throttle requests
-      // This is much less than the previous 100ms and allows faster processing
-      if (checked > 0) {
-        await Future.delayed(const Duration(milliseconds: 50));
+      for (final link in batch) {
+        final linkUrl = link.toString();
+
+        // Check cache first
+        if (_linkCheckCache.containsKey(linkUrl)) {
+          // Use cached result (may be null for successful links)
+          futures.add(
+            Future.value((link: link, result: _linkCheckCache[linkUrl])),
+          );
+        } else {
+          // Queue actual HTTP check
+          futures.add(_checkSingleLink(link));
+        }
       }
 
-      final isBroken = await _httpClient.checkLink(link);
+      // Wait for all checks in batch to complete
+      final results = await Future.wait(futures);
 
-      if (isBroken != null) {
-        brokenLinks.add(
-          _createBrokenLink(
-            siteId: siteId,
-            linkUrl: linkUrl,
-            linkSourceMap: linkSourceMap,
-            statusCode: isBroken.statusCode,
-            error: isBroken.error,
-            linkType: linkType,
-          ),
-        );
+      // Process results
+      for (final result in results) {
+        final linkUrl = result.link.toString();
+
+        // Always cache the result
+        _linkCheckCache[linkUrl] = result.result;
+
+        // If link is broken, add to broken links list
+        if (result.result != null) {
+          brokenLinks.add(
+            _createBrokenLink(
+              siteId: siteId,
+              linkUrl: linkUrl,
+              linkSourceMap: linkSourceMap,
+              statusCode: result.result!.statusCode,
+              error: result.result!.error,
+              linkType: linkType,
+            ),
+          );
+        }
+
+        checked++;
+        onProgress?.call(checked);
       }
 
-      checked++;
-      onProgress?.call(checked);
+      // Small delay between batches to avoid overwhelming the server
+      if (i + batchSize < links.length) {
+        await Future.delayed(const Duration(milliseconds: 100));
+      }
     }
 
     return brokenLinks;
+  }
+
+  /// Check a single link and return the result
+  Future<({Uri link, ({int statusCode, String? error})? result})>
+  _checkSingleLink(Uri link) async {
+    final isBroken = await _httpClient.checkLink(link);
+
+    ({int statusCode, String? error})? checkResult;
+    if (isBroken != null) {
+      checkResult = (statusCode: isBroken.statusCode, error: isBroken.error);
+    }
+
+    return (link: link, result: checkResult);
   }
 
   /// Create a BrokenLink object
