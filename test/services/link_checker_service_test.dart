@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart' as xml;
+import 'package:sitecat/constants/app_constants.dart';
 import 'package:sitecat/utils/url_encoding_utils.dart';
 
 /// Helper method to extract and normalize URLs from sitemap XML
@@ -894,45 +895,40 @@ ${urlElements.join('\n')}
   });
 
   group('Premium Limit Management', () {
-    test('should set correct page limit for premium users', () {
-      // This is a placeholder test - in real implementation, you would:
-      // 1. Create a LinkCheckerService instance
-      // 2. Call setPageLimit(true)
-      // 3. Verify that _pageLimit is set to AppConstants.premiumPlanPageLimit
-      // Note: Since _pageLimit is private, you may need to expose it via a getter
-      // or test indirectly through the scanning behavior
-      expect(true, true); // Placeholder
+    test('should have correct premium page limit constant', () {
+      // Assert: Premium plan allows 1000 pages
+      expect(AppConstants.premiumPlanPageLimit, 1000);
     });
 
-    test('should set correct page limit for free users', () {
-      // This is a placeholder test - in real implementation, you would:
-      // 1. Create a LinkCheckerService instance
-      // 2. Call setPageLimit(false)
-      // 3. Verify that _pageLimit is set to AppConstants.freePlanPageLimit
-      expect(true, true); // Placeholder
+    test('should have correct free page limit constant', () {
+      // Assert: Free plan allows 200 pages
+      expect(AppConstants.freePlanPageLimit, 200);
     });
 
-    test('should set correct history limit for premium users', () {
-      // This is a placeholder test - in real implementation, you would:
-      // 1. Create a LinkCheckerService instance
-      // 2. Call setHistoryLimit(true)
-      // 3. Verify that _historyLimit is set to AppConstants.premiumHistoryLimit
-      expect(true, true); // Placeholder
+    test('should have correct premium history limit constant', () {
+      // Assert: Premium plan keeps 50 history items
+      expect(AppConstants.premiumHistoryLimit, 50);
     });
 
-    test('should set correct history limit for free users', () {
-      // This is a placeholder test - in real implementation, you would:
-      // 1. Create a LinkCheckerService instance
-      // 2. Call setHistoryLimit(false)
-      // 3. Verify that _historyLimit is set to AppConstants.freePlanHistoryLimit
-      expect(true, true); // Placeholder
+    test('should have correct free history limit constant', () {
+      // Assert: Free plan keeps 10 history items
+      expect(AppConstants.freePlanHistoryLimit, 10);
     });
 
-    test('should default to free plan limits on instantiation', () {
-      // This is a placeholder test - in real implementation, you would:
-      // 1. Create a LinkCheckerService instance without calling setPageLimit
-      // 2. Verify that limits default to free plan values
-      expect(true, true); // Placeholder
+    test('should have premium page limit greater than free limit', () {
+      // Assert: Premium users can scan more pages
+      expect(
+        AppConstants.premiumPlanPageLimit,
+        greaterThan(AppConstants.freePlanPageLimit),
+      );
+    });
+
+    test('should have premium history limit greater than free limit', () {
+      // Assert: Premium users can keep more history
+      expect(
+        AppConstants.premiumHistoryLimit,
+        greaterThan(AppConstants.freePlanHistoryLimit),
+      );
     });
   });
 
