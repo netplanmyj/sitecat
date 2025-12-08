@@ -893,49 +893,6 @@ ${urlElements.join('\n')}
     });
   });
 
-  group('Premium Limit Management', () {
-    test('should set correct page limit for premium users', () {
-      // This is a placeholder test - in real implementation, you would:
-      // 1. Create a LinkCheckerService instance
-      // 2. Call setPageLimit(true)
-      // 3. Verify that _pageLimit is set to AppConstants.premiumPlanPageLimit
-      // Note: Since _pageLimit is private, you may need to expose it via a getter
-      // or test indirectly through the scanning behavior
-      expect(true, true); // Placeholder
-    });
-
-    test('should set correct page limit for free users', () {
-      // This is a placeholder test - in real implementation, you would:
-      // 1. Create a LinkCheckerService instance
-      // 2. Call setPageLimit(false)
-      // 3. Verify that _pageLimit is set to AppConstants.freePlanPageLimit
-      expect(true, true); // Placeholder
-    });
-
-    test('should set correct history limit for premium users', () {
-      // This is a placeholder test - in real implementation, you would:
-      // 1. Create a LinkCheckerService instance
-      // 2. Call setHistoryLimit(true)
-      // 3. Verify that _historyLimit is set to AppConstants.premiumHistoryLimit
-      expect(true, true); // Placeholder
-    });
-
-    test('should set correct history limit for free users', () {
-      // This is a placeholder test - in real implementation, you would:
-      // 1. Create a LinkCheckerService instance
-      // 2. Call setHistoryLimit(false)
-      // 3. Verify that _historyLimit is set to AppConstants.freePlanHistoryLimit
-      expect(true, true); // Placeholder
-    });
-
-    test('should default to free plan limits on instantiation', () {
-      // This is a placeholder test - in real implementation, you would:
-      // 1. Create a LinkCheckerService instance without calling setPageLimit
-      // 2. Verify that limits default to free plan values
-      expect(true, true); // Placeholder
-    });
-  });
-
   group('Excluded Paths - Wildcard Pattern Matching', () {
     test(
       'should filter URLs matching wildcard patterns with exact path segment',
