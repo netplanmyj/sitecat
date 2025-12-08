@@ -173,11 +173,11 @@ class LinkValidator {
         final linkUrl = link.toString();
 
         // Check cache first
-        final cachedResult = _linkCheckCache[linkUrl];
-
-        if (cachedResult != null) {
-          // Use cached result immediately
-          futures.add(Future.value((link: link, result: cachedResult)));
+        if (_linkCheckCache.containsKey(linkUrl)) {
+          // Use cached result (may be null for successful links)
+          futures.add(
+            Future.value((link: link, result: _linkCheckCache[linkUrl])),
+          );
         } else {
           // Queue actual HTTP check
           futures.add(_checkSingleLink(link));
@@ -191,10 +191,8 @@ class LinkValidator {
       for (final result in results) {
         final linkUrl = result.link.toString();
 
-        // Cache the result if it wasn't already cached
-        if (!_linkCheckCache.containsKey(linkUrl)) {
-          _linkCheckCache[linkUrl] = result.result;
-        }
+        // Always cache the result
+        _linkCheckCache[linkUrl] = result.result;
 
         // If link is broken, add to broken links list
         if (result.result != null) {
