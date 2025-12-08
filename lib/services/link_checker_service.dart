@@ -175,11 +175,16 @@ class LinkCheckerService implements LinkCheckerClient {
       pageLimit: _pageLimit,
     );
 
+    // Excluded paths are a Premium feature; enforce by clearing for Free users
+    final siteForScanning = _pageLimit == AppConstants.freePlanPageLimit
+        ? site.copyWith(excludedPaths: [])
+        : site;
+
     // ========================================================================
     // STEP 1: Load sitemap URLs and check accessibility
     // ========================================================================
     final sitemapData = await _orchestrator.loadSitemapUrls(
-      site: site,
+      site: siteForScanning,
       baseUrl: baseUrl,
       originalBaseUrl: originalBaseUrl,
       onSitemapStatusUpdate: onSitemapStatusUpdate,
