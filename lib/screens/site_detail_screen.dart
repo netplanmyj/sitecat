@@ -18,15 +18,12 @@ class SiteDetailScreen extends StatefulWidget {
   State<SiteDetailScreen> createState() => _SiteDetailScreenState();
 }
 
-class _SiteDetailScreenState extends State<SiteDetailScreen>
-    with SingleTickerProviderStateMixin {
+class _SiteDetailScreenState extends State<SiteDetailScreen> {
   bool _checkExternalLinks = false;
-  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 1, vsync: this);
 
     // Start listening to monitoring results and auto-trigger quick scan
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -39,101 +36,82 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
   }
 
   @override
-  void dispose() {
-    _tabController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.site.name),
         backgroundColor: Colors.orange,
         foregroundColor: Colors.white,
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const [Tab(text: 'Site Scan', icon: Icon(Icons.link))],
-        ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Site Scan Tab (integrated sitemap status)
-          _buildSiteScanTab(),
-        ],
-      ),
-    );
-  }
-
-  // Site Scan Tab
-  Widget _buildSiteScanTab() {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Consumer<MonitoringProvider>(
-              builder: (context, monitoring, child) {
-                final latestResult = monitoring.getLatestResult(widget.site.id);
-                return SiteInfoCard(
-                  site: widget.site,
-                  sitemapStatus: latestResult,
-                  cachedSitemapStatusCode: monitoring.getCachedSitemapStatus(
+      body: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Consumer<MonitoringProvider>(
+                builder: (context, monitoring, child) {
+                  final latestResult = monitoring.getLatestResult(
                     widget.site.id,
-                  ),
-                  isCheckingSitemap: monitoring.isChecking(widget.site.id),
-                  getTimeUntilNextCheck: () =>
-                      monitoring.getTimeUntilNextCheck(widget.site.id),
-                  onRefreshSitemap: () => _quickCheck(),
-                );
-              },
-            ),
-            const SizedBox(height: 16),
-            SiteScanSection(
-              site: widget.site,
-              onSiteScan: (checkExternalLinks) {
-                setState(() {
-                  _checkExternalLinks = checkExternalLinks;
-                });
-                _siteScan();
-              },
-              onContinueScan: _continueScan,
-            ),
-            const SizedBox(height: 16),
-            LinkCheckSection(
-              site: widget.site,
-              onCheckComplete: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('Link check completed'),
-                    backgroundColor: Colors.green,
-                  ),
-                );
-              },
-              onCheckError: (error) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text('Error: $error'),
-                    backgroundColor: Colors.red,
-                  ),
-                );
-              },
-              onViewBrokenLinks: (site, brokenLinks, result) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => BrokenLinksScreen(
-                      site: site,
-                      brokenLinks: brokenLinks,
-                      result: result,
+                  );
+                  return SiteInfoCard(
+                    site: widget.site,
+                    sitemapStatus: latestResult,
+                    cachedSitemapStatusCode: monitoring.getCachedSitemapStatus(
+                      widget.site.id,
                     ),
-                  ),
-                );
-              },
-            ),
-          ],
+                    isCheckingSitemap: monitoring.isChecking(widget.site.id),
+                    getTimeUntilNextCheck: () =>
+                        monitoring.getTimeUntilNextCheck(widget.site.id),
+                    onRefreshSitemap: () => _quickCheck(),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              SiteScanSection(
+                site: widget.site,
+                onSiteScan: (checkExternalLinks) {
+                  setState(() {
+                    _checkExternalLinks = checkExternalLinks;
+                  });
+                  _siteScan();
+                },
+                onContinueScan: _continueScan,
+              ),
+              const SizedBox(height: 16),
+              LinkCheckSection(
+                site: widget.site,
+                onCheckComplete: () {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Link check completed'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                },
+                onCheckError: (error) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text('Error: $error'),
+                      backgroundColor: Colors.red,
+                    ),
+                  );
+                },
+                onViewBrokenLinks: (site, brokenLinks, result) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => BrokenLinksScreen(
+                        site: site,
+                        brokenLinks: brokenLinks,
+                        result: result,
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );
