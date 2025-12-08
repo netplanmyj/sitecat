@@ -167,6 +167,14 @@ class LinkCheckerService implements LinkCheckerClient {
     final originalBaseUrl = Uri.parse(site.url);
     final baseUrl = Uri.parse(UrlHelper.convertLocalhostForPlatform(site.url));
 
+    // Ensure orchestrator has the correct page limit by recreating it
+    // This handles cases where premium status changed since initialization
+    _orchestrator = ScanOrchestrator(
+      httpClient: _httpHelper,
+      sitemapParser: _sitemapParser,
+      pageLimit: _pageLimit,
+    );
+
     // ========================================================================
     // STEP 1: Load sitemap URLs and check accessibility
     // ========================================================================
