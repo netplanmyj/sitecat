@@ -230,54 +230,6 @@ class _SiteInfoCardState extends State<SiteInfoCard> {
                       style: const TextStyle(fontSize: 11, color: Colors.grey),
                     ),
                   ],
-                  if (widget.onRefreshSitemap != null) ...[
-                    const Spacer(),
-                    Builder(
-                      builder: (context) {
-                        final remaining = widget.getTimeUntilNextCheck?.call();
-                        if (remaining != null && remaining.inSeconds > 0) {
-                          return Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 6,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.orange.shade100,
-                              border: Border.all(color: Colors.orange.shade400),
-                              borderRadius: BorderRadius.circular(3),
-                            ),
-                            child: CountdownTimer(
-                              initialDuration: remaining,
-                              prefixText: '',
-                              style: TextStyle(
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.orange.shade900,
-                              ),
-                              onComplete: () {
-                                if (mounted) {
-                                  setState(() {});
-                                }
-                              },
-                            ),
-                          );
-                        }
-                        return const SizedBox.shrink();
-                      },
-                    ),
-                    const SizedBox(width: 4),
-                    IconButton(
-                      icon: const Icon(Icons.refresh),
-                      onPressed: widget.onRefreshSitemap,
-                      tooltip: 'Refresh sitemap status',
-                      iconSize: 18,
-                      padding: EdgeInsets.zero,
-                      constraints: const BoxConstraints(
-                        minWidth: 32,
-                        minHeight: 32,
-                      ),
-                    ),
-                  ],
                 ],
               ),
             ],
