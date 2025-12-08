@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
 import '../models/broken_link.dart';
@@ -93,14 +92,6 @@ class LinkCheckerService implements LinkCheckerClient {
 
   // Get current user ID
   String? get _currentUserId => _auth.currentUser?.uid;
-
-  /// Get current page limit (visible for testing)
-  @visibleForTesting
-  int get pageLimit => _pageLimit;
-
-  /// Get current history limit (visible for testing)
-  @visibleForTesting
-  int get historyLimit => _historyLimit;
 
   /// Set history limit based on premium status
   @override

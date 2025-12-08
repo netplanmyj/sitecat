@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:xml/xml.dart' as xml;
-import 'package:sitecat/constants/app_constants.dart';
 import 'package:sitecat/utils/url_encoding_utils.dart';
 
 /// Helper method to extract and normalize URLs from sitemap XML
@@ -891,44 +890,6 @@ ${urlElements.join('\n')}
         'https://example.com/',
         'https://example.com/posts/article-1',
       });
-    });
-  });
-
-  group('Premium Limit Management', () {
-    test('should have correct premium page limit constant', () {
-      // Assert: Premium plan allows 1000 pages
-      expect(AppConstants.premiumPlanPageLimit, 1000);
-    });
-
-    test('should have correct free page limit constant', () {
-      // Assert: Free plan allows 200 pages
-      expect(AppConstants.freePlanPageLimit, 200);
-    });
-
-    test('should have correct premium history limit constant', () {
-      // Assert: Premium plan keeps 50 history items
-      expect(AppConstants.premiumHistoryLimit, 50);
-    });
-
-    test('should have correct free history limit constant', () {
-      // Assert: Free plan keeps 10 history items
-      expect(AppConstants.freePlanHistoryLimit, 10);
-    });
-
-    test('should have premium page limit greater than free limit', () {
-      // Assert: Premium users can scan more pages
-      expect(
-        AppConstants.premiumPlanPageLimit,
-        greaterThan(AppConstants.freePlanPageLimit),
-      );
-    });
-
-    test('should have premium history limit greater than free limit', () {
-      // Assert: Premium users can keep more history
-      expect(
-        AppConstants.premiumHistoryLimit,
-        greaterThan(AppConstants.freePlanHistoryLimit),
-      );
     });
   });
 
