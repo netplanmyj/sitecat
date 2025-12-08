@@ -90,6 +90,9 @@ class LinkCheckerService implements LinkCheckerClient {
   // Page limit for scanning (can be set based on premium status)
   int _pageLimit = AppConstants.freePlanPageLimit;
 
+  // Helper to check premium status without coupling to page limit semantics
+  bool get _isPremiumUser => _pageLimit != AppConstants.freePlanPageLimit;
+
   // Get current user ID
   String? get _currentUserId => _auth.currentUser?.uid;
 
@@ -175,10 +178,10 @@ class LinkCheckerService implements LinkCheckerClient {
       pageLimit: _pageLimit,
     );
 
-    // Excluded paths are a Premium feature; enforce by clearing for Free users
-    final siteForScanning = _pageLimit == AppConstants.freePlanPageLimit
-        ? site.copyWith(excludedPaths: [])
-        : site;
+    // Excluded paths are a Premium feature; enforce explicitly via premium flag
+    final siteForScanning = _isPremiumUser
+        ? site
+        : site.copyWith(excludedPaths: []);
 
     // ========================================================================
     // STEP 1: Load sitemap URLs and check accessibility
