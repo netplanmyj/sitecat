@@ -72,7 +72,7 @@ class _CountdownTimerState extends State<CountdownTimer> {
     final seconds = _remainingTime.inSeconds % 60;
     final formatted = '$minutes:${seconds.toString().padLeft(2, '0')}';
     final text = widget.prefixText == null
-        ? 'Next check available in: $formatted'
+        ? 'cooldown $formatted'
         : '${widget.prefixText!}$formatted';
 
     return Text(
