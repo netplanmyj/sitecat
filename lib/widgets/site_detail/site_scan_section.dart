@@ -7,13 +7,13 @@ import '../countdown_timer.dart';
 
 class SiteScanSection extends StatefulWidget {
   final Site site;
-  final Function(bool checkExternalLinks) onFullScan;
+  final Function(bool checkExternalLinks) onSiteScan;
   final VoidCallback onContinueScan;
 
   const SiteScanSection({
     super.key,
     required this.site,
-    required this.onFullScan,
+    required this.onSiteScan,
     required this.onContinueScan,
   });
 
@@ -130,7 +130,7 @@ class _SiteScanSectionState extends State<SiteScanSection> {
                             ? () =>
                                   linkCheckerProvider.cancelScan(widget.site.id)
                             : (canCheckLinks
-                                  ? () => widget.onFullScan(_checkExternalLinks)
+                                  ? () => widget.onSiteScan(_checkExternalLinks)
                                   : null),
                         icon: Icon(
                           isCheckingLinks ? Icons.stop : Icons.search,

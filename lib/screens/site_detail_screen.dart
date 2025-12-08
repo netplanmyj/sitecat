@@ -93,11 +93,11 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
             const SizedBox(height: 16),
             SiteScanSection(
               site: widget.site,
-              onFullScan: (checkExternalLinks) {
+              onSiteScan: (checkExternalLinks) {
                 setState(() {
                   _checkExternalLinks = checkExternalLinks;
                 });
-                _fullScan();
+                _siteScan();
               },
               onContinueScan: _continueScan,
             ),
@@ -182,7 +182,7 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
     );
   }
 
-  Future<void> _fullScan() async {
+  Future<void> _siteScan() async {
     try {
       // Site Scan uses LinkCheckerProvider only (no MonitoringProvider)
       // This ensures independent countdown timers for Quick Check and Site Scan
