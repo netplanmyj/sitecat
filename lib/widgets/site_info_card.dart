@@ -67,6 +67,12 @@ class _SiteInfoCardState extends State<SiteInfoCard> {
                             fontWeight: FontWeight.bold,
                             color: Colors.orange.shade900,
                           ),
+                          onComplete: () {
+                            // Force UI refresh when countdown completes
+                            if (mounted) {
+                              setState(() {});
+                            }
+                          },
                         ),
                       );
                     },
