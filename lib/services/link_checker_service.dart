@@ -43,6 +43,7 @@ class LinkCheckerService implements LinkCheckerClient {
   // Helper classes
   late final LinkCheckerHttpClient _httpHelper;
   late final SitemapParser _sitemapParser;
+  // Mutable to allow recreation when page limit changes via setPageLimit()
   late ScanOrchestrator _orchestrator;
   late final LinkExtractor _extractor;
   late final ResultBuilder _resultBuilder;
