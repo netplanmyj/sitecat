@@ -310,7 +310,7 @@ class LinkCheckerProvider extends ChangeNotifier {
       // Update state based on whether all pages were scanned
       // - If scanCompleted=true: Mark as LinkCheckState.completed (full scan done)
       // - If scanCompleted=false: Mark as LinkCheckState.idle (batch complete, ready to continue)
-      //   This ensures Stop button becomes disabled and Start/Continue become available after cooldown
+      //   This ensures Stop button becomes disabled during cooldown, and Start/Continue become enabled only after cooldown expires
       if (result.scanCompleted) {
         _checkStates[siteId] = LinkCheckState.completed;
       } else {
