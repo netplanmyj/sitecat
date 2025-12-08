@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/monitoring_result.dart';
 import '../models/site.dart';
+import 'countdown_timer.dart';
 
 /// Widget to display basic site information with optional sitemap status and cooldown
 class SiteInfoCard extends StatefulWidget {
@@ -25,31 +26,7 @@ class SiteInfoCard extends StatefulWidget {
   State<SiteInfoCard> createState() => _SiteInfoCardState();
 }
 
-class _SiteInfoCardState extends State<SiteInfoCard>
-    with TickerProviderStateMixin {
-  late final AnimationController _timerController;
-
-  @override
-  void initState() {
-    super.initState();
-    _timerController = AnimationController(
-      duration: const Duration(seconds: 1),
-      vsync: this,
-    )..repeat();
-  }
-
-  @override
-  void dispose() {
-    _timerController.dispose();
-    super.dispose();
-  }
-
-  String _formatDuration(Duration duration) {
-    final minutes = duration.inMinutes;
-    final seconds = duration.inSeconds % 60;
-    return '$minutes:${seconds.toString().padLeft(2, '0')}';
-  }
-
+class _SiteInfoCardState extends State<SiteInfoCard> {
   @override
   Widget build(BuildContext context) {
     return Card(
@@ -66,9 +43,8 @@ class _SiteInfoCardState extends State<SiteInfoCard>
                 ),
                 if (widget.onRefreshSitemap != null) ...[
                   const Spacer(),
-                  AnimatedBuilder(
-                    animation: _timerController,
-                    builder: (context, child) {
+                  Builder(
+                    builder: (context) {
                       final remaining = widget.getTimeUntilNextCheck?.call();
                       if (remaining == null || remaining.inSeconds <= 0) {
                         return const SizedBox.shrink();
@@ -83,8 +59,9 @@ class _SiteInfoCardState extends State<SiteInfoCard>
                           border: Border.all(color: Colors.orange.shade400),
                           borderRadius: BorderRadius.circular(4),
                         ),
-                        child: Text(
-                          _formatDuration(remaining),
+                        child: CountdownTimer(
+                          initialDuration: remaining,
+                          prefixText: '',
                           style: TextStyle(
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
