@@ -6,12 +6,14 @@ class CountdownTimer extends StatefulWidget {
   final Duration initialDuration;
   final TextStyle? style;
   final VoidCallback? onComplete;
+  final String? prefixText;
 
   const CountdownTimer({
     super.key,
     required this.initialDuration,
     this.style,
     this.onComplete,
+    this.prefixText,
   });
 
   @override
@@ -68,9 +70,13 @@ class _CountdownTimerState extends State<CountdownTimer> {
   Widget build(BuildContext context) {
     final minutes = _remainingTime.inMinutes;
     final seconds = _remainingTime.inSeconds % 60;
+    final formatted = '$minutes:${seconds.toString().padLeft(2, '0')}';
+    final text = widget.prefixText == null
+        ? 'Next check available in: $formatted'
+        : '${widget.prefixText!}$formatted';
 
     return Text(
-      'Next check available in: $minutes:${seconds.toString().padLeft(2, '0')}',
+      text,
       style: widget.style ?? const TextStyle(fontSize: 12, color: Colors.grey),
     );
   }

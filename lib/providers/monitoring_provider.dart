@@ -9,8 +9,8 @@ class MonitoringProvider extends ChangeNotifier {
   bool _isDemoMode = false;
   bool _hasLifetimeAccess = false;
 
-  // Minimum interval between checks (1 minute for debugging)
-  static const Duration minimumCheckInterval = Duration(minutes: 1);
+  // Minimum interval between checks (avoid aggressive polling / rate limits)
+  static const Duration minimumCheckInterval = Duration(seconds: 30);
 
   // State variables
   final Map<String, List<MonitoringResult>> _resultsBySite = {};

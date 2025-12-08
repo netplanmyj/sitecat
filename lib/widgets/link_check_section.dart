@@ -6,7 +6,7 @@ import '../providers/link_checker_provider.dart';
 import 'link_check/full_scan_card.dart';
 
 /// Widget for link check results display (read-only)
-/// Link checking is initiated from the "Full Scan" button in the parent screen
+/// Link checking is initiated from the "Site Scan" button in the parent screen
 class LinkCheckSection extends StatelessWidget {
   final Site site;
   final VoidCallback onCheckComplete;
@@ -32,7 +32,7 @@ class LinkCheckSection extends StatelessWidget {
       builder: (context, linkChecker, _) {
         final state = linkChecker.getCheckState(site.id);
         final result = linkChecker.getCachedResult(site.id);
-        // Progress is now shown in the Full Scan action area to avoid duplication
+        // Progress is now shown in the Site Scan action area to avoid duplication
 
         return Card(
           child: Padding(
@@ -46,7 +46,7 @@ class LinkCheckSection extends StatelessWidget {
                     const Icon(Icons.link_outlined),
                     const SizedBox(width: 8),
                     const Text(
-                      'Full Scan Results',
+                      'Site Scan Results',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
@@ -92,7 +92,7 @@ class LinkCheckSection extends StatelessWidget {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          'Use "Full Scan" above to check all links',
+                          'Use "Site Scan" above to check all links',
                           style: TextStyle(
                             color: Colors.grey.shade500,
                             fontSize: 12,

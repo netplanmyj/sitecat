@@ -257,7 +257,7 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
             const Divider(),
             _buildFeatureRow(
               Icons.pause_circle,
-              'Full Scan Pause/Resume',
+              'Site Scan Pause/Resume',
               '×',
               '○',
             ),

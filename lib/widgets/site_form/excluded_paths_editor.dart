@@ -90,7 +90,7 @@ class ExcludedPathsEditor extends StatelessWidget {
 
   Widget _buildDescription() {
     return Text(
-      'Exclude specific paths from Full Scan',
+      'Exclude specific paths from Site Scan',
       style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
     );
   }

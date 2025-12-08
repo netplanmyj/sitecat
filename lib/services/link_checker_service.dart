@@ -138,7 +138,7 @@ class LinkCheckerService implements LinkCheckerClient {
   /// - 404: Sitemap not found
   /// - 0: Network error occurred
   /// - null: No sitemap configured
-  /// This enables real-time UI updates before the full scan completes.
+  /// This enables real-time UI updates before the site scan completes.
   ///
   /// [shouldCancel] is called periodically to check if scan should be cancelled.
   /// Return true to stop the scan gracefully.

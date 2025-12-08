@@ -5,23 +5,23 @@ import '../../providers/link_checker_provider.dart';
 import '../../providers/site_provider.dart';
 import '../countdown_timer.dart';
 
-class FullScanSection extends StatefulWidget {
+class SiteScanSection extends StatefulWidget {
   final Site site;
-  final Function(bool checkExternalLinks) onFullScan;
+  final Function(bool checkExternalLinks) onSiteScan;
   final VoidCallback onContinueScan;
 
-  const FullScanSection({
+  const SiteScanSection({
     super.key,
     required this.site,
-    required this.onFullScan,
+    required this.onSiteScan,
     required this.onContinueScan,
   });
 
   @override
-  State<FullScanSection> createState() => _FullScanSectionState();
+  State<SiteScanSection> createState() => _SiteScanSectionState();
 }
 
-class _FullScanSectionState extends State<FullScanSection> {
+class _SiteScanSectionState extends State<SiteScanSection> {
   bool _checkExternalLinks = false;
 
   @override
@@ -56,27 +56,41 @@ class _FullScanSectionState extends State<FullScanSection> {
             final (currentChecked, currentTotal) = linkCheckerProvider
                 .getProgress(widget.site.id);
 
-            // Get current sitemap status (updated during scan, or from latest result)
-            final currentSitemapStatus =
-                linkCheckerProvider.getCurrentSitemapStatusCode(
-                  widget.site.id,
-                ) ??
-                latestResult?.sitemapStatusCode;
-
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.link, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Full Scan',
+                    const Icon(Icons.link, size: 24),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Site Scan',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const Spacer(),
+                    if (timeUntilNext != null && timeUntilNext.inSeconds > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade100,
+                          border: Border.all(color: Colors.orange.shade400),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: CountdownTimer(
+                          initialDuration: timeUntilNext,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange.shade900,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -85,55 +99,6 @@ class _FullScanSectionState extends State<FullScanSection> {
                   style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
                 ),
                 const SizedBox(height: 12),
-
-                // Site and Sitemap status info
-                if (currentSite.sitemapUrl != null &&
-                    currentSite.sitemapUrl!.isNotEmpty) ...[
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: Colors.grey.shade300),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.info_outline,
-                              size: 16,
-                              color: Colors.grey.shade700,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Scan Configuration',
-                              style: TextStyle(
-                                fontSize: 13,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.grey.shade700,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        _buildStatusRow(
-                          'Site URL',
-                          currentSite.url,
-                          null, // We don't check site URL status here
-                        ),
-                        const SizedBox(height: 6),
-                        _buildStatusRow(
-                          'Sitemap',
-                          currentSite.sitemapUrl!,
-                          currentSitemapStatus,
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                ],
 
                 // External links checkbox
                 CheckboxListTile(
@@ -155,17 +120,17 @@ class _FullScanSectionState extends State<FullScanSection> {
 
                 const SizedBox(height: 8),
 
-                // Full scan button and Continue scan button
+                // Site scan button and Continue scan button
                 Row(
                   children: [
-                    // Full scan / Stop button
+                    // Site scan / Stop button
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: isCheckingLinks
                             ? () =>
                                   linkCheckerProvider.cancelScan(widget.site.id)
                             : (canCheckLinks
-                                  ? () => widget.onFullScan(_checkExternalLinks)
+                                  ? () => widget.onSiteScan(_checkExternalLinks)
                                   : null),
                         icon: Icon(
                           isCheckingLinks ? Icons.stop : Icons.search,
@@ -295,19 +260,6 @@ class _FullScanSectionState extends State<FullScanSection> {
                   ),
                 ],
 
-                // Countdown timer (rate limit for link checks)
-                if (timeUntilNext != null) ...[
-                  const SizedBox(height: 8),
-                  CountdownTimer(
-                    initialDuration: timeUntilNext,
-                    onComplete: () {
-                      if (mounted) {
-                        setState(() {});
-                      }
-                    },
-                  ),
-                ],
-
                 const SizedBox(height: 8),
 
                 // Note about page limit
@@ -324,95 +276,6 @@ class _FullScanSectionState extends State<FullScanSection> {
           },
         ),
       ),
-    );
-  }
-
-  Widget _buildStatusRow(String label, String url, int? statusCode) {
-    // Determine status color and icon
-    Color statusColor;
-    IconData statusIcon;
-    String statusText;
-
-    if (statusCode == null) {
-      statusColor = Colors.grey.shade600;
-      statusIcon = Icons.help_outline;
-      statusText = 'Not checked';
-    } else if (statusCode == 0) {
-      statusColor = Colors.red.shade700;
-      statusIcon = Icons.cloud_off;
-      statusText = 'Network Error';
-    } else if (statusCode == 200) {
-      statusColor = Colors.green.shade700;
-      statusIcon = Icons.check_circle;
-      statusText = 'OK ($statusCode)';
-    } else if (statusCode == 404) {
-      statusColor = Colors.red.shade700;
-      statusIcon = Icons.cancel;
-      statusText = 'Not Found (404)';
-    } else if (statusCode >= 400 && statusCode < 500) {
-      statusColor = Colors.orange.shade700;
-      statusIcon = Icons.error_outline;
-      statusText = 'Error ($statusCode)';
-    } else if (statusCode >= 500) {
-      statusColor = Colors.red.shade700;
-      statusIcon = Icons.error;
-      statusText = 'Server Error ($statusCode)';
-    } else {
-      statusColor = Colors.grey.shade600;
-      statusIcon = Icons.info_outline;
-      statusText = 'Status: $statusCode';
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(
-          width: 70,
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: Colors.grey.shade700,
-              fontWeight: FontWeight.w500,
-            ),
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                url,
-                style: TextStyle(
-                  fontSize: 11,
-                  color: Colors.grey.shade800,
-                  fontFamily: 'monospace',
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              if (statusCode != null) ...[
-                const SizedBox(height: 2),
-                Row(
-                  children: [
-                    Icon(statusIcon, size: 12, color: statusColor),
-                    const SizedBox(width: 4),
-                    Text(
-                      statusText,
-                      style: TextStyle(
-                        fontSize: 10,
-                        color: statusColor,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ],
-          ),
-        ),
-      ],
     );
   }
 }
