@@ -1,4 +1,4 @@
-# Page-wise Full Scan Design (Draft)
+# Page-wise Site Scan Design (Draft)
 
 ## Goals
 - Fix pause/resume correctness: resume from the first uncompleted page, stop exactly at the batch boundary (100-page chunks: 1-100, 101-200, ...), respect overall pageLimit/totalPages.
@@ -50,7 +50,7 @@
 - Countdown starts on Stop or batch completion (unchanged from recent fix).
 - Status copy: "Pages 120 / 350"; optionally show "Batch 2 of 4" using `currentBatchEnd / 100`.
 
-### Result card updates (Full Scan Results / All Results)
+### Result card updates (Site Scan Results / All Results)
 - **Display scanned page range**: Show the actual pages processed in this scan batch (e.g., "Pages 1-100", "Pages 101-200", "Pages 141-200 of 350 total").
 - Use `currentBatchStart` (1-based) and `currentBatchEnd` (1-based) from result model to compute the range.
 - For incomplete scans, show both the range and the total available (e.g., "Pages 1-100 of 350 total").

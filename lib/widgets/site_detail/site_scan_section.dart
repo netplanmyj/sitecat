@@ -5,12 +5,12 @@ import '../../providers/link_checker_provider.dart';
 import '../../providers/site_provider.dart';
 import '../countdown_timer.dart';
 
-class FullScanSection extends StatefulWidget {
+class SiteScanSection extends StatefulWidget {
   final Site site;
   final Function(bool checkExternalLinks) onFullScan;
   final VoidCallback onContinueScan;
 
-  const FullScanSection({
+  const SiteScanSection({
     super.key,
     required this.site,
     required this.onFullScan,
@@ -18,10 +18,10 @@ class FullScanSection extends StatefulWidget {
   });
 
   @override
-  State<FullScanSection> createState() => _FullScanSectionState();
+  State<SiteScanSection> createState() => _SiteScanSectionState();
 }
 
-class _FullScanSectionState extends State<FullScanSection> {
+class _SiteScanSectionState extends State<SiteScanSection> {
   bool _checkExternalLinks = false;
 
   @override
@@ -59,17 +59,38 @@ class _FullScanSectionState extends State<FullScanSection> {
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Row(
+                Row(
                   children: [
-                    Icon(Icons.link, size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'Full Scan',
+                    const Icon(Icons.link, size: 24),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Site Scan',
                       style: TextStyle(
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
+                    const Spacer(),
+                    if (timeUntilNext != null && timeUntilNext.inSeconds > 0)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade100,
+                          border: Border.all(color: Colors.orange.shade400),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: CountdownTimer(
+                          initialDuration: timeUntilNext,
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.orange.shade900,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -99,10 +120,10 @@ class _FullScanSectionState extends State<FullScanSection> {
 
                 const SizedBox(height: 8),
 
-                // Full scan button and Continue scan button
+                // Site scan button and Continue scan button
                 Row(
                   children: [
-                    // Full scan / Stop button
+                    // Site scan / Stop button
                     Expanded(
                       child: ElevatedButton.icon(
                         onPressed: isCheckingLinks
@@ -236,19 +257,6 @@ class _FullScanSectionState extends State<FullScanSection> {
                           ),
                       ],
                     ),
-                  ),
-                ],
-
-                // Countdown timer (rate limit for link checks)
-                if (timeUntilNext != null) ...[
-                  const SizedBox(height: 8),
-                  CountdownTimer(
-                    initialDuration: timeUntilNext,
-                    onComplete: () {
-                      if (mounted) {
-                        setState(() {});
-                      }
-                    },
                   ),
                 ],
 

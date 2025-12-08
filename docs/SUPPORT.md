@@ -41,8 +41,8 @@ Welcome to SiteCat Support! We're here to help you get the most out of your webs
 - Tap "Quick Check" to verify your website is accessible
 - View response time and HTTP status
 
-#### Full Scan
-- Tap "Full Scan" to check for broken links
+#### Site Scan
+- Tap "Site Scan" to check for broken links
 - Monitor progress in real-time
 - View detailed results in the Results tab
 
@@ -58,7 +58,7 @@ Welcome to SiteCat Support! We're here to help you get the most out of your webs
 ### Link Checker
 
 - **Quick Check**: Fast check of your homepage
-- **Full Scan**: Comprehensive scan of all pages
+- **Site Scan**: Comprehensive scan of all pages
 - **Broken Link Detection**: Find 404 errors and invalid links
 - **Progress Tracking**: Real-time scan progress
 - **Pause/Resume**: Control long-running scans
@@ -96,10 +96,10 @@ A: It depends on your needs. For critical sites, check daily. For less critical 
 **Q: What does "Quick Check" do?**  
 A: Quick Check verifies that your website's homepage is accessible and returns the correct status code.
 
-**Q: What does "Full Scan" do?**  
-A: Full Scan crawls your entire website to find broken links, checking all internal pages and links.
+**Q: What does "Site Scan" do?**  
+A: Site Scan crawls your entire website to find broken links, checking all internal pages and links.
 
-**Q: How long does a Full Scan take?**  
+**Q: How long does a Site Scan take?**  
 A: It depends on your website size. Small sites (10-20 pages) take a few seconds, while larger sites may take several minutes.
 
 **Q: Can I stop a scan in progress?**  
@@ -132,7 +132,7 @@ A: This can happen if:
 
 Try checking again in a few minutes. If the problem persists, contact support.
 
-**Q: Full Scan is stuck or very slow.**  
+**Q: Site Scan is stuck or very slow.**  
 A: Large websites may take time to scan. You can:
 - Pause and resume the scan
 - Check your internet connection

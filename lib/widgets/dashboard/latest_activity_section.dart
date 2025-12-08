@@ -11,7 +11,7 @@ import '../monitoring/quick_check_card.dart';
 import '../link_check/full_scan_card.dart';
 import '../../screens/broken_links_screen.dart';
 
-// Unified result type for Quick Check and Full Scan
+// Unified result type for Quick Check and Site Scan
 sealed class UnifiedDashboardResult {
   final String siteId;
   final DateTime timestamp;
@@ -42,10 +42,10 @@ class LatestActivitySection extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer3<LinkCheckerProvider, MonitoringProvider, SiteProvider>(
       builder: (context, linkChecker, monitoring, siteProvider, child) {
-        // Combine Quick Check and Full Scan results
+        // Combine Quick Check and Site Scan results
         final allResults = <UnifiedDashboardResult>[];
 
-        // Add Full Scan results
+        // Add Site Scan results
         for (final item in linkChecker.getAllCheckHistory()) {
           allResults.add(
             FullScanDashboardResult(siteId: item.siteId, result: item.result),

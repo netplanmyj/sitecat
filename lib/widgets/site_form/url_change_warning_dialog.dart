@@ -36,7 +36,7 @@ class UrlChangeWarningDialog extends StatelessWidget {
           const SizedBox(height: 8),
           const WarningItem(text: 'Link check history will be cleared'),
           const SizedBox(height: 8),
-          const WarningItem(text: 'You may need to run a new full scan'),
+          const WarningItem(text: 'You may need to run a new site scan'),
           const SizedBox(height: 16),
           Text(
             'Old URL: $oldUrl',

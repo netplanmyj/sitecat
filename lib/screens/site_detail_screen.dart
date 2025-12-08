@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/site.dart';
-import '../models/monitoring_result.dart';
 import '../providers/monitoring_provider.dart';
 import '../providers/link_checker_provider.dart';
 import '../providers/site_provider.dart';
 import '../widgets/site_info_card.dart';
 import '../widgets/link_check_section.dart';
-import '../widgets/site_detail/full_scan_section.dart';
+import '../widgets/site_detail/site_scan_section.dart';
 import 'broken_links_screen.dart';
 
 class SiteDetailScreen extends StatefulWidget {
@@ -60,27 +59,39 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
       body: TabBarView(
         controller: _tabController,
         children: [
-          // Site Scan Tab (integrated Full Scan with sitemap status)
-          _buildFullScanTab(),
+          // Site Scan Tab (integrated sitemap status)
+          _buildSiteScanTab(),
         ],
       ),
     );
   }
 
-  // Full Scan Tab (Site Scan)
-  Widget _buildFullScanTab() {
+  // Site Scan Tab
+  Widget _buildSiteScanTab() {
     return SingleChildScrollView(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SiteInfoCard(site: widget.site),
+            Consumer<MonitoringProvider>(
+              builder: (context, monitoring, child) {
+                final latestResult = monitoring.getLatestResult(widget.site.id);
+                return SiteInfoCard(
+                  site: widget.site,
+                  sitemapStatus: latestResult,
+                  cachedSitemapStatusCode: monitoring.getCachedSitemapStatus(
+                    widget.site.id,
+                  ),
+                  isCheckingSitemap: monitoring.isChecking(widget.site.id),
+                  getTimeUntilNextCheck: () =>
+                      monitoring.getTimeUntilNextCheck(widget.site.id),
+                  onRefreshSitemap: () => _quickCheck(),
+                );
+              },
+            ),
             const SizedBox(height: 16),
-            // Sitemap Status Section (Quick Scan equivalent)
-            _buildSitemapStatusSection(),
-            const SizedBox(height: 16),
-            FullScanSection(
+            SiteScanSection(
               site: widget.site,
               onFullScan: (checkExternalLinks) {
                 setState(() {
@@ -173,8 +184,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
 
   Future<void> _fullScan() async {
     try {
-      // Full Scan uses LinkCheckerProvider only (no MonitoringProvider)
-      // This ensures independent countdown timers for Quick Check and Full Scan
+      // Site Scan uses LinkCheckerProvider only (no MonitoringProvider)
+      // This ensures independent countdown timers for Quick Check and Site Scan
       await _runLinkCheck(continueFromLastScan: false);
     } catch (e) {
       // Error handling is done in _runLinkCheck
@@ -242,108 +253,5 @@ class _SiteDetailScreenState extends State<SiteDetailScreen>
         SnackBar(content: Text('Error: $e'), backgroundColor: Colors.red),
       );
     }
-  }
-
-  /// Build Sitemap Status Section (integrated Quick Scan)
-  Widget _buildSitemapStatusSection() {
-    return Consumer<MonitoringProvider>(
-      builder: (context, monitoringProvider, child) {
-        final isChecking = monitoringProvider.isChecking(widget.site.id);
-        final canCheck = monitoringProvider.canCheckSite(widget.site.id);
-        final latestResult = monitoringProvider.getLatestResult(widget.site.id);
-        final cachedStatusCode = monitoringProvider.getCachedSitemapStatus(
-          widget.site.id,
-        );
-
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.map, size: 24),
-                    const SizedBox(width: 8),
-                    const Text(
-                      'Sitemap Status',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const Spacer(),
-                    IconButton(
-                      icon: const Icon(Icons.refresh),
-                      onPressed: isChecking || !canCheck ? null : _quickCheck,
-                      tooltip: 'Refresh sitemap status',
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                if (isChecking)
-                  const SizedBox(
-                    height: 40,
-                    child: Center(child: CircularProgressIndicator()),
-                  )
-                else if (latestResult != null)
-                  _buildSitemapStatusContent(latestResult, cachedStatusCode)
-                else
-                  const Text(
-                    'No status check yet',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  /// Build sitemap status display content
-  Widget _buildSitemapStatusContent(
-    MonitoringResult result,
-    int? cachedStatusCode,
-  ) {
-    final statusCode = cachedStatusCode ?? result.sitemapStatusCode;
-    String statusText;
-    Color statusColor;
-
-    if (statusCode == null) {
-      statusText = 'Not checked';
-      statusColor = Colors.grey;
-    } else if (statusCode == 200) {
-      statusText = '✓ Sitemap found (200 OK)';
-      statusColor = Colors.green;
-    } else if (statusCode == 404) {
-      statusText = '✗ Sitemap not found (404)';
-      statusColor = Colors.red;
-    } else if (statusCode == 0) {
-      statusText = '✗ Network error';
-      statusColor = Colors.red;
-    } else {
-      statusText = 'Status: $statusCode';
-      statusColor = Colors.orange;
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          statusText,
-          style: TextStyle(
-            fontSize: 16,
-            color: statusColor,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const SizedBox(height: 8),
-        Text(
-          'Last checked: ${result.timestamp.toString().split('.')[0]}',
-          style: const TextStyle(fontSize: 12, color: Colors.grey),
-        ),
-      ],
-    );
   }
 }

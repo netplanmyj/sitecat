@@ -15,23 +15,23 @@
 ### 無料版（現行）
 - **サイト登録**: 3個
 - **Quick Check**: 手動実行のみ
-- **Full Scan**: 手動実行のみ（最大200ページ、100ページずつバッチ処理）
+- **Site Scan**: 手動実行のみ（最大200ページ、100ページずつバッチ処理）
 - **除外パス設定**: 不可
-- **履歴表示**: Quick Check 10件 + Full Scan 10件
+- **履歴表示**: Quick Check 10件 + Site Scan 10件
 
 ### 買い切り版 - ¥1,220（Phase 3a）
 - **サイト登録**: 30個（無料版の10倍）
 - **Quick Check**: 手動実行のみ
-- **Full Scan**: 手動実行のみ（最大1000ページ、100ページずつバッチ処理） + **継続スキャン機能**
+- **Site Scan**: 手動実行のみ（最大1000ページ、100ページずつバッチ処理） + **継続スキャン機能**
 - **除外パス設定**: 可能
-- **履歴表示**: Quick Check 50件 + Full Scan 50件
+- **履歴表示**: Quick Check 50件 + Site Scan 50件
 
 ### サブスクリプション - ¥490/月（Phase 3b）
 買い切り版のすべての機能 +
 - **自動監視**: 1日4回（6時間ごと）Cloud Run実行
 - **プッシュ通知**: リンク切れ検出時の即時通知
 - **レポート機能**: 詳細な統計・推移グラフ
-- **履歴表示**: Quick Check 50件 + Full Scan 50件（買い切りと同じ）
+- **履歴表示**: Quick Check 50件 + Site Scan 50件（買い切りと同じ）
 
 ---
 
@@ -45,7 +45,7 @@
 - Firebase Authentication（Google, Apple Sign-In）
 - サイト登録・管理（3サイト制限、無料版）
 - Quick Check（手動実行）
-- Full Scan（手動実行、サイトマップベース、100ページずつバッチ処理）
+- Site Scan（手動実行、サイトマップベース、100ページずつバッチ処理）
 - 履歴表示（各10件）
 - App Store審査・配信（175カ国）
 
@@ -85,14 +85,14 @@
    - パス入力・検証UI
    - プレビュー機能
 
-4. **Full Scan継続機能の強化**
+4. **Site Scan継続機能の強化**
    - ページ制限の拡張（無料版200→Premium版1000）
    - バッチサイズの最適化（50→100ページ）
    - 進捗状態の永続化と表示
    - Continueボタンによるシームレスな継続
 
 5. **履歴表示拡張**
-   - 取得件数を10→50に変更（Quick Check/Full Scan各50件）
+   - 取得件数を10→50に変更（Quick Check/Site Scan各50件）
    - クリーンアップロジック更新（`link_checker_service.dart`）
 
 #### 技術的な実装ポイント
@@ -122,7 +122,7 @@ class HistoryService {
         .get();
   }
   
-  // クリーンアップ: Quick Check/Full Scan別々に50件保持
+  // クリーンアップ: Quick Check/Site Scan別々に50件保持
   Future<void> cleanupOldResults(String siteId) async {
     await _cleanupByType(siteId, 'quick_check', PAID_HISTORY_LIMIT);
     await _cleanupByType(siteId, 'full_scan', PAID_HISTORY_LIMIT);

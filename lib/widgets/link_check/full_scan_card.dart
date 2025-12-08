@@ -3,7 +3,7 @@ import '../../models/broken_link.dart';
 import '../../models/site.dart';
 import '../../utils/date_formatter.dart';
 
-/// Reusable Full Scan result card for All Results and Dashboard
+/// Reusable Site Scan result card for All Results and Dashboard
 class FullScanCard extends StatelessWidget {
   final Site site;
   final LinkCheckResult result;
@@ -103,7 +103,7 @@ class FullScanCard extends StatelessWidget {
                                 ),
                               ),
                               child: Text(
-                                'Full Scan',
+                                'Site Scan',
                                 style: TextStyle(
                                   fontSize: 9,
                                   color: Colors.purple.shade700,

@@ -78,9 +78,9 @@ flutter analyze && dart format --set-exit-if-changed . && flutter test
 ⚠️ **注意**:  
 これらをスキップして PR を作成すると、CI/CD パイプラインで失敗し、マージが遅延します。
 
-### 1.2 Full Scan カウントダウン仕様
+### 1.2 Site Scan カウントダウン仕様
 
-- 対象: Site Detail > Full Scan タブの Start / Stop / Continue
+- 対象: Site Detail > Site Scan タブの Start / Stop / Continue
 - トリガー: Start/Continue 押下時、Stop 押下時、バッチ完了時（例: 100ページ終了）
 - 挙動: 30秒間 Start/Continue を無効化（Stop は常に有効、緊急停止用）
 - UI: 残り時間を CountdownTimer で表示（Start/Continue 共通で表示）
@@ -757,8 +757,8 @@ SiteCatのアーキテクチャは以下のように整理されています：
 - ✅ 壊れたリンクのリスト表示（内部/外部リンク別）
 - ✅ リンクチェック結果の保存（Firestore）
 - ✅ チェック進捗表示（リアルタイム更新）
-- ✅ Full Scan機能（サイトマップベース、中断・再開UI）
-- ✅ Quick CheckとFull Scanのタブ分離
+- ✅ Site Scan機能（サイトマップベース、中断・再開UI）
+- ✅ Quick CheckとSite Scanのタブ分離
 - ✅ 独立したカウントダウンタイマー（各5分間隔）
 - ✅ UI大規模リファクタリング（13個の再利用可能ウィジェット作成）
 - ✅ **除外パス設定（バックエンド実装完了、PR #195マージ）**
@@ -812,14 +812,14 @@ SiteCatのアーキテクチャは以下のように整理されています：
   - ✅ 設定画面UI実装
   - ✅ パス入力・検証UI
 
-- ✅ **Full Scan中断・再開機能** (#193)
+- ✅ **Site Scan中断・再開機能** (#193)
   - ✅ Isolate管理の改善
   - ✅ 一時停止・再開ロジック
   - ✅ UI実装
 
 - ✅ **履歴表示拡張**
   - ✅ Site Scan: 10件 → 50件
-  - ✅ Full Scan: 10件 → 50件
+  - ✅ Site Scan: 10件 → 50件
   - ✅ クリーンアップロジック更新
 
 **技術的な実装（完了済み）:**
@@ -851,7 +851,7 @@ class HistoryService {
 - App Storeで販売開始（¥1,220）
 - サイト数無制限機能リリース
 - 除外パス設定機能完全実装（バックエンド + UI）
-- Full Scan中断・再開機能実装
+- Site Scan中断・再開機能実装
 - 履歴表示を50件に拡張（有料版）
 - Phase 3a の全機能リリース完了
 
@@ -938,7 +938,7 @@ class SubscriptionService {
 - ✅ リンクチェック結果の保存
 - ✅ リンク切れリスト画面（BrokenLinksScreen）
 - ✅ 進捗表示UI（リアルタイム更新）
-- ✅ タブUI（Quick Check / Full Scan分離）
+- ✅ タブUI（Quick Check / Site Scan分離）
 
 #### ✅ テストとリファクタリング
 - ✅ 全117ユニットテスト通過

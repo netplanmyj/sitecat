@@ -655,7 +655,7 @@ lib/widgets/dialogs/
 **対応方針**: 状態クラスの導入、メソッド抽出
 
 ### lib/widgets/site_detail/full_scan_section.dart (405行)
-- Full Scan UI
+- Site Scan UI
 - 進捗表示
 - 結果表示
 

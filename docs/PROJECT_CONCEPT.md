@@ -29,7 +29,7 @@ SiteCatは、指定されたウェブサイトの死活監視とリンク切れ�
 - 自動監視（サブスクリプション版、1日4回）
 - アップタイム/ダウンタイムの統計・グラフ表示
 
-### 2. リンク切れ検出（Full Scan）
+### 2. リンク切れ検出（Site Scan）
 - サイトマップベースのURL収集
 - サイト内リンクのクロール・検証
 - 404エラー、タイムアウトなどの検出
@@ -67,7 +67,7 @@ SiteCatは、指定されたウェブサイトの死活監視とリンク切れ�
 Flutter App (iOS) ◄──► Firebase ◄──► Cloud Functions ◄──► Target Websites
     │                     │                   │
     │                     │                   └─ Quick Check (サイト監視)
-    │                     │                      Full Scan (リンクチェック)
+    │                     │                      Site Scan (リンクチェック)
     │                     └─ 認証・データ保存・通知（将来）
     └─ iOS専用（Android将来検討）
 ```
@@ -85,7 +85,7 @@ Flutter App (iOS) ◄──► Firebase ◄──► Cloud Functions ◄──�
 - サイト管理機能（追加・編集・削除、1サイト制限）
 - Quick Check（手動監視、カウントダウンタイマー）
 - 基本統計表示（アップタイム、レスポンス時間）
-- 監視履歴（Quick Check 10件、Full Scan 10件）
+- 監視履歴（Quick Check 10件、Site Scan 10件）
 - **App Store審査通過・配信開始（175カ国）**
 
 ### ✅ Phase 2: リンク切れチェック強化（完了）
@@ -95,8 +95,8 @@ Flutter App (iOS) ◄──► Firebase ◄──► Cloud Functions ◄──�
 - HTML/XMLサイトマップ解析機能
 - リンク有効性チェック（内部・外部リンク対応）
 - 壊れたリンクのレポート表示
-- Full Scan機能（進行状況表示、中断・再開UI）
-- Quick CheckとFull Scanのタブ分離（独立したカウントダウンタイマー）
+- Site Scan機能（進行状況表示、中断・再開 UI）
+- Quick CheckとSite Scanのタブ分離（独立したカウントダウンタイマー）
 - UI大規模リファクタリング（コード可読性・保守性向上）
 - **除外パス設定（バックエンド実装完了、PR #195マージ）**
 - Flutter 3.38.3へのアップグレード（PR #196マージ）
@@ -122,14 +122,14 @@ Flutter App (iOS) ◄──► Firebase ◄──► Cloud Functions ◄──�
    - パス入力・検証
    - プレビュー機能
 
-4. **Full Scan中断・再開機能** (#193)
+4. **Site Scan中断・再開機能** (#193)
    - Isolate管理改善
    - 一時停止・再開ロジック
    - 進捗状態の永続化
 
 5. **履歴表示拡張**
    - Quick Check: 10件 → 50件
-   - Full Scan: 10件 → 50件
+   - Site Scan: 10件 → 50件
 
 ### 📅 Phase 3b: サブスクリプション版（将来計画）
 **予定**: 2026年Q1～  
@@ -170,7 +170,7 @@ Flutter App (iOS) ◄──► Firebase ◄──► Cloud Functions ◄──�
 2. **買い切り版実装**
    - In-App Purchase統合
    - 除外パス設定UI (#197)
-   - Full Scan中断・再開 (#193)
+   - Site Scan中断・再開 (#193)
    - 履歴表示拡張
 
 3. **App Store審査・配信**
@@ -198,7 +198,7 @@ Flutter App (iOS) ◄──► Firebase ◄──► Cloud Functions ◄──�
 - **パフォーマンス**: 応答速度の最適化
   - 対策: タイムアウト設定（30秒）、Isolateでのバックグラウンド処理
   
-- **Full Scan負荷**: 大規模サイトでの処理時間
+- **Site Scan負荷**: 大管模サイトでの処理時間
   - 対策: 中断・再開機能、除外パス設定、進捗表示
 
 ### ビジネス課題

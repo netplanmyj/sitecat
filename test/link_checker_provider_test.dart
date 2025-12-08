@@ -598,9 +598,9 @@ void main() {
 
   group('LinkCheckerProvider - State Transition Logic (#233 fix)', () {
     test(
-      'after full scan completes (scanCompleted=true), state is set to completed',
+      'after site scan completes (scanCompleted=true), state is set to completed',
       () {
-        // This test verifies that when a full scan completes all pages,
+        // This test verifies that when a site scan completes all pages,
         // the state is set to LinkCheckState.completed
         final fakeSiteService = _FakeSiteService();
         final provider = LinkCheckerProvider(
@@ -619,7 +619,7 @@ void main() {
       'after partial batch completes (scanCompleted=false), state is set to idle',
       () {
         // This test verifies that when a batch completes (e.g., 100 pages of 350),
-        // but the full scan is not complete, state transitions to idle (not checking)
+        // but the site scan is not complete, state transitions to idle (not checking)
         // This ensures Stop button becomes disabled after batch completion
         final fakeSiteService = _FakeSiteService();
         final provider = LinkCheckerProvider(
