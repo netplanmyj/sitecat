@@ -43,7 +43,8 @@ class LinkCheckerService implements LinkCheckerClient {
   // Helper classes
   late final LinkCheckerHttpClient _httpHelper;
   late final SitemapParser _sitemapParser;
-  late final ScanOrchestrator _orchestrator;
+  // Mutable to allow recreation when page limit changes via setPageLimit()
+  late ScanOrchestrator _orchestrator;
   late final LinkExtractor _extractor;
   late final ResultBuilder _resultBuilder;
   LinkCheckResultRepository? _repository;
@@ -112,6 +113,12 @@ class LinkCheckerService implements LinkCheckerClient {
     _pageLimit = isPremium
         ? AppConstants.premiumPlanPageLimit
         : AppConstants.freePlanPageLimit;
+    // Recreate orchestrator so new page limit is applied to subsequent scans
+    _orchestrator = ScanOrchestrator(
+      httpClient: _httpHelper,
+      sitemapParser: _sitemapParser,
+      pageLimit: _pageLimit,
+    );
   }
 
   /// Check all links on a site
@@ -219,10 +226,6 @@ class LinkCheckerService implements LinkCheckerClient {
     int pagesScanned = 0;
 
     for (final page in pagesToScan) {
-      if (shouldCancel?.call() ?? false) {
-        break;
-      }
-
       // Add minimal delay between page fetches (100ms after first page)
       // to avoid overwhelming the server while maintaining performance
       if (pagesScanned > 0) {
@@ -277,22 +280,23 @@ class LinkCheckerService implements LinkCheckerClient {
       pagesCompleted++;
       final cumulativePagesScanned = startIndex + pagesCompleted;
       onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
+
+      // Check for cancellation after completing the current page
+      // This ensures the page is fully processed before stopping
+      if (shouldCancel?.call() ?? false) {
+        break;
+      }
     }
 
     // Use actual scanned pages to set endIndex so we don't skip pages when
     // a scan stops early (e.g., user pressed stop mid-batch).
-    final pagesScannedCount = startIndex + pagesScanned;
+    final pagesScannedCount = startIndex + pagesCompleted;
     final scanCompleted =
-        scanRange.scanCompleted && pagesScanned == pagesToScan.length;
+        scanRange.scanCompleted && pagesCompleted == pagesToScan.length;
 
-    // If the scan stops early, resume from the last completed page to avoid
-    // skipping an in-flight page. For a fully completed batch, resume from the
-    // next page.
-    final resumeFromIndex = scanCompleted
-        ? 0
-        : (pagesScanned < pagesToScan.length
-              ? (pagesScanned > 0 ? pagesScannedCount - 1 : startIndex)
-              : pagesScannedCount);
+    // Resume from the next page after the last completed one
+    // If scan completed fully, reset to 0 to start fresh next time
+    final resumeFromIndex = scanCompleted ? 0 : pagesScannedCount;
 
     // ========================================================================
     // STEP 5: Merge broken links with previous results (if continuing)

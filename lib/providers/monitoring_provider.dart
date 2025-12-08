@@ -9,8 +9,10 @@ class MonitoringProvider extends ChangeNotifier {
   bool _isDemoMode = false;
   bool _hasLifetimeAccess = false;
 
-  // Minimum interval between checks (avoid aggressive polling / rate limits)
-  static const Duration minimumCheckInterval = Duration(seconds: 30);
+  // Minimum interval between checks to avoid aggressive polling / rate limits.
+  // Set to 10 seconds to improve UX while maintaining reasonable API usage.
+  // Backend should handle this frequency; monitor for rate limit issues.
+  static const Duration minimumCheckInterval = Duration(seconds: 10);
 
   // State variables
   final Map<String, List<MonitoringResult>> _resultsBySite = {};
