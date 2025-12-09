@@ -21,7 +21,7 @@
 
 ### Scope
 - **Free Plan**: 200 pages/scan, 3 sites, 10 history records
-- **Premium Plan**: Lifetime IAP (¥3,000)
+- **Premium Plan**: Lifetime IAP (¥1,200)
   - 1000 pages/scan
   - 30 sites
   - 50 history records
