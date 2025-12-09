@@ -265,7 +265,9 @@ class LinkCheckerProvider extends ChangeNotifier {
           latestResult?.pagesCompleted ??
           latestResult?.pagesScanned ??
           site.lastScannedPageIndex;
-      _totalCounts[siteId] = latestResult?.totalPagesInSitemap ?? previousTotal;
+      // Don't set totalCounts here - let onProgress callback update it with the latest value
+      // This ensures excluded paths changes are reflected immediately
+      _totalCounts[siteId] = 0;
     }
     _isProcessingExternalLinks[siteId] = false;
     _externalLinksChecked[siteId] = 0;
