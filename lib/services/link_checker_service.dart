@@ -90,6 +90,9 @@ class LinkCheckerService implements LinkCheckerClient {
   // Page limit for scanning (can be set based on premium status)
   int _pageLimit = AppConstants.freePlanPageLimit;
 
+  // Helper to check premium status without coupling to page limit semantics
+  bool get _isPremiumUser => _pageLimit != AppConstants.freePlanPageLimit;
+
   // Get current user ID
   String? get _currentUserId => _auth.currentUser?.uid;
 
@@ -167,11 +170,24 @@ class LinkCheckerService implements LinkCheckerClient {
     final originalBaseUrl = Uri.parse(site.url);
     final baseUrl = Uri.parse(UrlHelper.convertLocalhostForPlatform(site.url));
 
+    // Ensure orchestrator has the correct page limit by recreating it
+    // This handles cases where premium status changed since initialization
+    _orchestrator = ScanOrchestrator(
+      httpClient: _httpHelper,
+      sitemapParser: _sitemapParser,
+      pageLimit: _pageLimit,
+    );
+
+    // Excluded paths are a Premium feature; enforce explicitly via premium flag
+    final siteForScanning = _isPremiumUser
+        ? site
+        : site.copyWith(excludedPaths: []);
+
     // ========================================================================
     // STEP 1: Load sitemap URLs and check accessibility
     // ========================================================================
     final sitemapData = await _orchestrator.loadSitemapUrls(
-      site: site,
+      site: siteForScanning,
       baseUrl: baseUrl,
       originalBaseUrl: originalBaseUrl,
       onSitemapStatusUpdate: onSitemapStatusUpdate,
