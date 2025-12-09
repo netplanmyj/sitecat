@@ -175,8 +175,13 @@ class FullScanCard extends StatelessWidget {
     final end = result.currentBatchEnd ?? result.pagesScanned;
     final total = result.totalPagesInSitemap;
 
-    // Always show specific page range, even for completed scans
-    final rangeText = 'Pages $start-$end of $total';
+    // Handle edge case where no pages have been scanned (e.g., demo data)
+    final String rangeText;
+    if (end == 0 || total == 0) {
+      rangeText = 'No pages scanned';
+    } else {
+      rangeText = 'Pages $start-$end of $total';
+    }
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
