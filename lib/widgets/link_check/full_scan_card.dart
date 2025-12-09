@@ -174,15 +174,13 @@ class FullScanCard extends StatelessWidget {
     final start = result.currentBatchStart ?? 1;
     final end = result.currentBatchEnd ?? result.pagesScanned;
     final total = result.totalPagesInSitemap;
-    final completed = result.scanCompleted;
 
-    String rangeText;
-    if (completed) {
-      rangeText = 'All pages scanned';
-    } else if (start == 1 && end == total) {
-      rangeText = 'Pages 1-$total';
+    // Handle edge case where no pages have been scanned (e.g., demo data)
+    final String rangeText;
+    if (end == 0 || total == 0) {
+      rangeText = 'No pages scanned';
     } else {
-      rangeText = 'Pages $start-$end';
+      rangeText = 'Pages $start-$end of $total';
     }
 
     return Container(
