@@ -46,7 +46,8 @@ class LinkCheckerService implements LinkCheckerClient {
   // Mutable to allow recreation when page limit changes via setPageLimit()
   late ScanOrchestrator _orchestrator;
   late final LinkExtractor _extractor;
-  late final ResultBuilder _resultBuilder;
+  // Mutable to allow recreation when history limit changes via setHistoryLimit()
+  late ResultBuilder _resultBuilder;
   LinkCheckResultRepository? _repository;
   String? _repositoryUserId;
 
@@ -219,16 +220,6 @@ class LinkCheckerService implements LinkCheckerClient {
     );
     final pagesToScan = scanRange.pagesToScan;
 
-    // Debug logging for issue #245
-    _logger.d('[SCAN DEBUG] Batch start:');
-    _logger.d('  totalPagesInSitemap: $totalPagesInSitemap');
-    _logger.d('  startIndex: $startIndex');
-    _logger.d('  pagesToScan.length: ${pagesToScan.length}');
-    _logger.d('  scanRange.endIndex: ${scanRange.endIndex}');
-    _logger.d('  scanRange.scanCompleted: ${scanRange.scanCompleted}');
-    _logger.d('  _pageLimit: $_pageLimit');
-    _logger.d('  _isPremiumUser: $_isPremiumUser');
-
     // ========================================================================
     // STEP 2 & 3-4: Per-page cycle (extract links, validate per page)
     // ========================================================================
@@ -323,18 +314,6 @@ class LinkCheckerService implements LinkCheckerClient {
     // Resume from the next page after the last completed one
     // If scan completed fully, reset to 0 to start fresh next time
     final resumeFromIndex = scanCompleted ? 0 : pagesScannedCount;
-
-    // Debug logging for issue #245
-    _logger.d('[SCAN DEBUG] Batch complete:');
-    _logger.d('  startIndex: $startIndex');
-    _logger.d('  pagesCompleted: $pagesCompleted');
-    _logger.d('  pagesScannedCount: $pagesScannedCount');
-    _logger.d('  pagesToScan.length: ${pagesToScan.length}');
-    _logger.d('  scanRange.scanCompleted: ${scanRange.scanCompleted}');
-    _logger.d('  scanCompleted: $scanCompleted');
-    _logger.d('  resumeFromIndex: $resumeFromIndex');
-    _logger.d('  _pageLimit: $_pageLimit');
-    _logger.d('  _isPremiumUser: $_isPremiumUser');
 
     // ========================================================================
     // STEP 5: Merge broken links with previous results (if continuing)
