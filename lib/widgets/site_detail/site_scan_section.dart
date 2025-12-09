@@ -56,6 +56,22 @@ class _SiteScanSectionState extends State<SiteScanSection> {
             final (currentChecked, currentTotal) = linkCheckerProvider
                 .getProgress(widget.site.id);
 
+            // Prefer live progress totals while scanning to avoid showing stale cached totals
+            final hasLiveProgress = currentTotal > 0 || currentChecked > 0;
+            final isFreshScanStarting = isCheckingLinks && currentTotal == 0;
+            final progressTotal = isFreshScanStarting
+                ? 0
+                : (isCheckingLinks || hasLiveProgress)
+                ? (currentTotal > 0
+                      ? currentTotal
+                      : latestResult?.totalPagesInSitemap ?? 0)
+                : latestResult?.totalPagesInSitemap ?? 0;
+            final progressChecked = isFreshScanStarting
+                ? 0
+                : (isCheckingLinks || hasLiveProgress)
+                ? currentChecked
+                : currentSite.lastScannedPageIndex;
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -191,8 +207,11 @@ class _SiteScanSectionState extends State<SiteScanSection> {
                 ),
 
                 // Progress indicator - show current scan progress when available
-                if ((currentSite.lastScannedPageIndex > 0 || isCheckingLinks) &&
-                    latestResult != null) ...[
+                if ((currentSite.lastScannedPageIndex > 0 ||
+                        isCheckingLinks ||
+                        currentTotal > 0 ||
+                        currentChecked > 0) &&
+                    (latestResult != null || currentTotal > 0)) ...[
                   const SizedBox(height: 12),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -224,11 +243,11 @@ class _SiteScanSectionState extends State<SiteScanSection> {
                         ),
                         const SizedBox(height: 8),
                         LinearProgressIndicator(
-                          value: latestResult.totalPagesInSitemap > 0
+                          value: progressTotal > 0
                               ? (isCheckingLinks
-                                        ? currentChecked
+                                        ? progressChecked
                                         : currentSite.lastScannedPageIndex) /
-                                    latestResult.totalPagesInSitemap
+                                    progressTotal
                               : 0,
                           backgroundColor: Colors.blue.shade100,
                           valueColor: AlwaysStoppedAnimation<Color>(
@@ -238,13 +257,13 @@ class _SiteScanSectionState extends State<SiteScanSection> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '${isCheckingLinks ? currentChecked : currentSite.lastScannedPageIndex} / ${latestResult.totalPagesInSitemap} pages scanned',
+                          '${isCheckingLinks ? progressChecked : currentSite.lastScannedPageIndex} / $progressTotal pages scanned',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.blue.shade700,
                           ),
                         ),
-                        if (!latestResult.scanCompleted)
+                        if (!(latestResult?.scanCompleted ?? false))
                           Padding(
                             padding: const EdgeInsets.only(top: 4),
                             child: Text(
