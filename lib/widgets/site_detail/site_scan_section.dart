@@ -99,11 +99,6 @@ class _SiteScanSectionState extends State<SiteScanSection> {
                       ),
                   ],
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  '🔍 Site status + all links check (may take several minutes)',
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
                 const SizedBox(height: 12),
 
                 // External links checkbox

@@ -46,7 +46,8 @@ class LinkCheckerService implements LinkCheckerClient {
   // Mutable to allow recreation when page limit changes via setPageLimit()
   late ScanOrchestrator _orchestrator;
   late final LinkExtractor _extractor;
-  late final ResultBuilder _resultBuilder;
+  // Mutable to allow recreation when history limit changes via setHistoryLimit()
+  late ResultBuilder _resultBuilder;
   LinkCheckResultRepository? _repository;
   String? _repositoryUserId;
 
