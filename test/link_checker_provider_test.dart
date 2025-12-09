@@ -62,11 +62,23 @@ class _FakeLinkCheckerService implements LinkCheckerClient {
     return null;
   }
 
-  @override
-  void setHistoryLimit(bool isPremium) {}
+  int setHistoryLimitCallCount = 0;
+  bool? lastHistoryLimitPremiumStatus;
+
+  int setPageLimitCallCount = 0;
+  bool? lastPageLimitPremiumStatus;
 
   @override
-  void setPageLimit(bool isPremium) {}
+  void setHistoryLimit(bool isPremium) {
+    setHistoryLimitCallCount++;
+    lastHistoryLimitPremiumStatus = isPremium;
+  }
+
+  @override
+  void setPageLimit(bool isPremium) {
+    setPageLimitCallCount++;
+    lastPageLimitPremiumStatus = isPremium;
+  }
 }
 
 Site _buildSite({int lastScannedPageIndex = 0}) {
@@ -701,6 +713,90 @@ void main() {
       final siteId = 'test_site_cancel';
 
       expect(provider.isCancelRequested(siteId), isFalse);
+    });
+  });
+
+  group('LinkCheckerProvider - ResultBuilder Recreation (#245 fix)', () {
+    test('setHistoryLimit is called when premium status changes', () {
+      final fakeLinkCheckerService = _FakeLinkCheckerService();
+      final provider = LinkCheckerProvider(
+        siteService: _FakeSiteService(),
+        linkCheckerService: fakeLinkCheckerService,
+      );
+
+      // Initial state
+      expect(fakeLinkCheckerService.setHistoryLimitCallCount, equals(0));
+
+      // Change to premium
+      provider.setHasLifetimeAccess(true);
+      expect(fakeLinkCheckerService.setHistoryLimitCallCount, equals(1));
+      expect(fakeLinkCheckerService.lastHistoryLimitPremiumStatus, isTrue);
+
+      // Change back to free
+      provider.setHasLifetimeAccess(false);
+      expect(fakeLinkCheckerService.setHistoryLimitCallCount, equals(2));
+      expect(fakeLinkCheckerService.lastHistoryLimitPremiumStatus, isFalse);
+    });
+
+    test('setPageLimit is called when premium status changes', () {
+      final fakeLinkCheckerService = _FakeLinkCheckerService();
+      final provider = LinkCheckerProvider(
+        siteService: _FakeSiteService(),
+        linkCheckerService: fakeLinkCheckerService,
+      );
+
+      // Initial state
+      expect(fakeLinkCheckerService.setPageLimitCallCount, equals(0));
+
+      // Change to premium
+      provider.setHasLifetimeAccess(true);
+      expect(fakeLinkCheckerService.setPageLimitCallCount, equals(1));
+      expect(fakeLinkCheckerService.lastPageLimitPremiumStatus, isTrue);
+
+      // Change back to free
+      provider.setHasLifetimeAccess(false);
+      expect(fakeLinkCheckerService.setPageLimitCallCount, equals(2));
+      expect(fakeLinkCheckerService.lastPageLimitPremiumStatus, isFalse);
+    });
+
+    test(
+      'both history and page limits are updated together on premium status change',
+      () {
+        final fakeLinkCheckerService = _FakeLinkCheckerService();
+        final provider = LinkCheckerProvider(
+          siteService: _FakeSiteService(),
+          linkCheckerService: fakeLinkCheckerService,
+        );
+
+        provider.setHasLifetimeAccess(true);
+
+        // Both setters should be called with the same premium status
+        expect(fakeLinkCheckerService.setHistoryLimitCallCount, equals(1));
+        expect(fakeLinkCheckerService.setPageLimitCallCount, equals(1));
+        expect(fakeLinkCheckerService.lastHistoryLimitPremiumStatus, isTrue);
+        expect(fakeLinkCheckerService.lastPageLimitPremiumStatus, isTrue);
+      },
+    );
+
+    test('multiple premium status changes call setters multiple times', () {
+      final fakeLinkCheckerService = _FakeLinkCheckerService();
+      final provider = LinkCheckerProvider(
+        siteService: _FakeSiteService(),
+        linkCheckerService: fakeLinkCheckerService,
+      );
+
+      // Toggle premium status multiple times
+      provider.setHasLifetimeAccess(true);
+      provider.setHasLifetimeAccess(false);
+      provider.setHasLifetimeAccess(true);
+
+      // Verify setHistoryLimit was called for each change
+      expect(fakeLinkCheckerService.setHistoryLimitCallCount, equals(3));
+      expect(fakeLinkCheckerService.lastHistoryLimitPremiumStatus, isTrue);
+
+      // Verify setPageLimit was called for each change
+      expect(fakeLinkCheckerService.setPageLimitCallCount, equals(3));
+      expect(fakeLinkCheckerService.lastPageLimitPremiumStatus, isTrue);
     });
   });
 }
