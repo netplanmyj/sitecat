@@ -46,41 +46,48 @@ class _SiteInfoCardState extends State<SiteInfoCard> {
                   Builder(
                     builder: (context) {
                       final remaining = widget.getTimeUntilNextCheck?.call();
-                      if (remaining == null || remaining.inSeconds <= 0) {
-                        return const SizedBox.shrink();
-                      }
-                      return Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 4,
-                        ),
-                        decoration: BoxDecoration(
-                          color: Colors.orange.shade100,
-                          border: Border.all(color: Colors.orange.shade400),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: CountdownTimer(
-                          initialDuration: remaining,
-                          prefixText: '',
-                          style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.orange.shade900,
+                      final isInCooldown =
+                          remaining != null && remaining.inSeconds > 0;
+
+                      if (isInCooldown) {
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 8,
+                            vertical: 4,
                           ),
-                          onComplete: () {
-                            // Force UI refresh when countdown completes
-                            if (mounted) {
-                              setState(() {});
-                            }
-                          },
-                        ),
-                      );
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade100,
+                            border: Border.all(color: Colors.orange.shade400),
+                            borderRadius: BorderRadius.circular(4),
+                          ),
+                          child: CountdownTimer(
+                            initialDuration: remaining,
+                            prefixText: '',
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange.shade900,
+                            ),
+                            onComplete: () {
+                              // Force UI refresh when countdown completes
+                              if (mounted) {
+                                setState(() {});
+                              }
+                            },
+                          ),
+                        );
+                      }
+                      return const SizedBox.shrink();
                     },
                   ),
                   const SizedBox(width: 8),
                   IconButton(
                     icon: const Icon(Icons.refresh),
-                    onPressed: widget.isCheckingSitemap
+                    onPressed:
+                        widget.isCheckingSitemap ||
+                            (widget.getTimeUntilNextCheck?.call()?.inSeconds ??
+                                    0) >
+                                0
                         ? null
                         : widget.onRefreshSitemap,
                     tooltip: 'Refresh sitemap status',
