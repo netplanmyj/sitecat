@@ -1,10 +1,22 @@
 # SiteCat Development Roadmap
 
 ## Current Release
-- **v1.0.6** (Current)
-  - ✅ UI/UX improvements (Results card page range display, Sitemap button cooldown)
-  - ✅ Critical bug fixes (Premium user 200-page scan limit)
-  - ✅ Code quality improvements
+- **v1.0.7** (Released)
+   - ✅ Excluded paths page-count fix (#251) with live progress UI update
+   - ✅ Cooldown/UI polish for scan actions
+   - ✅ Code quality improvements
+
+## Next Release
+- **v1.0.8** (Planned)
+   - ✨ Pre-calculate target page count before scan start (#255)
+   - ✨ Unify cooldown timer across actions (#256)
+   - 🔧 Progress logic refactor (simplify scan progress calculation)
+
+## Following Release
+- **v1.0.9** (Planned)
+   - 🔒 Server-side premium validation and limit enforcement (#210)
+   - 🧭 Fetch limits from backend as source of truth
+   - 🚫 Reject excluded-path writes when premium not entitled
 
 ---
 
@@ -132,8 +144,9 @@
 
 | Phase | Version | Status | Timeline |
 |-------|---------|--------|----------|
-| Current Release | v1.0.6 | 🟡 In Review | - |
-| Phase 1 | v1.1 | ⏳ Planned | After v1.0.6 approval |
+| Current Release | v1.0.7 | ✅ Released | Dec 2025 |
+| Next Release | v1.0.8 | ⏳ Planned | After v1.0.7 release |
+| Phase 1 | v1.1 | ⏳ Planned | After v1.0.8 |
 | Phase 2 | v1.2 | ⏳ Planned | After v1.1 launch |
 | Future | v1.3+ | 📋 Backlog | TBD |
 
@@ -150,4 +163,4 @@
 
 ---
 
-**Last Updated**: 2025-12-09
+**Last Updated**: 2025-12-10
