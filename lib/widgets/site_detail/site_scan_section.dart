@@ -57,9 +57,12 @@ class _SiteScanSectionState extends State<SiteScanSection> {
                 .getProgress(widget.site.id);
 
             // Calculate display values: prefer live totals during scan, fall back to cached
-            final progressTotal = currentTotal > 0
-                ? currentTotal
-                : latestResult?.totalPagesInSitemap ?? 0;
+            final isFreshScanStarting = isCheckingLinks && currentTotal == 0;
+            final progressTotal = isFreshScanStarting
+                ? 0
+                : (currentTotal > 0
+                      ? currentTotal
+                      : latestResult?.totalPagesInSitemap ?? 0);
             final progressChecked = isCheckingLinks
                 ? currentChecked
                 : currentSite.lastScannedPageIndex;
