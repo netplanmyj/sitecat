@@ -56,19 +56,11 @@ class _SiteScanSectionState extends State<SiteScanSection> {
             final (currentChecked, currentTotal) = linkCheckerProvider
                 .getProgress(widget.site.id);
 
-            // Prefer live progress totals while scanning to avoid showing stale cached totals
-            final hasLiveProgress = currentTotal > 0 || currentChecked > 0;
-            final isFreshScanStarting = isCheckingLinks && currentTotal == 0;
-            final progressTotal = isFreshScanStarting
-                ? 0
-                : (isCheckingLinks || hasLiveProgress)
-                ? (currentTotal > 0
-                      ? currentTotal
-                      : latestResult?.totalPagesInSitemap ?? 0)
+            // Calculate display values: prefer live totals during scan, fall back to cached
+            final progressTotal = currentTotal > 0
+                ? currentTotal
                 : latestResult?.totalPagesInSitemap ?? 0;
-            final progressChecked = isFreshScanStarting
-                ? 0
-                : (isCheckingLinks || hasLiveProgress)
+            final progressChecked = isCheckingLinks
                 ? currentChecked
                 : currentSite.lastScannedPageIndex;
 
