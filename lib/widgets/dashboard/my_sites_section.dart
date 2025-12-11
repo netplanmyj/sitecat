@@ -124,7 +124,7 @@ class _MySitesSectionState extends State<MySitesSection> {
     String action,
     Site site,
     SiteProvider siteProvider,
-  ) async {
+  ) {
     switch (action) {
       case 'view':
         if (mounted) {
