@@ -173,7 +173,7 @@ class _MySitesSectionState extends State<MySitesSection> {
               final success = await siteProvider.deleteSite(site.id);
               if (success && mounted) {
                 ScaffoldMessenger.of(
-                  context,
+                  this.context,
                 ).showSnackBar(SnackBar(content: Text('${site.name} deleted')));
               }
             },
