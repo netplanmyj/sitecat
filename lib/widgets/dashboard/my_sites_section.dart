@@ -157,6 +157,8 @@ class _MySitesSectionState extends State<MySitesSection> {
     Site site,
     SiteProvider siteProvider,
   ) {
+    // Capture context before async operation to avoid using it after async gap
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
@@ -172,9 +174,9 @@ class _MySitesSectionState extends State<MySitesSection> {
               Navigator.of(dialogContext).pop();
               final success = await siteProvider.deleteSite(site.id);
               if (success && mounted) {
-                ScaffoldMessenger.of(
-                  this.context,
-                ).showSnackBar(SnackBar(content: Text('${site.name} deleted')));
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(content: Text('${site.name} deleted')),
+                );
               }
             },
             style: TextButton.styleFrom(foregroundColor: Colors.red),

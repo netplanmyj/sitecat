@@ -228,6 +228,13 @@ class LinkCheckerProvider extends ChangeNotifier {
     }
   }
 
+  /// Clear the cached pre-calculated page count for a site.
+  /// Should be called after the site's configuration (e.g., excludedPaths) changes.
+  void clearPrecalculatedPageCount(String siteId) {
+    _precalculatedPageCounts.remove(siteId);
+    notifyListeners();
+  }
+
   /// Get check history for a site
 
   List<LinkCheckResult> getCheckHistory(String siteId) {

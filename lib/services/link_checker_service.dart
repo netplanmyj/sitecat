@@ -373,7 +373,7 @@ class LinkCheckerService implements LinkCheckerClient {
         onSitemapStatusUpdate: onSitemapStatusUpdate,
       );
 
-      return sitemapData.urls.isEmpty ? null : sitemapData.urls.length;
+      return sitemapData.urls.length;
     } catch (e) {
       _logger.e('Error loading sitemap page count for ${site.id}: $e');
       return null;
