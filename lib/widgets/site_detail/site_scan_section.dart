@@ -123,9 +123,6 @@ class _SiteScanSectionState extends State<SiteScanSection> {
                           });
                         },
                   title: const Text('Check external links'),
-                  subtitle: const Text(
-                    'Also check links to other domains (takes longer)',
-                  ),
                   contentPadding: EdgeInsets.zero,
                   controlAffinity: ListTileControlAffinity.leading,
                 ),

@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:logger/logger.dart';
 import 'package:sitecat/models/broken_link.dart';
 import 'package:sitecat/models/site.dart';
 import 'package:sitecat/providers/link_checker_provider.dart';
@@ -22,6 +23,17 @@ class _FakeSiteService implements SiteUpdater {
 }
 
 class _FakeLinkCheckerService implements LinkCheckerClient {
+  int? _pageCountToReturn;
+  bool _shouldThrowOnLoadPageCount = false;
+
+  void setPageCountToReturn(int? count) {
+    _pageCountToReturn = count;
+  }
+
+  void setShouldThrowOnLoadPageCount(bool shouldThrow) {
+    _shouldThrowOnLoadPageCount = shouldThrow;
+  }
+
   @override
   Future<LinkCheckResult> checkSiteLinks(
     Site site, {
@@ -34,6 +46,17 @@ class _FakeLinkCheckerService implements LinkCheckerClient {
   }) async {
     // Not needed for these tests
     throw UnimplementedError();
+  }
+
+  @override
+  Future<int?> loadSitemapPageCount(
+    Site site, {
+    void Function(int? statusCode)? onSitemapStatusUpdate,
+  }) async {
+    if (_shouldThrowOnLoadPageCount) {
+      throw Exception('Failed to load sitemap page count');
+    }
+    return _pageCountToReturn;
   }
 
   @override
@@ -95,6 +118,9 @@ Site _buildSite({int lastScannedPageIndex = 0}) {
 }
 
 void main() {
+  // Suppress Logger output during tests
+  Logger.level = Level.off;
+
   group('LinkCheckerProvider - State Management Logic', () {
     test('isProcessingExternalLinks logic - returns false for empty map', () {
       // Test the logic without instantiating the provider
@@ -798,5 +824,195 @@ void main() {
       expect(fakeLinkCheckerService.setPageLimitCallCount, equals(3));
       expect(fakeLinkCheckerService.lastPageLimitPremiumStatus, isTrue);
     });
+  });
+
+  group('LinkCheckerProvider - Page Count Pre-calculation', () {
+    test(
+      'precalculatePageCount caches valid page count and notifies listeners',
+      () async {
+        final fakeService = _FakeLinkCheckerService();
+        final fakeSiteService = _FakeSiteService();
+        final provider = LinkCheckerProvider(
+          linkCheckerService: fakeService,
+          siteService: fakeSiteService,
+        );
+
+        final site = _buildSite();
+        fakeService.setPageCountToReturn(150);
+
+        int notifyCount = 0;
+        provider.addListener(() => notifyCount++);
+
+        final result = await provider.precalculatePageCount(site);
+
+        expect(result, equals(150));
+        expect(provider.getPrecalculatedPageCount(site.id), equals(150));
+        expect(notifyCount, equals(1));
+      },
+    );
+
+    test('precalculatePageCount returns null for demo mode', () async {
+      final fakeService = _FakeLinkCheckerService();
+      final fakeSiteService = _FakeSiteService();
+      final provider = LinkCheckerProvider(
+        linkCheckerService: fakeService,
+        siteService: fakeSiteService,
+      );
+      provider.initialize(isDemoMode: true);
+
+      final site = _buildSite();
+      fakeService.setPageCountToReturn(150);
+
+      final result = await provider.precalculatePageCount(site);
+
+      expect(result, isNull);
+      expect(provider.getPrecalculatedPageCount(site.id), isNull);
+    });
+
+    test(
+      'precalculatePageCount handles null page count from service',
+      () async {
+        final fakeService = _FakeLinkCheckerService();
+        final fakeSiteService = _FakeSiteService();
+        final provider = LinkCheckerProvider(
+          linkCheckerService: fakeService,
+          siteService: fakeSiteService,
+        );
+
+        final site = _buildSite();
+        fakeService.setPageCountToReturn(null);
+
+        int notifyCount = 0;
+        provider.addListener(() => notifyCount++);
+
+        final result = await provider.precalculatePageCount(site);
+
+        expect(result, isNull);
+        expect(provider.getPrecalculatedPageCount(site.id), isNull);
+        expect(notifyCount, equals(0)); // Should not notify for null
+      },
+    );
+
+    test(
+      'precalculatePageCount handles zero page count from service',
+      () async {
+        final fakeService = _FakeLinkCheckerService();
+        final fakeSiteService = _FakeSiteService();
+        final provider = LinkCheckerProvider(
+          linkCheckerService: fakeService,
+          siteService: fakeSiteService,
+        );
+
+        final site = _buildSite();
+        fakeService.setPageCountToReturn(0);
+
+        int notifyCount = 0;
+        provider.addListener(() => notifyCount++);
+
+        final result = await provider.precalculatePageCount(site);
+
+        expect(result, equals(0));
+        expect(provider.getPrecalculatedPageCount(site.id), isNull);
+        expect(notifyCount, equals(0)); // Should not cache or notify for 0
+      },
+    );
+
+    test(
+      'precalculatePageCount handles service exception gracefully',
+      () async {
+        final fakeService = _FakeLinkCheckerService();
+        final fakeSiteService = _FakeSiteService();
+        final provider = LinkCheckerProvider(
+          linkCheckerService: fakeService,
+          siteService: fakeSiteService,
+        );
+
+        final site = _buildSite();
+        fakeService.setShouldThrowOnLoadPageCount(true);
+
+        int notifyCount = 0;
+        provider.addListener(() => notifyCount++);
+
+        final result = await provider.precalculatePageCount(site);
+
+        expect(result, isNull);
+        expect(provider.getPrecalculatedPageCount(site.id), isNull);
+        expect(notifyCount, equals(0)); // Should not notify on error
+      },
+    );
+
+    test(
+      'getPrecalculatedPageCount returns null for non-existent site',
+      () async {
+        final fakeService = _FakeLinkCheckerService();
+        final fakeSiteService = _FakeSiteService();
+        final provider = LinkCheckerProvider(
+          linkCheckerService: fakeService,
+          siteService: fakeSiteService,
+        );
+
+        expect(provider.getPrecalculatedPageCount('non_existent'), isNull);
+      },
+    );
+
+    test('getPrecalculatedPageCount returns null for demo mode', () async {
+      final fakeService = _FakeLinkCheckerService();
+      final fakeSiteService = _FakeSiteService();
+      final provider = LinkCheckerProvider(
+        linkCheckerService: fakeService,
+        siteService: fakeSiteService,
+      );
+      provider.initialize(isDemoMode: true);
+
+      expect(provider.getPrecalculatedPageCount('site_1'), isNull);
+    });
+
+    test(
+      'clearPrecalculatedPageCount removes cached value and notifies',
+      () async {
+        final fakeService = _FakeLinkCheckerService();
+        final fakeSiteService = _FakeSiteService();
+        final provider = LinkCheckerProvider(
+          linkCheckerService: fakeService,
+          siteService: fakeSiteService,
+        );
+
+        final site = _buildSite();
+        fakeService.setPageCountToReturn(150);
+
+        // First, cache a page count
+        await provider.precalculatePageCount(site);
+        expect(provider.getPrecalculatedPageCount(site.id), equals(150));
+
+        int notifyCount = 0;
+        provider.addListener(() => notifyCount++);
+
+        // Clear the cached value
+        provider.clearPrecalculatedPageCount(site.id);
+
+        expect(provider.getPrecalculatedPageCount(site.id), isNull);
+        expect(notifyCount, equals(1));
+      },
+    );
+
+    test(
+      'clearPrecalculatedPageCount handles non-existent site gracefully',
+      () async {
+        final fakeService = _FakeLinkCheckerService();
+        final fakeSiteService = _FakeSiteService();
+        final provider = LinkCheckerProvider(
+          linkCheckerService: fakeService,
+          siteService: fakeSiteService,
+        );
+
+        int notifyCount = 0;
+        provider.addListener(() => notifyCount++);
+
+        // Should not throw, should still notify
+        provider.clearPrecalculatedPageCount('non_existent');
+
+        expect(notifyCount, equals(1));
+      },
+    );
   });
 }

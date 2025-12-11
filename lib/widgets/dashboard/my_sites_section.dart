@@ -1,15 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/site_provider.dart';
+import '../../screens/site_form_screen.dart';
+import '../../screens/site_detail_screen.dart';
+import '../../models/site.dart';
 import '../common/empty_state.dart';
 import 'site_card.dart';
 
 /// Section widget displaying user's sites on Dashboard
-class MySitesSection extends StatelessWidget {
+class MySitesSection extends StatefulWidget {
   final VoidCallback? onNavigateToSites;
 
   const MySitesSection({super.key, this.onNavigateToSites});
 
+  @override
+  State<MySitesSection> createState() => _MySitesSectionState();
+}
+
+class _MySitesSectionState extends State<MySitesSection> {
   @override
   Widget build(BuildContext context) {
     return Consumer<SiteProvider>(
@@ -42,7 +50,48 @@ class MySitesSection extends StatelessWidget {
                 itemCount: sites.length,
                 itemBuilder: (context, index) {
                   final site = sites[index];
-                  return SiteCard(site: site);
+                  return SiteCard(
+                    site: site,
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (value) =>
+                          _handleMenuAction(context, value, site, siteProvider),
+                      itemBuilder: (context) => [
+                        const PopupMenuItem(
+                          value: 'view',
+                          child: Row(
+                            children: [
+                              Icon(Icons.visibility, size: 20),
+                              SizedBox(width: 8),
+                              Text('View'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'edit',
+                          child: Row(
+                            children: [
+                              Icon(Icons.edit, size: 20),
+                              SizedBox(width: 8),
+                              Text('Edit'),
+                            ],
+                          ),
+                        ),
+                        const PopupMenuItem(
+                          value: 'delete',
+                          child: Row(
+                            children: [
+                              Icon(Icons.delete, size: 20, color: Colors.red),
+                              SizedBox(width: 8),
+                              Text(
+                                'Delete',
+                                style: TextStyle(color: Colors.red),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
                 },
               ),
 
@@ -55,7 +104,7 @@ class MySitesSection extends StatelessWidget {
                 ),
                 child: Center(
                   child: TextButton.icon(
-                    onPressed: onNavigateToSites,
+                    onPressed: widget.onNavigateToSites,
                     icon: const Icon(Icons.arrow_forward),
                     label: Text(
                       'All Sites (${siteProvider.sites.length})',
@@ -67,6 +116,74 @@ class MySitesSection extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+
+  void _handleMenuAction(
+    BuildContext context,
+    String action,
+    Site site,
+    SiteProvider siteProvider,
+  ) {
+    switch (action) {
+      case 'view':
+        if (mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => SiteDetailScreen(site: site),
+            ),
+          );
+        }
+        break;
+
+      case 'edit':
+        if (mounted) {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (context) => SiteFormScreen(site: site)),
+          );
+        }
+        break;
+
+      case 'delete':
+        if (mounted) {
+          _showDeleteConfirmation(context, site, siteProvider);
+        }
+        break;
+    }
+  }
+
+  void _showDeleteConfirmation(
+    BuildContext context,
+    Site site,
+    SiteProvider siteProvider,
+  ) {
+    // Capture context before async operation to avoid using it after async gap
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    showDialog(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Delete Site'),
+        content: Text('Are you sure you want to delete "${site.name}"?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('Cancel'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              final success = await siteProvider.deleteSite(site.id);
+              if (success && mounted) {
+                scaffoldMessenger.showSnackBar(
+                  SnackBar(content: Text('${site.name} deleted')),
+                );
+              }
+            },
+            style: TextButton.styleFrom(foregroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
     );
   }
 }

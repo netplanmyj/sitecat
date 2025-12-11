@@ -26,6 +26,10 @@ abstract class LinkCheckerClient {
     void Function(int? statusCode)? onSitemapStatusUpdate,
     bool Function()? shouldCancel,
   });
+  Future<int?> loadSitemapPageCount(
+    Site site, {
+    void Function(int? statusCode)? onSitemapStatusUpdate,
+  });
   Future<List<BrokenLink>> getBrokenLinks(String resultId);
   Future<LinkCheckResult?> getLatestCheckResult(String siteId);
   Future<List<LinkCheckResult>> getCheckResults(String siteId, {int limit});
@@ -343,6 +347,37 @@ class LinkCheckerService implements LinkCheckerClient {
       startTime: startTime,
       startIndex: startIndex,
     );
+  }
+
+  /// Load and count pages in a site's sitemap without performing full link checks.
+  /// This is a lightweight operation used to pre-calculate the target page count
+  /// for display in the UI before starting a scan.
+  ///
+  /// Returns the total number of pages in the sitemap after applying excluded paths,
+  /// or null if the sitemap cannot be loaded.
+  @override
+  Future<int?> loadSitemapPageCount(
+    Site site, {
+    void Function(int? statusCode)? onSitemapStatusUpdate,
+  }) async {
+    try {
+      // Parse the site URL
+      final baseUrl = Uri.parse(site.url);
+      final originalBaseUrl = baseUrl;
+
+      // Load sitemap URLs with exclusion rules applied
+      final sitemapData = await _orchestrator.loadSitemapUrls(
+        site: site,
+        baseUrl: baseUrl,
+        originalBaseUrl: originalBaseUrl,
+        onSitemapStatusUpdate: onSitemapStatusUpdate,
+      );
+
+      return sitemapData.urls.length;
+    } catch (e) {
+      _logger.e('Error loading sitemap page count for ${site.id}: $e');
+      return null;
+    }
   }
 
   /// Get broken links for a specific result

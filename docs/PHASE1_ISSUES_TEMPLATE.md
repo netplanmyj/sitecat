@@ -1,602 +1,176 @@
-# Phase 1 Issue Templates
+# Phase 1: Test Coverage Issues (CRITICAL)
 
-Ready-to-use GitHub issue descriptions for Phase 1 test coverage tasks.
-
----
-
-## Issue #264: Add comprehensive tests for SiteProvider
-
-**Labels:** `testing`, `P0-critical`, `phase-1`  
-**Milestone:** v1.0.9  
-**Effort:** 4-6 hours
-
-### Description
-
-Add comprehensive test coverage for `SiteProvider` to ensure safe refactoring and prevent regressions in site management logic.
-
-### Current State
-- **Test Coverage:** 0%
-- **Lines:** ~200
-- **Complexity:** High (CRUD operations, excluded paths, index reset)
-- **Risk:** 🔴 CRITICAL - Data loss/corruption if bugs introduced
-
-### Goals
-- Achieve 90%+ test coverage for SiteProvider
-- Test all public methods
-- Cover edge cases and error scenarios
-- Enable safe refactoring in future phases
-
-### Test Scenarios
-
-#### 1. loadSites()
-- ✅ Successfully loads sites from Firestore
-- ✅ Handles empty collection
-- ✅ Handles Firebase errors
-- ✅ Notifies listeners correctly
-
-#### 2. addSite()
-- ✅ Creates new site successfully
-- ✅ Enforces site limit (free: 5, premium: 30)
-- ✅ Validates required fields
-- ✅ Handles duplicate URLs
-- ✅ Sets correct timestamps
-
-#### 3. updateSite()
-- ✅ Updates site successfully
-- ✅ Detects excluded paths changes
-- ✅ Resets lastScannedPageIndex when excluded paths change (#258 fix)
-- ✅ Preserves unchanged fields
-- ✅ Handles non-existent site
-
-#### 4. deleteSite()
-- ✅ Deletes site successfully
-- ✅ Removes from local cache
-- ✅ Handles non-existent site
-- ✅ Cleans up related data (verify cascade)
-
-#### 5. Premium Logic
-- ✅ Enforces free tier limit (5 sites)
-- ✅ Enforces premium tier limit (30 sites)
-- ✅ Premium status updates correctly
-
-### Acceptance Criteria
-- [ ] New file: `test/providers/site_provider_test.dart`
-- [ ] 20+ tests added
-- [ ] All tests passing (green)
-- [ ] Edge cases covered
-- [ ] Mock Firestore properly
-- [ ] Code review approved
-
-### Test Template
-
-```dart
-import 'package:flutter_test/flutter_test.dart';
-import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
-import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
-import 'package:sitecat/providers/site_provider.dart';
-import 'package:sitecat/models/site.dart';
-
-void main() {
-  late FakeFirebaseFirestore fakeFirestore;
-  late MockFirebaseAuth fakeAuth;
-  late SiteProvider provider;
-
-  setUp(() {
-    fakeFirestore = FakeFirebaseFirestore();
-    fakeAuth = MockFirebaseAuth(signedIn: true);
-    provider = SiteProvider(
-      firestore: fakeFirestore,
-      auth: fakeAuth,
-    );
-  });
-
-  group('SiteProvider - loadSites', () {
-    test('loads sites successfully from Firestore', () async {
-      // Arrange
-      final userId = fakeAuth.currentUser!.uid;
-      await fakeFirestore.collection('sites').add({
-        'userId': userId,
-        'name': 'Test Site',
-        'url': 'https://example.com',
-        'createdAt': Timestamp.now(),
-        'updatedAt': Timestamp.now(),
-      });
-
-      // Act
-      await provider.loadSites();
-
-      // Assert
-      expect(provider.sites.length, 1);
-      expect(provider.sites.first.name, 'Test Site');
-    });
-
-    test('handles empty site collection', () async {
-      // Act
-      await provider.loadSites();
-
-      // Assert
-      expect(provider.sites, isEmpty);
-    });
-
-    // Add more tests...
-  });
-
-  group('SiteProvider - addSite', () {
-    test('creates new site successfully', () async {
-      // Arrange
-      final site = Site(
-        id: '',
-        userId: fakeAuth.currentUser!.uid,
-        name: 'New Site',
-        url: 'https://newsite.com',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      // Act
-      final result = await provider.addSite(site);
-
-      // Assert
-      expect(result, isTrue);
-      expect(provider.sites.length, 1);
-    });
-
-    test('enforces free tier site limit (5 sites)', () async {
-      // Arrange - Create 5 sites
-      for (int i = 0; i < 5; i++) {
-        await provider.addSite(Site(
-          id: '',
-          userId: fakeAuth.currentUser!.uid,
-          name: 'Site $i',
-          url: 'https://site$i.com',
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ));
-      }
-
-      // Act - Try to add 6th site
-      final result = await provider.addSite(Site(
-        id: '',
-        userId: fakeAuth.currentUser!.uid,
-        name: 'Site 6',
-        url: 'https://site6.com',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      ));
-
-      // Assert
-      expect(result, isFalse);
-      expect(provider.sites.length, 5);
-    });
-
-    // Add more tests...
-  });
-
-  group('SiteProvider - updateSite', () {
-    test('resets lastScannedPageIndex when excludedPaths change', () async {
-      // Arrange
-      final site = Site(
-        id: 'test-id',
-        userId: fakeAuth.currentUser!.uid,
-        name: 'Test Site',
-        url: 'https://example.com',
-        lastScannedPageIndex: 43,
-        excludedPaths: ['old-path/'],
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      await fakeFirestore.collection('sites').doc('test-id').set(site.toFirestore());
-      await provider.loadSites();
-
-      // Act
-      final updatedSite = site.copyWith(excludedPaths: ['new-path/']);
-      await provider.updateSite(updatedSite);
-
-      // Assert
-      final result = provider.sites.firstWhere((s) => s.id == 'test-id');
-      expect(result.lastScannedPageIndex, 0);  // Reset!
-      expect(result.excludedPaths, ['new-path/']);
-    });
-
-    // Add more tests...
-  });
-
-  group('SiteProvider - deleteSite', () {
-    test('deletes site successfully', () async {
-      // Setup, Act, Assert...
-    });
-  });
-}
-```
-
-### References
-- [SiteProvider source](../lib/providers/site_provider.dart)
-- [CODEBASE_ANALYSIS_REPORT.md](./CODEBASE_ANALYSIS_REPORT.md)
-- [REFACTORING_PLAN.md](./REFACTORING_PLAN.md)
+**Timeline**: Week 1-2  
+**Goal**: Increase test coverage from 32% to 50%+  
+**Related Documents**: 
+- [CODE_QUALITY_ANALYSIS.md](./CODE_QUALITY_ANALYSIS.md)
+- [CODE_REFACTORING_ROADMAP.md](./CODE_REFACTORING_ROADMAP.md)
 
 ---
 
-## Issue #265: Add comprehensive tests for MonitoringProvider
+## Issue #264: Add SiteProvider unit tests
 
-**Labels:** `testing`, `P0-critical`, `phase-1`  
-**Milestone:** v1.0.9  
-**Effort:** 5-7 hours
+### Type
+Test Coverage
+
+### Priority
+CRITICAL
 
 ### Description
+SiteProvider (321 lines) currently has no test coverage. This is a critical provider managing site CRUD operations and must be tested before any refactoring.
 
-Add comprehensive test coverage for `MonitoringProvider` to ensure monitoring logic works correctly and safely.
+### Files Affected
+- lib/providers/site_provider.dart
 
-### Current State
-- **Test Coverage:** 0%
-- **Lines:** ~300
-- **Complexity:** High (async, realtime listeners, cooldowns)
-- **Risk:** 🔴 CRITICAL - Monitoring may fail silently
+### Test Cases to Implement
+- [ ] `loadSites()` - Firebase loading and state update
+- [ ] `addSite()` - Creation with validation
+- [ ] `updateSite()` - Updates and state sync
+- [ ] `deleteSite()` - Deletion and cleanup
+- [ ] `excludedPaths` - Excluded paths change detection
+- [ ] Error handling - Network failures, permissions
+- [ ] State listeners - Notification behavior
 
-### Goals
-- Achieve 90%+ test coverage
-- Test async operations properly
-- Verify cooldown enforcement
-- Test result caching logic
+### Success Criteria
+- [ ] 20+ test cases written
+- [ ] 80%+ line coverage for site_provider.dart
+- [ ] All tests passing
+- [ ] No lint warnings
 
-### Test Scenarios
-
-#### 1. checkSite()
-- ✅ Performs quick scan successfully
-- ✅ Caches sitemap status
-- ✅ Enforces cooldown period
-- ✅ Handles network errors
-- ✅ Updates result cache
-
-#### 2. listenToSiteResults()
-- ✅ Sets up Firestore listener
-- ✅ Receives real-time updates
-- ✅ Handles listener errors
-- ✅ Cleans up on dispose
-
-#### 3. Cooldown Logic
-- ✅ Starts cooldown after check
-- ✅ getTimeUntilNextCheck() returns correct duration
-- ✅ canCheckSite() respects cooldown
-- ✅ Cooldown expires correctly
-
-#### 4. Result Caching
-- ✅ getCachedSitemapStatus() returns cached value
-- ✅ Cache invalidates correctly
-- ✅ getLatestResult() returns most recent
-
-### Acceptance Criteria
-- [ ] New file: `test/providers/monitoring_provider_test.dart`
-- [ ] 25+ tests added
-- [ ] All async operations tested
-- [ ] Cooldown logic verified
-- [ ] Code review approved
-
-### Test Template
-
-```dart
-import 'package:flutter_test/flutter_test.dart';
-import 'package:fake_cloud_firestore/fake_cloud_firestore.dart';
-import 'package:sitecat/providers/monitoring_provider.dart';
-import 'package:sitecat/models/site.dart';
-
-void main() {
-  late FakeFirebaseFirestore fakeFirestore;
-  late MonitoringProvider provider;
-
-  setUp(() {
-    fakeFirestore = FakeFirebaseFirestore();
-    provider = MonitoringProvider(firestore: fakeFirestore);
-  });
-
-  group('MonitoringProvider - checkSite', () {
-    test('performs quick scan successfully', () async {
-      final site = Site(/* ... */);
-      
-      await provider.checkSite(site);
-      
-      expect(provider.isChecking(site.id), isFalse);
-      expect(provider.getCachedSitemapStatus(site.id), isNotNull);
-    });
-
-    test('enforces cooldown period', () async {
-      final site = Site(/* ... */);
-      
-      // First check
-      await provider.checkSite(site);
-      
-      // Immediate second check should be blocked
-      final canCheck = provider.canCheckSite(site.id);
-      expect(canCheck, isFalse);
-      
-      // Time until next check should be ~30 seconds
-      final timeLeft = provider.getTimeUntilNextCheck(site.id);
-      expect(timeLeft, isNotNull);
-      expect(timeLeft!.inSeconds, greaterThan(0));
-    });
-  });
-
-  group('MonitoringProvider - listenToSiteResults', () {
-    test('receives real-time updates from Firestore', () async {
-      final site = Site(id: 'test-id', /* ... */);
-      
-      // Start listening
-      provider.listenToSiteResults(site.id);
-      
-      // Add a result to Firestore
-      await fakeFirestore
-          .collection('monitoring_results')
-          .add({/* monitoring result data */});
-      
-      // Wait for listener to fire
-      await Future.delayed(Duration(milliseconds: 100));
-      
-      // Verify result received
-      final results = provider.getSiteResults(site.id);
-      expect(results, isNotEmpty);
-    });
-  });
-
-  // More test groups...
-}
-```
-
-### References
-- [MonitoringProvider source](../lib/providers/monitoring_provider.dart)
-- [CODEBASE_ANALYSIS_REPORT.md](./CODEBASE_ANALYSIS_REPORT.md)
+### Effort Estimate
+4-8 hours
 
 ---
 
-## Issue #266: Add comprehensive tests for SubscriptionProvider
+## Issue #265: Add MonitoringProvider unit tests
 
-**Labels:** `testing`, `P0-critical`, `phase-1`, `iap`  
-**Milestone:** v1.0.9  
-**Effort:** 6-8 hours
+### Type
+Test Coverage
+
+### Priority
+CRITICAL
 
 ### Description
+MonitoringProvider (243 lines) currently has no test coverage. This is a critical provider for site monitoring functionality.
 
-Add comprehensive test coverage for `SubscriptionProvider` to ensure IAP logic is correct and prevent revenue loss.
+### Files Affected
+- lib/providers/monitoring_provider.dart
 
-### Current State
-- **Test Coverage:** 0%
-- **Lines:** ~250
-- **Complexity:** High (IAP, Firestore, premium flags)
-- **Risk:** 🔴 CRITICAL - Financial logic, revenue impact
+### Test Cases to Implement
+- [ ] Site monitoring lifecycle
+- [ ] Result caching mechanism
+- [ ] Error aggregation
+- [ ] Listener management
+- [ ] State transitions
+- [ ] Cooldown enforcement
 
-### Goals
-- Achieve 90%+ test coverage
-- Mock IAP properly
-- Test purchase flow
-- Verify entitlement validation
-- Test Firestore persistence
+### Success Criteria
+- [ ] 15+ test cases written
+- [ ] 80%+ line coverage
+- [ ] All tests passing
 
-### Test Scenarios
-
-#### 1. restorePurchases()
-- ✅ Restores valid purchase
-- ✅ Handles no purchases
-- ✅ Validates entitlement correctly
-- ✅ Updates premium status
-- ✅ Persists to Firestore
-
-#### 2. purchaseLifetimeAccess()
-- ✅ Initiates purchase flow
-- ✅ Handles successful purchase
-- ✅ Handles purchase cancellation
-- ✅ Handles purchase error
-- ✅ Updates premium flags
-
-#### 3. Premium Flags
-- ✅ hasLifetimeAccess updates correctly
-- ✅ Notifies listeners
-- ✅ Persists across sessions
-
-#### 4. Firestore Integration
-- ✅ Saves purchase to Firestore
-- ✅ Loads purchase on init
-- ✅ Handles Firestore errors
-
-### Acceptance Criteria
-- [ ] New file: `test/providers/subscription_provider_test.dart`
-- [ ] 20+ tests added
-- [ ] Mock IAP interactions
-- [ ] Financial logic validated
-- [ ] Code review approved
-
-### Test Template
-
-```dart
-import 'package:flutter_test/flutter_test.dart';
-import 'package:mockito/mockito.dart';
-import 'package:in_app_purchase/in_app_purchase.dart';
-import 'package:sitecat/providers/subscription_provider.dart';
-
-class MockInAppPurchase extends Mock implements InAppPurchase {}
-
-void main() {
-  late MockInAppPurchase mockIAP;
-  late SubscriptionProvider provider;
-
-  setUp(() {
-    mockIAP = MockInAppPurchase();
-    provider = SubscriptionProvider(inAppPurchase: mockIAP);
-  });
-
-  group('SubscriptionProvider - restorePurchases', () {
-    test('restores valid lifetime purchase', () async {
-      // Arrange
-      final purchase = PurchaseDetails(/* mock purchase data */);
-      when(mockIAP.restorePurchases()).thenAnswer((_) async => [purchase]);
-      
-      // Act
-      await provider.restorePurchases();
-      
-      // Assert
-      expect(provider.hasLifetimeAccess, isTrue);
-    });
-
-    test('handles no purchases to restore', () async {
-      when(mockIAP.restorePurchases()).thenAnswer((_) async => []);
-      
-      await provider.restorePurchases();
-      
-      expect(provider.hasLifetimeAccess, isFalse);
-    });
-  });
-
-  group('SubscriptionProvider - purchaseLifetimeAccess', () {
-    test('completes purchase successfully', () async {
-      // Mock successful purchase flow
-      // Verify premium flags updated
-      // Verify Firestore saved
-    });
-  });
-
-  // More test groups...
-}
-```
-
-### References
-- [SubscriptionProvider source](../lib/providers/subscription_provider.dart)
-- [CODEBASE_ANALYSIS_REPORT.md](./CODEBASE_ANALYSIS_REPORT.md)
+### Effort Estimate
+3-6 hours
 
 ---
 
-## Issue #267: Add comprehensive tests for Models
+## Issue #266: Add model unit tests
 
-**Labels:** `testing`, `P1-high`, `phase-1`  
-**Milestone:** v1.0.9  
-**Effort:** 3-5 hours
+### Type
+Test Coverage
+
+### Priority
+CRITICAL
 
 ### Description
+Core model classes (Site, BrokenLink) lack test coverage. These models are fundamental to data handling.
 
-Add test coverage for data models to ensure serialization and validation work correctly.
+### Files Affected
+- lib/models/site.dart (163 lines)
+- lib/models/broken_link.dart (198 lines)
 
-### Current State
-- **Test Coverage:** ~10%
-- **Files:** `Site`, `BrokenLink`, `LinkCheckResult`, `MonitoringResult`
-- **Risk:** ⚠️ HIGH - Data inconsistency, invalid state
+### Test Cases to Implement
 
-### Goals
-- Test serialization round-trips (toFirestore/fromFirestore)
-- Test validation logic
-- Cover edge cases (null fields, invalid data)
-- Achieve 80%+ coverage
+**For Site model:**
+- [ ] JSON serialization/deserialization
+- [ ] Firestore conversion
+- [ ] Data validation
+- [ ] Display format methods (displayUrl, lastCheckedDisplay)
+- [ ] copyWith() functionality
 
-### Test Scenarios
+**For BrokenLink model:**
+- [ ] JSON serialization/deserialization
+- [ ] Status code handling
+- [ ] Error message formatting
 
-#### 1. Site Model
-- ✅ fromFirestore() parses correctly
-- ✅ toFirestore() serializes correctly
-- ✅ Round-trip preserves data
-- ✅ Handles null optional fields
-- ✅ copyWith() works correctly
-- ✅ Validation (URL format, etc.)
+### Success Criteria
+- [ ] 25+ test cases written
+- [ ] 85%+ line coverage for both models
+- [ ] All tests passing
 
-#### 2. BrokenLink Model
-- ✅ fromMap() parses correctly
-- ✅ toMap() serializes correctly
-- ✅ Validation logic
+### Effort Estimate
+3-4 hours
 
-#### 3. LinkCheckResult Model
-- ✅ Serialization
-- ✅ Result merging logic (for Continue scans)
-- ✅ Edge cases
+---
 
-### Acceptance Criteria
-- [ ] New files: `test/models/*_test.dart`
-- [ ] 15+ tests added
-- [ ] Serialization verified
-- [ ] Edge cases covered
-- [ ] Code review approved
+## Issue #267: Add service layer unit tests
 
-### Test Template
+### Type
+Test Coverage
 
-```dart
-import 'package:flutter_test/flutter_test.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:sitecat/models/site.dart';
+### Priority
+HIGH
 
-void main() {
-  group('Site Model', () {
-    test('fromFirestore() parses data correctly', () {
-      final data = {
-        'userId': 'user123',
-        'name': 'Test Site',
-        'url': 'https://example.com',
-        'createdAt': Timestamp.now(),
-        'updatedAt': Timestamp.now(),
-        'excludedPaths': ['path1/', 'path2/'],
-      };
-      
-      final doc = FakeDocumentSnapshot('doc1', data);
-      final site = Site.fromFirestore(doc);
-      
-      expect(site.userId, 'user123');
-      expect(site.name, 'Test Site');
-      expect(site.excludedPaths.length, 2);
-    });
+### Description
+Core services (MonitoringService, AuthService) lack test coverage, making debugging difficult when issues arise.
 
-    test('toFirestore() serializes correctly', () {
-      final site = Site(
-        id: 'test-id',
-        userId: 'user123',
-        name: 'Test Site',
-        url: 'https://example.com',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-      
-      final data = site.toFirestore();
-      
-      expect(data['userId'], 'user123');
-      expect(data['name'], 'Test Site');
-      expect(data['createdAt'], isA<Timestamp>());
-    });
+### Files Affected
+- lib/services/monitoring_service.dart (247 lines)
+- lib/services/auth_service.dart (304 lines)
 
-    test('round-trip preserves data', () {
-      final original = Site(/* ... */);
-      final data = original.toFirestore();
-      final doc = FakeDocumentSnapshot('doc1', data);
-      final restored = Site.fromFirestore(doc);
-      
-      expect(restored.name, original.name);
-      expect(restored.url, original.url);
-      // ...verify all fields
-    });
-  });
-}
-```
+### Test Cases to Implement
 
-### References
-- [Model source files](../lib/models/)
-- [CODEBASE_ANALYSIS_REPORT.md](./CODEBASE_ANALYSIS_REPORT.md)
+**For MonitoringService:**
+- [ ] Service initialization
+- [ ] Site checking operations
+- [ ] Error handling and recovery
+- [ ] Firebase integration
+
+**For AuthService:**
+- [ ] Authentication flow
+- [ ] User session management
+- [ ] Error handling
+
+### Success Criteria
+- [ ] 20+ test cases written
+- [ ] 75%+ line coverage
+- [ ] All tests passing
+
+### Effort Estimate
+4-8 hours
 
 ---
 
 ## Summary
 
-### Phase 1 Overview
-- **Total Issues:** 4 (#264, #265, #266, #267)
-- **Total Effort:** 18-26 hours
-- **Expected Coverage Increase:** 32% → 50%+
-- **Priority:** All P0-P1 (Critical/High)
+| Issue | Task | Priority | Effort | Tests |
+|-------|------|----------|--------|-------|
+| #264 | SiteProvider tests | CRITICAL | 4-8h | 20+ |
+| #265 | MonitoringProvider tests | CRITICAL | 3-6h | 15+ |
+| #266 | Model tests | CRITICAL | 3-4h | 25+ |
+| #267 | Service layer tests | HIGH | 4-8h | 20+ |
 
-### Issue Creation Checklist
-- [ ] Create Issue #264 (SiteProvider)
-- [ ] Create Issue #265 (MonitoringProvider)
-- [ ] Create Issue #266 (SubscriptionProvider)
-- [ ] Create Issue #267 (Models)
-- [ ] Add to v1.0.9 Milestone
-- [ ] Assign appropriate labels
-- [ ] Link to analysis docs
-
-### Next Steps
-1. Review and approve templates
-2. Create issues on GitHub
-3. Start with #264 (SiteProvider) - highest priority
-4. Work sequentially or parallelize if multiple developers
+**Total Effort**: 14-26 hours  
+**Total New Tests**: 80+  
+**Expected Coverage Increase**: 32% → 50%+
 
 ---
 
-**Templates Maintained By:** AI Assistant  
-**Last Updated:** 2025-12-11
+## Next Steps
+
+1. Create issues #264-#267 on GitHub
+2. Assign to development
+3. Work through Phase 1 sequentially
+4. Move to Phase 2 once Phase 1 is complete
+
+See [CODE_REFACTORING_ROADMAP.md](./CODE_REFACTORING_ROADMAP.md) for complete roadmap.

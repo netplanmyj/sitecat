@@ -30,6 +30,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
       context.read<MonitoringProvider>().listenToSiteResults(widget.site.id);
       // Load latest link check result
       context.read<LinkCheckerProvider>().loadLatestResult(widget.site.id);
+      // Pre-calculate target page count for display
+      context.read<LinkCheckerProvider>().precalculatePageCount(widget.site);
       // Auto-trigger quick scan to get fresh sitemap status
       context.read<MonitoringProvider>().checkSite(widget.site);
     });
@@ -54,16 +56,24 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
                   final latestResult = monitoring.getLatestResult(
                     widget.site.id,
                   );
-                  return SiteInfoCard(
-                    site: widget.site,
-                    sitemapStatus: latestResult,
-                    cachedSitemapStatusCode: monitoring.getCachedSitemapStatus(
-                      widget.site.id,
-                    ),
-                    isCheckingSitemap: monitoring.isChecking(widget.site.id),
-                    getTimeUntilNextCheck: () =>
-                        monitoring.getTimeUntilNextCheck(widget.site.id),
-                    onRefreshSitemap: () => _quickCheck(),
+                  return Consumer<LinkCheckerProvider>(
+                    builder: (context, linkChecker, child) {
+                      final precalculatedPageCount = linkChecker
+                          .getPrecalculatedPageCount(widget.site.id);
+                      return SiteInfoCard(
+                        site: widget.site,
+                        sitemapStatus: latestResult,
+                        cachedSitemapStatusCode: monitoring
+                            .getCachedSitemapStatus(widget.site.id),
+                        isCheckingSitemap: monitoring.isChecking(
+                          widget.site.id,
+                        ),
+                        precalculatedPageCount: precalculatedPageCount,
+                        getTimeUntilNextCheck: () =>
+                            monitoring.getTimeUntilNextCheck(widget.site.id),
+                        onRefreshSitemap: () => _quickCheck(),
+                      );
+                    },
                   );
                 },
               ),
