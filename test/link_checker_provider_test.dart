@@ -119,7 +119,7 @@ Site _buildSite({int lastScannedPageIndex = 0}) {
 
 void main() {
   // Suppress Logger output during tests
-  Logger.level = Level.nothing;
+  Logger.level = Level.off;
 
   group('LinkCheckerProvider - State Management Logic', () {
     test('isProcessingExternalLinks logic - returns false for empty map', () {
