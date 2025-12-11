@@ -236,7 +236,6 @@ class LinkCheckerProvider extends ChangeNotifier {
   }
 
   /// Get check history for a site
-
   List<LinkCheckResult> getCheckHistory(String siteId) {
     return _checkHistory[siteId] ?? [];
   }

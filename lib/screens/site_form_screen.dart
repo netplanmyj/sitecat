@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/site_provider.dart';
+import '../providers/link_checker_provider.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
 import '../widgets/site_form/site_form_body.dart';
@@ -197,6 +198,15 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
           excludedPaths: _excludedPaths,
         );
         success = await siteProvider.updateSite(updatedSite);
+
+        // Clear pre-calculated page count cache in case excluded paths changed
+        if (success && mounted) {
+          final linkCheckerProvider = Provider.of<LinkCheckerProvider>(
+            context,
+            listen: false,
+          );
+          linkCheckerProvider.clearPrecalculatedPageCount(updatedSite.id);
+        }
       } else {
         // Create new site
         success = await siteProvider.createSite(
