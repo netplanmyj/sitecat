@@ -194,8 +194,9 @@ class LinkCheckerService implements LinkCheckerClient {
     // ========================================================================
     // STEP 1: Load sitemap URLs and check accessibility
     // ========================================================================
-    // Optimize: If precalculated page count exists and we're continuing,
-    // we can skip sitemap reloading and use cached data
+    // Note: The precalculatedPageCount parameter is used for UI display purposes
+    // (to show an immediate total count), but does not skip or optimize sitemap loading.
+    // Sitemap is always fully loaded to get URLs and handle configuration changes.
     final sitemapData = await _orchestrator.loadSitemapUrls(
       site: siteForScanning,
       baseUrl: baseUrl,

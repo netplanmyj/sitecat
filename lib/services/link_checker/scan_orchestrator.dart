@@ -22,8 +22,10 @@ class ScanOrchestrator {
 
   /// Load sitemap URLs and check accessibility
   ///
-  /// If [precalculatedPageCount] is provided and matches current configuration,
-  /// sitemap loading can be optimized (though full loading is still needed for URLs)
+  /// The [precalculatedPageCount] parameter is provided for UI display purposes,
+  /// allowing the UI to show an immediate total page count without waiting for
+  /// sitemap loading to complete. However, sitemap loading is always performed
+  /// to get the actual URLs and handle any configuration changes (e.g., excluded paths).
   Future<SitemapLoadResult> loadSitemapUrls({
     required Site site,
     required Uri baseUrl,
