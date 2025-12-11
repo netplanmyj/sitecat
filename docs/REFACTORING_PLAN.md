@@ -85,7 +85,7 @@ This document provides an actionable refactoring plan based on the comprehensive
 
 ### Phase 1 Deliverables
 - [ ] 3 new test files created
-- [ ] 68+ new tests added
+- [ ] 60+ new tests added
 - [ ] Test coverage: 32% → 50%+
 - [ ] All tests green (CI passing)
 - [ ] Code review completed
@@ -367,7 +367,7 @@ class SiteScanSection extends StatefulWidget {
 
 ### Phase 1 Success Criteria
 - ✅ Test coverage: 32% → 50%+
-- ✅ 80+ new tests added
+- ✅ 68+ new tests added
 - ✅ All critical providers tested
 - ✅ Zero test failures
 

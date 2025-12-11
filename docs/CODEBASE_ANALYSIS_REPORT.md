@@ -47,7 +47,7 @@
    - Site monitoring scheduling
    - Result caching
    - Cooldown management
-   - ~300 lines
+   - ~240 lines
 
 3. **SubscriptionProvider** (12 tests ✅) **ADEQUATE**
    - IAP purchase flow already tested
@@ -330,7 +330,6 @@ lib/
 ### Short-term (2-3 Weeks)
 1. Complete Phase 1 test coverage
 2. Begin #256 (cooldown unification)
-3. Monitor PR #263 merge
 
 ### Medium-term (1-2 Months)
 1. Complete Phases 2-3
@@ -355,10 +354,9 @@ test/
 ### Files Needing Tests (Priority Order)
 1. `lib/providers/site_provider.dart` 🚨
 2. `lib/providers/monitoring_provider.dart` 🚨
-3. `lib/providers/subscription_provider.dart` 🚨
-4. `lib/models/site.dart` ⚠️
-5. `lib/models/broken_link.dart` ⚠️
-6. `lib/services/scan_orchestrator.dart` ⚠️
+3. `lib/models/site.dart` ⚠️
+4. `lib/models/broken_link.dart` ⚠️
+5. `lib/services/scan_orchestrator.dart` ⚠️
 
 ---
 
