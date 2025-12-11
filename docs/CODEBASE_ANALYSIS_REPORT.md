@@ -73,7 +73,6 @@
 |-----------|------------|---------------|---------------|
 | SiteProvider | 🔴 CRITICAL | Data loss, corruption | P0 |
 | MonitoringProvider | 🔴 CRITICAL | Monitoring fails | P0 |
-| SubscriptionProvider | 🔴 CRITICAL | Revenue loss | P0 |
 | Models | 🟡 HIGH | Data inconsistency | P1 |
 | Service Layer | 🟡 MEDIUM | Feature breaks | P1 |
 

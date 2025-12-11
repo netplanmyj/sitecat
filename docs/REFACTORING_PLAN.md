@@ -53,7 +53,7 @@ This document provides an actionable refactoring plan based on the comprehensive
 
 **Test Coverage:**
 - ✅ checkSite() - Quick scan logic
-- ✅ listenToSiteResults() - Firestore realtime
+- ✅ listenToSiteResults() - Firestore real-time updates
 - ✅ Cooldown enforcement
 - ✅ Result caching
 - ✅ getCachedSitemapStatus()
