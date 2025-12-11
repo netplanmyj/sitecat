@@ -152,8 +152,22 @@ class SiteProvider extends ChangeNotifier {
         return false;
       }
 
-      // Update the updatedAt timestamp
-      final updatedSite = site.copyWith(updatedAt: DateTime.now());
+      // Check if excluded paths have changed
+      final originalSite = _sites.firstWhere((s) => s.id == site.id);
+      final excludedPathsChanged =
+          originalSite.excludedPaths.length != site.excludedPaths.length ||
+          !originalSite.excludedPaths.every(
+            (path) => site.excludedPaths.contains(path),
+          );
+
+      // If excluded paths changed, reset scan index to avoid sitemap URL mismatches
+      final updatedSite = site.copyWith(
+        updatedAt: DateTime.now(),
+        lastScannedPageIndex: excludedPathsChanged
+            ? 0
+            : site.lastScannedPageIndex,
+      );
+
       await _siteService.updateSite(updatedSite);
       return true;
     } catch (e) {
