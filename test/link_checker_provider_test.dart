@@ -204,8 +204,8 @@ void main() {
       expect(shouldProcessExternal(true, 50, 0), isFalse); // Empty total
     });
 
-    test('cooldown default duration is 30 seconds', () {
-      expect(LinkCheckerProvider.defaultCooldown.inSeconds, equals(30));
+    test('cooldown default duration is 10 seconds', () {
+      expect(LinkCheckerProvider.defaultCooldown.inSeconds, equals(10));
     });
 
     test('external links progress tracking - handles empty state', () {
@@ -519,15 +519,15 @@ void main() {
   });
 
   group('LinkCheckerProvider - Cooldown Logic', () {
-    test('cooldown default is 30 seconds', () {
-      expect(LinkCheckerProvider.defaultCooldown.inSeconds, equals(30));
+    test('cooldown default is 10 seconds', () {
+      expect(LinkCheckerProvider.defaultCooldown.inSeconds, equals(10));
     });
 
     test('cooldown duration is immutable constant', () {
       final duration1 = LinkCheckerProvider.defaultCooldown;
       final duration2 = LinkCheckerProvider.defaultCooldown;
       expect(duration1, equals(duration2));
-      expect(duration1.inSeconds, equals(30));
+      expect(duration1.inSeconds, equals(10));
     });
 
     test('isInCooldown logic - not in cooldown when time is in past', () {
@@ -537,17 +537,17 @@ void main() {
     });
 
     test('isInCooldown logic - in cooldown when time is in future', () {
-      final futureTime = DateTime.now().add(const Duration(seconds: 30));
+      final futureTime = DateTime.now().add(const Duration(seconds: 10));
       // If cooldownUntil is in the future, isInCooldown should be true
       expect(futureTime.isAfter(DateTime.now()), isTrue);
     });
 
     test('getTimeUntilNextCheck logic - calculates remaining time', () {
       final now = DateTime.now();
-      final cooldownEnd = now.add(const Duration(seconds: 30));
+      final cooldownEnd = now.add(const Duration(seconds: 10));
 
       final remaining = cooldownEnd.difference(now);
-      expect(remaining.inSeconds, closeTo(30, 1));
+      expect(remaining.inSeconds, closeTo(10, 1));
     });
 
     test('getTimeUntilNextCheck logic - returns negative when in past', () {
@@ -578,13 +578,13 @@ void main() {
         const Duration(minutes: 2, seconds: 30),
       );
 
-      // After completion, a new 30s cooldown is set
+      // After completion, a new 10s cooldown is set
       final newCooldownEnd = completionTime.add(
         LinkCheckerProvider.defaultCooldown,
       );
 
       expect(newCooldownEnd.isAfter(completionTime), isTrue);
-      expect(newCooldownEnd.difference(completionTime).inSeconds, equals(30));
+      expect(newCooldownEnd.difference(completionTime).inSeconds, equals(10));
     });
   });
 

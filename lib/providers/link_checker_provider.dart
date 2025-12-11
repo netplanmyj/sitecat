@@ -19,7 +19,8 @@ class LinkCheckerProvider extends ChangeNotifier {
   bool _hasLifetimeAccess = false;
 
   // Cooldown interval after any scan-related action (Start/Stop/Continue)
-  static const Duration defaultCooldown = Duration(seconds: 30);
+  // Unified to 10 seconds to match MonitoringProvider's minimumCheckInterval (#256)
+  static const Duration defaultCooldown = Duration(seconds: 10);
 
   // State variables
   final Map<String, LinkCheckState> _checkStates = {};
