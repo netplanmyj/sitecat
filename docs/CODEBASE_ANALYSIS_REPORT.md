@@ -242,12 +242,11 @@ lib/
 ### Phase 1: Test Coverage (CRITICAL) 🚨
 **Goal:** Increase coverage from 32% → 50%+  
 **Duration:** 2-3 weeks  
-**Issues:** #264, #265, #266, #267
+**Issues:** #264, #265, #267
 
 1. **SiteProvider tests** (#264) - P0
 2. **MonitoringProvider tests** (#265) - P0  
-3. **SubscriptionProvider tests** (#266) - P0
-4. **Model tests** (#267) - P1
+3. **Model tests** (#267) - P1
 5. **Service layer tests** - P1
 
 ### Phase 2: Code Duplication Removal (HIGH) ⚠️

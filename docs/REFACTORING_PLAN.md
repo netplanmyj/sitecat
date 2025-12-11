@@ -414,7 +414,7 @@ class SiteScanSection extends StatefulWidget {
 ```
 Week 1-3:  Phase 1 (Test Coverage)
   ├─ Week 1: SiteProvider + MonitoringProvider tests
-  ├─ Week 2: SubscriptionProvider + Model tests  
+  ├─ Week 2: Model tests  
   └─ Week 3: Review, fixes, documentation
 
 Week 4-5:  Phase 2 (Duplication Removal)
