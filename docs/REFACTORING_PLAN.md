@@ -18,7 +18,7 @@ This document provides an actionable refactoring plan based on the comprehensive
 **Goal:** Increase test coverage from 32% to 50%+  
 **Priority:** P0 (Must complete before other refactoring)  
 **Duration:** 2-3 weeks  
-**Effort:** 14-26 hours  
+**Effort:** 12-18 hours  
 
 ### Why Phase 1 is Critical
 - **Safety net for refactoring:** Cannot safely refactor without tests
@@ -65,26 +65,7 @@ This document provides an actionable refactoring plan based on the comprehensive
 
 ---
 
-#### Task 1.3: SubscriptionProvider Tests (#266)
-**Priority:** P0 🚨  
-**Effort:** 6-8 hours  
-**Files:** `test/providers/subscription_provider_test.dart`
-
-**Test Coverage:**
-- ✅ restorePurchases() - Entitlement validation
-- ✅ purchaseLifetimeAccess() - Purchase flow
-- ✅ Premium feature flag updates
-- ✅ Firestore persistence
-- ✅ Error handling (purchase failed, network error)
-
-**Acceptance Criteria:**
-- 20+ tests passing
-- Mock IAP interactions
-- Financial logic validated
-
----
-
-#### Task 1.4: Model Tests (#267)
+#### Task 1.3: Model Tests (#267)
 **Priority:** P1 ⚠️  
 **Effort:** 3-5 hours  
 **Files:** `test/models/*_test.dart`
@@ -103,8 +84,8 @@ This document provides an actionable refactoring plan based on the comprehensive
 ---
 
 ### Phase 1 Deliverables
-- [ ] 4 new test files created
-- [ ] 80+ new tests added
+- [ ] 3 new test files created
+- [ ] 68+ new tests added
 - [ ] Test coverage: 32% → 50%+
 - [ ] All tests green (CI passing)
 - [ ] Code review completed
@@ -112,7 +93,7 @@ This document provides an actionable refactoring plan based on the comprehensive
 ### Phase 1 Timeline
 ```
 Week 1: Task 1.1 (SiteProvider) + Task 1.2 (MonitoringProvider)
-Week 2: Task 1.3 (SubscriptionProvider) + Task 1.4 (Models)
+Week 2: Task 1.3 (Models)
 Week 3: Buffer for issues, code review, documentation
 ```
 
@@ -451,7 +432,7 @@ Week 10:   Buffer & Final Review
 ```
 
 **Total Duration:** ~10 weeks (2.5 months)  
-**Total Effort:** 40-66 hours
+**Total Effort:** 38-58 hours
 
 ---
 
