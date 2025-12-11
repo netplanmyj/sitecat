@@ -21,10 +21,14 @@ class ScanOrchestrator {
        _sitemapParser = sitemapParser;
 
   /// Load sitemap URLs and check accessibility
+  ///
+  /// If [precalculatedPageCount] is provided and matches current configuration,
+  /// sitemap loading can be optimized (though full loading is still needed for URLs)
   Future<SitemapLoadResult> loadSitemapUrls({
     required Site site,
     required Uri baseUrl,
     required Uri originalBaseUrl,
+    int? precalculatedPageCount,
     void Function(int? statusCode)? onSitemapStatusUpdate,
   }) async {
     List<Uri> allInternalPages = [];

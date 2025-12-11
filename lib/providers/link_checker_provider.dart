@@ -305,7 +305,9 @@ class LinkCheckerProvider extends ChangeNotifier {
     // Reset progress counters for a fresh scan, but keep previous progress when continuing
     if (!continueFromLastScan) {
       _checkedCounts[siteId] = 0;
-      _totalCounts[siteId] = 0;
+      // Use precalculated page count if available to avoid recalculating sitemap
+      final precalculatedTotal = _precalculatedPageCounts[siteId];
+      _totalCounts[siteId] = precalculatedTotal ?? 0;
     } else {
       // Preserve existing progress to avoid flashing 0 on resume
       // Prefer pagesCompleted from cached result for accuracy
@@ -314,9 +316,9 @@ class LinkCheckerProvider extends ChangeNotifier {
           latestResult?.pagesCompleted ??
           latestResult?.pagesScanned ??
           site.lastScannedPageIndex;
-      // Don't set totalCounts here - let onProgress callback update it with the latest value
-      // This ensures excluded paths changes are reflected immediately
-      _totalCounts[siteId] = 0;
+      // Use precalculated page count if available, otherwise let onProgress update it
+      final precalculatedTotal = _precalculatedPageCounts[siteId];
+      _totalCounts[siteId] = precalculatedTotal ?? 0;
     }
     _isProcessingExternalLinks[siteId] = false;
     _externalLinksChecked[siteId] = 0;
@@ -326,13 +328,19 @@ class LinkCheckerProvider extends ChangeNotifier {
 
     try {
       // Perform the link check with progress callback
+      // Pass precalculated page count to optimize sitemap loading
+      final precalculatedTotal = _precalculatedPageCounts[siteId];
       final result = await _linkCheckerService.checkSiteLinks(
         site,
         checkExternalLinks: checkExternalLinks,
         continueFromLastScan: continueFromLastScan,
+        precalculatedPageCount: precalculatedTotal,
         onProgress: (checked, total) {
           _checkedCounts[siteId] = checked;
-          _totalCounts[siteId] = total;
+          // Only update total if it's different (sitemap might have changed)
+          if (total != _totalCounts[siteId]) {
+            _totalCounts[siteId] = total;
+          }
 
           notifyListeners();
         },
@@ -367,6 +375,12 @@ class LinkCheckerProvider extends ChangeNotifier {
       } else {
         _checkStates[siteId] = LinkCheckState.idle;
       }
+
+      // Preserve final progress counts after completion (don't reset to 0)
+      // This keeps the progress bar visible with final stats (#247, #262)
+      _checkedCounts[siteId] = result.pagesScanned;
+      _totalCounts[siteId] = result.totalPagesInSitemap;
+
       // Keep progress display (don't reset _isProcessingExternalLinks)
       notifyListeners(); // Immediate UI update with scan results
 

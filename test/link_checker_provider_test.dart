@@ -34,16 +34,20 @@ class _FakeLinkCheckerService implements LinkCheckerClient {
     _shouldThrowOnLoadPageCount = shouldThrow;
   }
 
+  int? lastPrecalculatedPageCount;
+
   @override
   Future<LinkCheckResult> checkSiteLinks(
     Site site, {
     bool checkExternalLinks = true,
     bool continueFromLastScan = false,
+    int? precalculatedPageCount,
     void Function(int p1, int p2)? onProgress,
     void Function(int p1, int p2)? onExternalLinksProgress,
     void Function(int? p1)? onSitemapStatusUpdate,
     bool Function()? shouldCancel,
   }) async {
+    lastPrecalculatedPageCount = precalculatedPageCount;
     // Not needed for these tests
     throw UnimplementedError();
   }
@@ -1014,5 +1018,23 @@ void main() {
         expect(notifyCount, equals(1));
       },
     );
+
+    test('should use precalculated page count when available', () async {
+      final fakeService = _FakeLinkCheckerService();
+      final fakeSiteService = _FakeSiteService();
+      final provider = LinkCheckerProvider(
+        linkCheckerService: fakeService,
+        siteService: fakeSiteService,
+      );
+
+      final site = _buildSite();
+
+      // Pre-calculate page count
+      fakeService.setPageCountToReturn(150);
+      final pageCount = await provider.precalculatePageCount(site);
+
+      expect(pageCount, equals(150));
+      expect(provider.getPrecalculatedPageCount(site.id), equals(150));
+    });
   });
 }

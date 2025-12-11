@@ -21,6 +21,7 @@ abstract class LinkCheckerClient {
     Site site, {
     bool checkExternalLinks,
     bool continueFromLastScan,
+    int? precalculatedPageCount,
     void Function(int checked, int total)? onProgress,
     void Function(int checked, int total)? onExternalLinksProgress,
     void Function(int? statusCode)? onSitemapStatusUpdate,
@@ -162,6 +163,8 @@ class LinkCheckerService implements LinkCheckerClient {
     Site site, {
     bool checkExternalLinks = true,
     bool continueFromLastScan = false, // Continue from last scanned index
+    int?
+    precalculatedPageCount, // Pre-calculated page count to avoid re-loading sitemap
     void Function(int checked, int total)? onProgress,
     void Function(int checked, int total)? onExternalLinksProgress,
     void Function(int? statusCode)? onSitemapStatusUpdate,
@@ -191,11 +194,14 @@ class LinkCheckerService implements LinkCheckerClient {
     // ========================================================================
     // STEP 1: Load sitemap URLs and check accessibility
     // ========================================================================
+    // Optimize: If precalculated page count exists and we're continuing,
+    // we can skip sitemap reloading and use cached data
     final sitemapData = await _orchestrator.loadSitemapUrls(
       site: siteForScanning,
       baseUrl: baseUrl,
       originalBaseUrl: originalBaseUrl,
       onSitemapStatusUpdate: onSitemapStatusUpdate,
+      precalculatedPageCount: precalculatedPageCount,
     );
     final allInternalPages = sitemapData.urls;
     final totalPagesInSitemap = sitemapData.totalPages;
