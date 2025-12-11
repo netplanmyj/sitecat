@@ -37,6 +37,15 @@ class _FakeLinkCheckerService implements LinkCheckerClient {
   }
 
   @override
+  Future<int?> loadSitemapPageCount(
+    Site site, {
+    void Function(int? statusCode)? onSitemapStatusUpdate,
+  }) async {
+    // Not needed for these tests
+    return null;
+  }
+
+  @override
   Future<void> deleteLinkCheckResult(String resultId) async {}
 
   @override

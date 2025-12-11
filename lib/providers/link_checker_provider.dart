@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:logger/logger.dart';
 import '../models/broken_link.dart';
 import '../models/site.dart';
 import '../services/link_checker_service.dart';
@@ -13,6 +14,7 @@ enum LinkCheckState { idle, checking, completed, error }
 class LinkCheckerProvider extends ChangeNotifier {
   final LinkCheckerClient _linkCheckerService;
   final SiteUpdater _siteService;
+  final Logger _logger = Logger();
   bool _isDemoMode = false;
   bool _hasLifetimeAccess = false;
 
@@ -33,6 +35,8 @@ class LinkCheckerProvider extends ChangeNotifier {
   final Map<String, int> _externalLinksTotal = {};
   final Map<String, int?> _currentSitemapStatusCode = {};
   final Map<String, bool> _cancelRequested = {};
+  final Map<String, int?> _precalculatedPageCounts =
+      {}; // Cache for pre-calculated target page counts
 
   // All results across sites
   List<({String siteId, LinkCheckResult result})> _allCheckHistory = [];
@@ -186,7 +190,46 @@ class LinkCheckerProvider extends ChangeNotifier {
     return remaining.isNegative ? null : remaining;
   }
 
+  /// Get pre-calculated target page count for a site
+  /// Returns null if not yet calculated or calculation failed
+  int? getPrecalculatedPageCount(String siteId) {
+    if (_isDemoMode) {
+      // Demo mode: return demo site data
+      // This would typically be a constant for demo sites
+      return null; // or return a demo value
+    }
+    return _precalculatedPageCounts[siteId];
+  }
+
+  /// Pre-calculate the total page count for a site by loading its sitemap
+  /// This determines how many pages will be scanned based on the site's current sitemap
+  /// and excluded paths configuration.
+  Future<int?> precalculatePageCount(Site site) async {
+    if (_isDemoMode) {
+      // Demo mode: return null (demo sites don't have real page counts)
+      return null;
+    }
+
+    try {
+      // Use the link checker service's lightweight sitemap loader
+      final pageCount = await _linkCheckerService.loadSitemapPageCount(site);
+
+      if (pageCount != null && pageCount > 0) {
+        // Cache the result
+        _precalculatedPageCounts[site.id] = pageCount;
+        notifyListeners();
+      }
+
+      return pageCount;
+    } catch (e) {
+      // Log error but don't throw - gracefully handle failures
+      _logger.e('Error pre-calculating page count for ${site.id}: $e');
+      return null;
+    }
+  }
+
   /// Get check history for a site
+
   List<LinkCheckResult> getCheckHistory(String siteId) {
     return _checkHistory[siteId] ?? [];
   }

@@ -9,6 +9,7 @@ class SiteInfoCard extends StatefulWidget {
   final MonitoringResult? sitemapStatus;
   final int? cachedSitemapStatusCode;
   final bool isCheckingSitemap;
+  final int? precalculatedPageCount;
   final Duration? Function()? getTimeUntilNextCheck;
   final VoidCallback? onRefreshSitemap;
 
@@ -18,6 +19,7 @@ class SiteInfoCard extends StatefulWidget {
     this.sitemapStatus,
     this.cachedSitemapStatusCode,
     this.isCheckingSitemap = false,
+    this.precalculatedPageCount,
     this.getTimeUntilNextCheck,
     this.onRefreshSitemap,
   });
@@ -103,6 +105,10 @@ class _SiteInfoCardState extends State<SiteInfoCard> {
             if (widget.site.sitemapUrl != null &&
                 widget.site.sitemapUrl!.isNotEmpty) ...[
               _buildSitemapRow(context),
+              const SizedBox(height: 8),
+            ],
+            if (widget.precalculatedPageCount != null) ...[
+              _buildInfoRow('Target Pages', '${widget.precalculatedPageCount}'),
               const SizedBox(height: 8),
             ],
             _buildInfoRow('Updated', _formatDate(widget.site.updatedAt)),
