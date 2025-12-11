@@ -304,16 +304,17 @@ class LinkCheckerService implements LinkCheckerClient {
 
       allBrokenLinks.addAll(pageBrokenLinks);
 
-      // Increment pagesCompleted and emit progress
-      pagesCompleted++;
-      final cumulativePagesScanned = startIndex + pagesCompleted;
-      onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
-
-      // Check for cancellation after completing the current page
-      // This ensures the page is fully processed before stopping
+      // Check for cancellation BEFORE emitting progress
+      // This prevents the unexpected +1 increment when Stop/Continue is pressed
+      // (#260, #262)
       if (shouldCancel?.call() ?? false) {
         break;
       }
+
+      // Increment pagesCompleted and emit progress only if not cancelled
+      pagesCompleted++;
+      final cumulativePagesScanned = startIndex + pagesCompleted;
+      onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
     }
 
     // Use actual scanned pages to set endIndex so we don't skip pages when
