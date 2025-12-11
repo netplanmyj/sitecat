@@ -336,6 +336,12 @@ class LinkCheckerProvider extends ChangeNotifier {
         continueFromLastScan: continueFromLastScan,
         precalculatedPageCount: precalculatedTotal,
         onProgress: (checked, total) {
+          // Fix #260: Don't update progress after cancel is requested
+          // This prevents the unexpected +1 increment after user presses Stop
+          if (isCancelRequested(siteId)) {
+            return;
+          }
+
           _checkedCounts[siteId] = checked;
           // Only update total if it's different (sitemap might have changed)
           if (total != _totalCounts[siteId]) {

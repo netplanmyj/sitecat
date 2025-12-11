@@ -1062,5 +1062,25 @@ void main() {
       // - lastPrecalculatedPageCount is set when checkSiteLinks is called
       // - Progress bar initializes with precalculated total immediately
     });
+
+    test('cancelScan should set flag for onProgress to check', () {
+      final fakeService = _FakeLinkCheckerService();
+      final fakeSiteService = _FakeSiteService();
+      final provider = LinkCheckerProvider(
+        linkCheckerService: fakeService,
+        siteService: fakeSiteService,
+      );
+
+      final siteId = 'test_site_1';
+
+      // Verify cancel flag is not set initially
+      expect(provider.isCancelRequested(siteId), isFalse);
+
+      // Request cancellation
+      provider.cancelScan(siteId);
+
+      // Verify cancel flag is set
+      expect(provider.isCancelRequested(siteId), isTrue);
+    });
   });
 }
