@@ -48,9 +48,6 @@ class _LinkCheckButtonState extends State<LinkCheckButton> {
                       });
                     },
               title: const Text('Check external links'),
-              subtitle: const Text(
-                'Also check links to other domains (may take longer)',
-              ),
               dense: true,
               contentPadding: EdgeInsets.zero,
             ),

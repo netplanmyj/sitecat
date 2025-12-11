@@ -108,10 +108,9 @@ class _SiteInfoCardState extends State<SiteInfoCard> {
               const SizedBox(height: 8),
             ],
             if (widget.precalculatedPageCount != null) ...[
-              _buildInfoRow('Target Pages', '${widget.precalculatedPageCount}'),
+              _buildInfoRow('Pages', '${widget.precalculatedPageCount}'),
               const SizedBox(height: 8),
             ],
-            _buildInfoRow('Updated', _formatDate(widget.site.updatedAt)),
           ],
         ),
       ),
