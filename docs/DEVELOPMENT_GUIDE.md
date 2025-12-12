@@ -78,7 +78,42 @@ flutter analyze && dart format --set-exit-if-changed . && flutter test
 ⚠️ **注意**:  
 これらをスキップして PR を作成すると、CI/CD パイプラインで失敗し、マージが遅延します。
 
-### 1.2 Site Scan カウントダウン仕様
+### 1.2 GitHub CLI 便利コマンド
+
+**PR関連:**
+```bash
+# PR作成
+gh pr create --title "タイトル" --body "説明"
+
+# PR一覧表示
+gh pr list
+
+# PR詳細表示
+gh pr view <PR番号>
+
+# Copilot reviewコメント確認
+gh api repos/netplanmyj/sitecat/pulls/<PR番号>/comments --paginate
+
+# PRマージ
+gh pr merge <PR番号> --squash
+```
+
+**Issue関連:**
+```bash
+# Issue作成
+gh issue create --title "タイトル" --body "説明" --label bug
+
+# Issue一覧表示
+gh issue list
+
+# Issue詳細表示
+gh issue view <Issue番号>
+
+# Issueクローズ
+gh issue close <Issue番号>
+```
+
+### 1.3 Site Scan カウントダウン仕様
 
 - 対象: Site Detail > Site Scan タブの Start / Stop / Continue
 - トリガー: Start/Continue 押下時、Stop 押下時、バッチ完了時（例: 100ページ終了）

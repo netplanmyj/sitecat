@@ -64,8 +64,9 @@ class _SiteScanSectionState extends State<SiteScanSection> {
                       ? currentTotal
                       : latestResult?.totalPagesInSitemap ?? 0);
             // Use currentChecked during and after scan if available (#269)
-            // Only fall back to lastScannedPageIndex if currentChecked == 0
-            final progressChecked = currentChecked > 0
+            // During scan OR after completion with currentChecked > 0, use currentChecked
+            // Only fall back to lastScannedPageIndex at the very start (not scanning & no progress)
+            final progressChecked = (isCheckingLinks || currentChecked > 0)
                 ? currentChecked
                 : currentSite.lastScannedPageIndex;
 
