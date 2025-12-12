@@ -173,7 +173,7 @@ void main() {
     test('商品情報が取得できた場合、priceを返す', () async {
       // Arrange
       final mockProduct = MockProductDetailsCustom();
-      when(mockProduct.price).thenReturn('¥1,220');
+      when(mockProduct.price).thenReturn('¥1,200');
 
       when(mockSubscriptionService.initialize()).thenAnswer((_) async => {});
       when(
@@ -187,11 +187,11 @@ void main() {
       await provider.initialize();
 
       // Assert
-      expect(provider.price, '¥1,220');
+      expect(provider.price, '¥1,200');
     });
 
     test('商品情報が取得できない場合、デフォルト価格を返す', () {
-      expect(provider.price, '¥1,220');
+      expect(provider.price, '¥1,200');
     });
   });
 }

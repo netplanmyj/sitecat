@@ -7,7 +7,7 @@ import 'package:logger/logger.dart';
 
 /// In-App Purchase管理サービス
 ///
-/// 買い切り版（¥1,220）の購入・リストア・状態管理を担当
+/// 買い切り版（¥1,200）の購入・リストア・状態管理を担当
 class SubscriptionService {
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;

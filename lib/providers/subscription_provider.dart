@@ -26,7 +26,7 @@ class SubscriptionProvider with ChangeNotifier {
   ProductDetails? get productDetails => _productDetails;
 
   /// 商品価格（フォーマット済み）
-  String get price => _productDetails?.price ?? '¥1,220';
+  String get price => _productDetails?.price ?? '¥1,200';
 
   /// 初期化
   Future<void> initialize() async {
