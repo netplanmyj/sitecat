@@ -321,9 +321,10 @@ class MyProvider extends ChangeNotifier {
 
 ## Documentation
 
-- **[DEVELOPMENT_GUIDE.md](../docs/DEVELOPMENT_GUIDE.md)**: Full architecture, refactoring plan, roadmap
-- **[PROJECT_CONCEPT.md](../docs/PROJECT_CONCEPT.md)**: Business goals, feature specs
-- **[REFACTORING_PLAN.md](../docs/REFACTORING_PLAN.md)**: Active refactoring tasks and metrics
+Related documentation files (in `docs/` folder):
+- **DEVELOPMENT_GUIDE.md**: Full architecture, refactoring plan, roadmap
+- **PROJECT_CONCEPT.md**: Business goals, feature specs
+- **REFACTORING_PLAN.md**: Active refactoring tasks and metrics
 
 ## Key Dependencies (pubspec.yaml)
 - `firebase_*`: Auth, Firestore, Functions
