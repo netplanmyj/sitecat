@@ -6,7 +6,10 @@ import '../services/demo_service.dart';
 import '../constants/app_constants.dart';
 
 class SiteProvider extends ChangeNotifier {
-  final SiteService _siteService = SiteService();
+  SiteProvider({SiteService? siteService})
+    : _siteService = siteService ?? SiteService();
+
+  final SiteService _siteService;
 
   // State variables
   List<Site> _sites = [];
