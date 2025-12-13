@@ -188,7 +188,7 @@ ElevatedButton(
 ```dart
 // Constants defined in AppConstants
 static const int freePlanSiteLimit = 3;      // Free users can add 3 sites
-static const int premiumSiteLimit = 30;      // Premium: unlimited (high limit)
+static const int premiumSiteLimit = 30;      // Premium: 30 sites (practical limit)
 static const int freeHistoryLimit = 10;      // Keep 10 monitoring results
 static const int premiumHistoryLimit = 50;   // Keep 50 for premium
 
@@ -288,7 +288,7 @@ class MyProvider extends ChangeNotifier {
 
 ### Production vs Dev
 - **Native files**: `android/app/google-services.json`, `ios/Runner/GoogleService-Info.plist`
-- **Currently**: ALL point to `sitecat-prod` (production Firebase project)
+- **Dart config**: Debug builds use `firebase_options_dev.dart` (development Firebase project), release/profile builds use `firebase_options_prod.dart` (production Firebase project), selected automatically via `kReleaseMode` in `lib/firebase_options.dart`
 - **CI workaround**: Uses `lib/firebase_options.dart.example` for CI builds
 
 ### Security Rules
