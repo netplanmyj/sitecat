@@ -5,7 +5,10 @@ import '../models/site.dart';
 import '../services/monitoring_service.dart';
 
 class MonitoringProvider extends ChangeNotifier {
-  final MonitoringService _monitoringService = MonitoringService();
+  MonitoringProvider({MonitoringService? monitoringService})
+    : _monitoringService = monitoringService ?? MonitoringService();
+
+  final MonitoringService _monitoringService;
   bool _isDemoMode = false;
   bool _hasLifetimeAccess = false;
 
