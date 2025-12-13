@@ -18,7 +18,7 @@ lib/
 │   ├── site_service.dart              # Firestore CRUD, URL validation
 │   ├── monitoring_service.dart        # HTTP health checks (10s timeout)
 │   ├── subscription_service.dart      # StoreKit 2 IAP, premium status
-│   ├── cooldown_service.dart          # Rate limiting (30s between checks)
+│   ├── cooldown_service.dart          # Rate limiting (10s between checks)
 │   └── link_checker/                  # Modular split (8 files)
 │       ├── scan_orchestrator.dart     # Isolate-based orchestration
 │       ├── sitemap_parser.dart        # XML/HTML parsing
@@ -164,7 +164,7 @@ Future<List<Site>> loadSites() => ... // Works but requires manual refresh
 ### 3. Cooldown & Rate Limiting (Always via CooldownService)
 ```dart
 // Service-level rate limiting
-static const Duration checkInterval = Duration(seconds: 30);  // Minimum time between checks
+static const Duration checkInterval = Duration(seconds: 10);  // Minimum time between checks
 
 // Provider checks before allowing action
 Duration? getTimeUntilNextCheck(String siteId) {
@@ -187,7 +187,7 @@ ElevatedButton(
 ### 4. Premium Feature Gates (via SubscriptionProvider)
 ```dart
 // Constants defined in AppConstants
-static const int freePlanSiteLimit = 5;      // Free users can add 5 sites
+static const int freePlanSiteLimit = 3;      // Free users can add 3 sites
 static const int premiumSiteLimit = 30;      // Premium: unlimited (high limit)
 static const int freeHistoryLimit = 10;      // Keep 10 monitoring results
 static const int premiumHistoryLimit = 50;   // Keep 50 for premium
@@ -212,19 +212,32 @@ void setHistoryLimit(bool isPremium) {
 
 **Orchestration**: `scan_orchestrator.dart` manages Isolate-based background processing for site scans.
 
-**Key Pattern**: Scan can be paused/resumed via `lastScannedPageIndex` persistence:
+**Key Pattern**: Scan can be paused/resumed by persisting `lastScannedPageIndex` on the `Site` model and using the `continueFromLastScan` parameter in `checkSiteLinks`:
 ```dart
-// Provider stores state
-int _lastScannedPageIndex = 0;
-LinkCheckResult? _currentResult;
+// Site model stores last scanned page index
+class Site {
+  int lastScannedPageIndex;
+  // ... other fields ...
+}
 
-// Service preserves index
-Future<LinkCheckResult> resumeScan(String siteId, int lastPageIndex) async {
-  // Continue from lastPageIndex instead of starting over
-  for (int i = lastPageIndex; i < totalPages; i++) {
-    // Process page i, update result
-    await result.updateScannedPageIndex(i);
+// Provider triggers scan, passing lastScannedPageIndex
+Future<void> startOrResumeScan(Site site) async {
+  await linkCheckerService.checkSiteLinks(
+    siteId: site.id,
+    continueFromLastScan: site.lastScannedPageIndex,
+  );
+}
+
+// Service method continues scan from last index
+Future<LinkCheckResult> checkSiteLinks({
+  required String siteId,
+  required int continueFromLastScan,
+}) async {
+  for (int i = continueFromLastScan; i < totalPages; i++) {
+    // Process page i
+    // Update lastScannedPageIndex in Site model as needed
   }
+  // Return result
 }
 ```
 
@@ -424,13 +437,16 @@ Map<String, dynamic> toFirestore() {
 ### Key Constants Location
 All magic numbers/strings live in `lib/constants/app_constants.dart`:
 ```dart
-static const int freePlanSiteLimit = 5;
+static const int freePlanSiteLimit = 3;
 static const int premiumSiteLimit = 30;
 static const int freeHistoryLimit = 10;
 static const int premiumHistoryLimit = 50;
-static const Duration defaultCooldownDuration = Duration(seconds: 30);
 ```
 Never hardcode these values - always reference the constant.
+
+**Note**: Cooldown intervals are defined in providers:
+- `MonitoringProvider.minimumCheckInterval`: 10 seconds
+- `LinkCheckerProvider.defaultCooldown`: 10 seconds
 
 ### Error Handling Pattern
 Providers catch service errors and convert to user-facing messages:
