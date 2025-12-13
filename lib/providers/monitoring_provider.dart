@@ -2,13 +2,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/monitoring_result.dart';
 import '../models/site.dart';
+import '../services/cooldown_service.dart';
 import '../services/monitoring_service.dart';
 
 class MonitoringProvider extends ChangeNotifier {
-  MonitoringProvider({MonitoringService? monitoringService})
-    : _monitoringService = monitoringService ?? MonitoringService();
+  MonitoringProvider({
+    MonitoringService? monitoringService,
+    CooldownService? cooldownService,
+  }) : _monitoringService = monitoringService ?? MonitoringService(),
+       _cooldownService = cooldownService ?? CooldownService();
 
   final MonitoringService _monitoringService;
+  final CooldownService _cooldownService;
   bool _isDemoMode = false;
   bool _hasLifetimeAccess = false;
 
@@ -20,7 +25,6 @@ class MonitoringProvider extends ChangeNotifier {
   // State variables
   final Map<String, List<MonitoringResult>> _resultsBySite = {};
   final Map<String, bool> _isChecking = {};
-  final Map<String, DateTime> _lastCheckTime = {};
   final Map<String, int?> _sitemapStatusCache =
       {}; // Cache for sitemap status code
   String? _error;
@@ -127,22 +131,12 @@ class MonitoringProvider extends ChangeNotifier {
 
   /// Check if a site can be checked (respects minimum interval)
   bool canCheckSite(String siteId) {
-    final lastCheck = _lastCheckTime[siteId];
-    if (lastCheck == null) return true;
-
-    final timeSinceLastCheck = DateTime.now().difference(lastCheck);
-    return timeSinceLastCheck >= minimumCheckInterval;
+    return _cooldownService.canPerformAction(siteId);
   }
 
   /// Get remaining time until next check is allowed
   Duration? getTimeUntilNextCheck(String siteId) {
-    final lastCheck = _lastCheckTime[siteId];
-    if (lastCheck == null) return null;
-
-    final timeSinceLastCheck = DateTime.now().difference(lastCheck);
-    final remaining = minimumCheckInterval - timeSinceLastCheck;
-
-    return remaining.isNegative ? null : remaining;
+    return _cooldownService.getTimeUntilNextCheck(siteId);
   }
 
   /// Perform a manual check on a site
@@ -182,8 +176,8 @@ class MonitoringProvider extends ChangeNotifier {
         cacheSitemapStatus(site.id, result.sitemapStatusCode);
       }
 
-      // Record check time
-      _lastCheckTime[site.id] = DateTime.now();
+      // Start cooldown period
+      _cooldownService.startCooldown(site.id, minimumCheckInterval);
 
       _setChecking(site.id, false);
       return true;

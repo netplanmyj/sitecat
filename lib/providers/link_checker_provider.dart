@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import '../models/broken_link.dart';
 import '../models/site.dart';
+import '../services/cooldown_service.dart';
 import '../services/link_checker_service.dart';
 import '../services/site_service.dart';
 import '../services/demo_service.dart';
@@ -14,6 +15,7 @@ enum LinkCheckState { idle, checking, completed, error }
 class LinkCheckerProvider extends ChangeNotifier {
   final LinkCheckerClient _linkCheckerService;
   final SiteUpdater _siteService;
+  final CooldownService _cooldownService;
   final Logger _logger = Logger();
   bool _isDemoMode = false;
   bool _hasLifetimeAccess = false;
@@ -29,7 +31,6 @@ class LinkCheckerProvider extends ChangeNotifier {
   final Map<String, String> _errors = {};
   final Map<String, int> _checkedCounts = {};
   final Map<String, int> _totalCounts = {};
-  final Map<String, DateTime> _cooldownUntil = {};
   final Map<String, List<LinkCheckResult>> _checkHistory = {};
   final Map<String, bool> _isProcessingExternalLinks = {};
   final Map<String, int> _externalLinksChecked = {};
@@ -47,8 +48,10 @@ class LinkCheckerProvider extends ChangeNotifier {
   LinkCheckerProvider({
     LinkCheckerClient? linkCheckerService,
     SiteUpdater? siteService,
+    CooldownService? cooldownService,
   }) : _linkCheckerService = linkCheckerService ?? LinkCheckerService(),
-       _siteService = siteService ?? SiteService();
+       _siteService = siteService ?? SiteService(),
+       _cooldownService = cooldownService ?? CooldownService();
 
   /// Update premium status and configure service accordingly
   // TODO(#210): Security - Move premium limit enforcement to backend
@@ -166,15 +169,13 @@ class LinkCheckerProvider extends ChangeNotifier {
 
   /// Trigger cooldown for a site (used after any scan-related action)
   void _startCooldown(String siteId, {Duration? duration}) {
-    _cooldownUntil[siteId] = DateTime.now().add(duration ?? defaultCooldown);
+    _cooldownService.startCooldown(siteId, duration ?? defaultCooldown);
     notifyListeners();
   }
 
   /// Check if a site is currently in cooldown window
   bool isInCooldown(String siteId) {
-    final cooldownUntil = _cooldownUntil[siteId];
-    if (cooldownUntil == null) return false;
-    return DateTime.now().isBefore(cooldownUntil);
+    return !_cooldownService.canPerformAction(siteId);
   }
 
   /// Check if a site can be checked (respects cooldown window)
@@ -184,11 +185,7 @@ class LinkCheckerProvider extends ChangeNotifier {
 
   /// Get remaining time until next check is allowed
   Duration? getTimeUntilNextCheck(String siteId) {
-    final cooldownUntil = _cooldownUntil[siteId];
-    if (cooldownUntil == null) return null;
-
-    final remaining = cooldownUntil.difference(DateTime.now());
-    return remaining.isNegative ? null : remaining;
+    return _cooldownService.getTimeUntilNextCheck(siteId);
   }
 
   /// Get pre-calculated target page count for a site
