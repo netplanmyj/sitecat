@@ -4,6 +4,7 @@ import '../../providers/site_provider.dart';
 import '../../screens/site_form_screen.dart';
 import '../../screens/site_detail_screen.dart';
 import '../../models/site.dart';
+import '../../utils/dialogs.dart';
 import '../common/empty_state.dart';
 import 'site_card.dart';
 
@@ -157,33 +158,21 @@ class _MySitesSectionState extends State<MySitesSection> {
     Site site,
     SiteProvider siteProvider,
   ) {
-    // Capture context before async operation to avoid using it after async gap
     final scaffoldMessenger = ScaffoldMessenger.of(context);
-    showDialog(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: const Text('Delete Site'),
-        content: Text('Are you sure you want to delete "${site.name}"?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () async {
-              Navigator.of(dialogContext).pop();
-              final success = await siteProvider.deleteSite(site.id);
-              if (success && mounted) {
-                scaffoldMessenger.showSnackBar(
-                  SnackBar(content: Text('${site.name} deleted')),
-                );
-              }
-            },
-            style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Delete'),
-          ),
-        ],
-      ),
-    );
+    Dialogs.confirm(
+      context,
+      title: 'Delete Site',
+      message: 'Are you sure you want to delete "${site.name}"?',
+      okText: 'Delete',
+      cancelText: 'Cancel',
+    ).then((confirmed) async {
+      if (!confirmed) return;
+      final success = await siteProvider.deleteSite(site.id);
+      if (success && mounted) {
+        scaffoldMessenger.showSnackBar(
+          SnackBar(content: Text('${site.name} deleted')),
+        );
+      }
+    });
   }
 }

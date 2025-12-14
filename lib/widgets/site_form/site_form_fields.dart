@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../providers/site_provider.dart';
+import '../../utils/validation.dart';
 
 /// Form fields for site registration/editing
 class SiteFormFields {
@@ -99,25 +100,7 @@ class SiteFormFields {
                 helperText: 'Full URL or relative path (e.g., sitemap.xml)',
                 helperMaxLines: 2,
               ),
-              validator: (value) {
-                // Optional field - only validate if not empty
-                if (value == null || value.trim().isEmpty) {
-                  return null;
-                }
-
-                // Allow relative paths (e.g., "sitemap.xml" or "/sitemap.xml")
-                if (!value.startsWith('http://') &&
-                    !value.startsWith('https://')) {
-                  return null; // Relative path is valid
-                }
-
-                // For full URLs, validate structure
-                final uri = Uri.tryParse(value);
-                if (uri == null || !uri.hasScheme || uri.host.isEmpty) {
-                  return 'Please enter a valid URL';
-                }
-                return null;
-              },
+              validator: Validation.sitemapInput,
               keyboardType: TextInputType.url,
               textInputAction: TextInputAction.next,
             ),

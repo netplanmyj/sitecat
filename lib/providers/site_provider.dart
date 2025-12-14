@@ -4,6 +4,7 @@ import '../models/site.dart';
 import '../services/site_service.dart';
 import '../services/demo_service.dart';
 import '../constants/app_constants.dart';
+import '../utils/validation.dart';
 
 class SiteProvider extends ChangeNotifier {
   SiteProvider({SiteService? siteService})
@@ -234,60 +235,15 @@ class SiteProvider extends ChangeNotifier {
 
   // Validate site form inputs
   String? validateSiteName(String? name) {
-    if (name == null || name.trim().isEmpty) {
-      return 'Site name is required';
-    }
-    if (name.trim().length < 2) {
-      return 'Site name must be at least 2 characters';
-    }
-    if (name.trim().length > 50) {
-      return 'Site name must be less than 50 characters';
-    }
-    return null;
+    return Validation.siteName(name);
   }
 
   String? validateSiteUrl(String? url, {String? excludeSiteId}) {
-    if (url == null || url.trim().isEmpty) {
-      return 'URL is required';
-    }
-
-    // Basic URL validation
-    try {
-      final uri = Uri.parse(url.trim());
-      if (!uri.hasScheme) {
-        return 'URL must include http:// or https://';
-      }
-      if (uri.scheme != 'http' && uri.scheme != 'https') {
-        return 'URL must use http or https protocol';
-      }
-      if (uri.host.isEmpty) {
-        return 'Invalid URL format';
-      }
-    } catch (e) {
-      return 'Invalid URL format';
-    }
-
-    return null;
+    return Validation.siteUrl(url);
   }
 
   String? validateCheckInterval(String? interval) {
-    if (interval == null || interval.trim().isEmpty) {
-      return 'Check interval is required';
-    }
-
-    final value = int.tryParse(interval);
-    if (value == null) {
-      return 'Check interval must be a number';
-    }
-    if (value < 5) {
-      return 'Check interval must be at least 5 minutes';
-    }
-    if (value > 1440) {
-      // 24 hours
-      return 'Check interval cannot exceed 24 hours (1440 minutes)';
-    }
-
-    return null;
+    return Validation.checkInterval(interval);
   }
 
   // Helper methods for state management

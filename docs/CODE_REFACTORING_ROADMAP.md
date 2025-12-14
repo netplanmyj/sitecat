@@ -1,8 +1,8 @@
 # Code Refactoring Roadmap
 
 **Document Version**: v1.0  
-**Last Updated**: December 11, 2025  
-**Status**: Active Planning
+**Last Updated**: December 14, 2025  
+**Status**: Active Planning (with progress updates)
 
 ---
 
@@ -180,6 +180,17 @@ mixin CacheableProvider on ChangeNotifier {
 **GitHub Issue**: #270 - Standardize service error handling
 
 ---
+
+## ✅ Progress Update (2025-12-14)
+
+- [x] Copilot contribution guidelines added and merged (PR #278)
+- [x] Validation utils centralized (`lib/utils/validation.dart`) and applied in `SiteProvider` and `SiteFormFields`
+- [ ] Common dialog helpers/widgets extraction (in progress under `refactor/phase2-utils-and-dialogs-276`)
+- [ ] Update callers to use dialog helpers
+
+Notes:
+- Validation logic is now unified, reducing duplication and ensuring consistent messages.
+- Dialog pattern work is planned as part of Phase 2 and will proceed next.
 
 ## 📦 Phase 3: Large File Refactoring (HIGH)
 

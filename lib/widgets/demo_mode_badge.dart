@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/auth_provider.dart';
+import '../utils/dialogs.dart';
 
 /// Demo mode badge widget displayed at the top of the screen
 class DemoModeBadge extends StatelessWidget {
@@ -52,27 +53,17 @@ class DemoModeBadge extends StatelessWidget {
   }
 
   void _showExitDemoDialog(BuildContext context, AuthProvider authProvider) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Exit Demo Mode'),
-        content: const Text(
+    Dialogs.confirm(
+      context,
+      title: 'Exit Demo Mode',
+      message:
           'Are you sure you want to exit demo mode? You will be returned to the login screen.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              authProvider.exitDemoMode();
-            },
-            child: const Text('Exit'),
-          ),
-        ],
-      ),
-    );
+      okText: 'Exit',
+      cancelText: 'Cancel',
+    ).then((confirmed) {
+      if (confirmed) {
+        authProvider.exitDemoMode();
+      }
+    });
   }
 }

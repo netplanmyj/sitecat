@@ -174,3 +174,16 @@ Core services (MonitoringService, AuthService) lack test coverage, making debugg
 4. Move to Phase 2 once Phase 1 is complete
 
 See [CODE_REFACTORING_ROADMAP.md](./CODE_REFACTORING_ROADMAP.md) for complete roadmap.
+
+---
+
+## Progress Update (2025-12-14)
+
+- [x] Copilot contribution guidelines added and merged (PR #278)
+- [x] Validation utils centralized (`lib/utils/validation.dart`) and integrated in `SiteProvider` and `SiteFormFields`
+- [ ] Common dialog helpers/widgets extraction (in progress under `refactor/phase2-utils-and-dialogs-276`)
+- [ ] Update callers to use dialog helpers
+
+Notes:
+- Validation logic unified to reduce duplication and improve consistency.
+- Dialog pattern extraction is tracked in Phase 2 Task 2.3 and will proceed next.
