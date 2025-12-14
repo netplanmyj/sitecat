@@ -512,9 +512,12 @@ class LinkCheckerProvider extends ChangeNotifier {
         limit: limit,
       );
 
-      for (final result in results) {
-        _cache.addToHistory(result.siteId, result);
-      }
+      // Convert List<LinkCheckResult> to List<({String siteId, LinkCheckResult checkResult})>
+      _cache.setAllHistory(
+        results
+            .map((result) => (siteId: result.siteId, checkResult: result))
+            .toList(),
+      );
 
       notifyListeners();
     } catch (e) {

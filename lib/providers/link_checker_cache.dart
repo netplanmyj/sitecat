@@ -65,24 +65,61 @@ class LinkCheckerCache {
     return _allCheckHistory.take(limit).toList();
   }
 
-  /// Load check history from Firestore (simulated - actual Firestore call in Provider)
-  /// This method prepares cache for loaded data
+  /// Set check history for a specific site, replacing existing history atomically
+  /// Keeps global history in sync
   void setHistory(String siteId, List<LinkCheckResult> results) {
     _checkHistory[siteId] = results;
+    // Remove old entries for this site from global history
+    _allCheckHistory.removeWhere((item) => item.siteId == siteId);
+    // Add new entries for this site to global history (most recent first)
+    for (final result in results) {
+      _allCheckHistory.add((siteId: siteId, result: result));
+    }
     _logger.d('Loaded ${results.length} history items for $siteId');
   }
 
-  /// Delete a specific result from history
+  /// Set global history across all sites, replacing existing history atomically
+  void setAllHistory(
+    List<({String siteId, LinkCheckResult checkResult})> results,
+  ) {
+    _allCheckHistory.clear();
+    _allCheckHistory.addAll(
+      results
+          .map((item) => (siteId: item.siteId, result: item.checkResult))
+          .toList(),
+    );
+    _logger.d('Loaded ${results.length} global history items');
+  }
+
+  /// Delete a specific result from history and caches
   void deleteResult(String siteId, String resultId) {
+    // Remove from site-specific history
     if (_checkHistory.containsKey(siteId)) {
       _checkHistory[siteId]!.removeWhere((result) => result.id == resultId);
       _logger.d('Deleted result $resultId from $siteId history');
     }
 
-    // Also remove from global history
+    // Remove from global history
     _allCheckHistory.removeWhere(
       (item) => item.siteId == siteId && item.result.id == resultId,
     );
+
+    // Remove from result cache if the cached result matches the resultId
+    if (_resultCache.containsKey(siteId)) {
+      final cachedResult = _resultCache[siteId];
+      if (cachedResult != null && cachedResult.id == resultId) {
+        _resultCache.remove(siteId);
+        _logger.d('Removed result $resultId from result cache for $siteId');
+      }
+    }
+
+    // Remove from broken links cache if the result was deleted
+    if (!_resultCache.containsKey(siteId)) {
+      _brokenLinksCache.remove(siteId);
+      _logger.d(
+        'Removed broken links cache for $siteId due to result deletion',
+      );
+    }
   }
 
   /// Set the current sitemap status code for a site

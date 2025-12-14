@@ -88,10 +88,9 @@ void main() {
         expect(cache.getResult(siteId), isNotNull);
 
         cache.deleteResult(siteId, resultId);
-        // After deletion, the result should still be cached but removed from history
-        // getResult still returns it because it's the current result
+        // After deletion, the cached result should be removed if it matches the resultId
         final resultAfterDelete = cache.getResult(siteId);
-        expect(resultAfterDelete, isNotNull);
+        expect(resultAfterDelete, isNull);
       });
     });
 
@@ -274,6 +273,61 @@ void main() {
         expect(stats['resultCacheSize'], 2);
         expect(stats['checkHistorySize'], 1);
         expect(stats['sitemapStatusCodeSize'], 1);
+      });
+    });
+
+    // setHistory and setAllHistory Tests
+    group('Set History Methods', () {
+      test(
+        'setHistory replaces history atomically and syncs global history',
+        () {
+          const String siteId = 'site-1';
+          final result1 = _createTestResult(id: 'check-1', siteId: siteId);
+          final result2 = _createTestResult(id: 'check-2', siteId: siteId);
+          final result3 = _createTestResult(id: 'check-3', siteId: siteId);
+
+          // Add initial history
+          cache.addToHistory(siteId, result1);
+
+          // Set new history atomically
+          cache.setHistory(siteId, [result2, result3]);
+
+          final siteHistory = cache.getHistory(siteId);
+          final globalHistory = cache.getAllHistory();
+
+          // Check site history is replaced
+          expect(siteHistory, hasLength(2));
+          expect(siteHistory[0].id, 'check-2');
+          expect(siteHistory[1].id, 'check-3');
+
+          // Check global history is updated (should have only new entries)
+          expect(globalHistory, hasLength(2));
+          expect(
+            globalHistory.where((item) => item.siteId == siteId),
+            hasLength(2),
+          );
+        },
+      );
+
+      test('setAllHistory replaces global history atomically', () {
+        final result1 = _createTestResult(id: 'check-1', siteId: 'site-1');
+        final result2 = _createTestResult(id: 'check-2', siteId: 'site-2');
+        final result3 = _createTestResult(id: 'check-3', siteId: 'site-3');
+
+        cache.addToHistory('site-1', result1);
+        cache.addToHistory('site-2', result2);
+
+        // Set new global history atomically
+        cache.setAllHistory([
+          (siteId: 'site-1', checkResult: result1),
+          (siteId: 'site-3', checkResult: result3),
+        ]);
+
+        final globalHistory = cache.getAllHistory();
+
+        expect(globalHistory, hasLength(2));
+        expect(globalHistory[0].siteId, 'site-1');
+        expect(globalHistory[1].siteId, 'site-3');
       });
     });
   });
