@@ -9,15 +9,17 @@
 
 ## リファクタリング対象ファイル一覧
 
-**優先度順（2025年12月6日時点）**:
+**優先度順（2025年12月14日更新）**:
 
 | 優先度 | ファイル | 行数 | ステータス | Issue |
 |--------|---------|------|-----------|-------|
 | ✅ | lib/services/link_checker_service.dart | 295 | Phase 7完了 | #212 |
+| ✅ | lib/providers/link_checker_provider.dart | 539→3分割 | Phase 3完了 | #271, #282 |
+| 🟢 | lib/screens/profile_screen.dart | 426 | 最適化済み（実施不要） | - |
 | 🟡 | lib/screens/site_form_screen.dart | 780 | 未着手 | #220予定 |
-| 🟢 | lib/screens/profile_screen.dart | 426 | 未着手 | - |
-| 🟢 | lib/providers/link_checker_provider.dart | 414 | 未着手 | - |
-| 🟢 | lib/widgets/site_detail/full_scan_section.dart | 405 | 未着手 | - |
+| 🟢 | lib/widgets/site_detail/full_scan_section.dart | 405 | 監視対象 | - |
+
+**テストカバレッジ**: 409テスト（2025年12月14日時点）
 
 ---
 
