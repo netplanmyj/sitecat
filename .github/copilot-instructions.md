@@ -3,7 +3,7 @@
 ## Project Overview
 SiteCat is an iOS-first Flutter app for website monitoring and broken link detection. It uses Firebase for backend (Auth, Firestore, Functions) and implements a freemium IAP model (¥1,200 lifetime).
 
-**Current Status**: v1.0.8 (Build 76) - App Store live in 175 countries, 168 tests passing
+**Current Status**: v1.0.8 (Build 76) - App Store live in 175 countries, 409 tests passing
 
 ## Architecture Overview: Provider Pattern + Modular Services
 
