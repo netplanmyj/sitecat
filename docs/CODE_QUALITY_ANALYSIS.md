@@ -1,8 +1,8 @@
 # Code Quality Analysis Report
 
-**Date:** December 11, 2025  
+**Date:** December 14, 2025  
 **Version:** v1.0  
-**Status:** Active Analysis
+**Status:** Active Analysis (with progress markers)
 
 ---
 
@@ -133,12 +133,18 @@ final Map<String, List<LinkCheckResult>> _checkHistory = {};
 ## 🔧 Refactoring Priorities
 
 ### **Phase 1: TEST COVERAGE (Week 1-2, CRITICAL)**
-1. ✅ Add tests for `site_provider.dart` (~300 lines of tests)
-2. ✅ Add tests for `monitoring_provider.dart` (~250 lines)
-3. ✅ Add model tests (Site, BrokenLink, etc.) (~200 lines)
+1. ⏳ Add tests for `site_provider.dart` (~300 lines of tests)
+2. ⏳ Add tests for `monitoring_provider.dart` (~250 lines)
+3. ⏳ Add model tests (Site, BrokenLink, etc.) (~200 lines)
 4. ⏳ **Result**: 750+ new test lines, 50%+ coverage for critical modules
 
 ### **Phase 2: DUPLICATE CODE REMOVAL (Week 2-3, HIGH)**
+
+**Progress:**
+- [x] Centralize validation logic (`lib/utils/validation.dart`), refactor `SiteProvider` and `SiteFormFields`
+- [x] Extract common dialog helpers/widgets (`lib/utils/dialogs.dart`) and refactor key callers
+
+**Tasks:**
 1. **Merge History Screens** (~350 lines saved)
    - Create `BaseHistoryScreen<T>` 
    - Reduce duplication from 359+359 → 200+50+50
