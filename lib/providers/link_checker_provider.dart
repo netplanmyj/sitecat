@@ -7,6 +7,8 @@ import '../services/link_checker_service.dart';
 import '../services/site_service.dart';
 import '../services/demo_service.dart';
 import '../utils/url_utils.dart';
+import 'link_checker_cache.dart';
+import 'link_checker_progress.dart';
 
 /// State for link checking operation
 enum LinkCheckState { idle, checking, completed, error }
@@ -16,6 +18,8 @@ class LinkCheckerProvider extends ChangeNotifier {
   final LinkCheckerClient _linkCheckerService;
   final SiteUpdater _siteService;
   final CooldownService _cooldownService;
+  final LinkCheckerCache _cache;
+  final LinkCheckerProgress _progress;
   final Logger _logger = Logger();
   bool _isDemoMode = false;
   bool _hasLifetimeAccess = false;
@@ -24,34 +28,21 @@ class LinkCheckerProvider extends ChangeNotifier {
   // Unified to 10 seconds to match MonitoringProvider's minimumCheckInterval (#256)
   static const Duration defaultCooldown = Duration(seconds: 10);
 
-  // State variables
+  // State variables (UI state only - cache and progress delegated to separate classes)
   final Map<String, LinkCheckState> _checkStates = {};
-  final Map<String, LinkCheckResult?> _resultCache = {};
-  final Map<String, List<BrokenLink>> _brokenLinksCache = {};
   final Map<String, String> _errors = {};
-  final Map<String, int> _checkedCounts = {};
-  final Map<String, int> _totalCounts = {};
-  final Map<String, List<LinkCheckResult>> _checkHistory = {};
-  final Map<String, bool> _isProcessingExternalLinks = {};
-  final Map<String, int> _externalLinksChecked = {};
-  final Map<String, int> _externalLinksTotal = {};
-  final Map<String, int?> _currentSitemapStatusCode = {};
-  final Map<String, bool> _cancelRequested = {};
-  final Map<String, int?> _precalculatedPageCounts =
-      {}; // Cache for pre-calculated target page counts
-
-  // All results across sites
-  List<({String siteId, LinkCheckResult result})> _allCheckHistory = [];
-
-  // Getters
 
   LinkCheckerProvider({
     LinkCheckerClient? linkCheckerService,
     SiteUpdater? siteService,
     CooldownService? cooldownService,
+    LinkCheckerCache? cache,
+    LinkCheckerProgress? progress,
   }) : _linkCheckerService = linkCheckerService ?? LinkCheckerService(),
        _siteService = siteService ?? SiteService(),
-       _cooldownService = cooldownService ?? CooldownService();
+       _cooldownService = cooldownService ?? CooldownService(),
+       _cache = cache ?? LinkCheckerCache(),
+       _progress = progress ?? LinkCheckerProgress();
 
   /// Update premium status and configure service accordingly
   // TODO(#210): Security - Move premium limit enforcement to backend
@@ -78,7 +69,7 @@ class LinkCheckerProvider extends ChangeNotifier {
       final results = DemoService.getLinkCheckResults(siteId);
       return results.isNotEmpty ? results.first : null;
     }
-    return _resultCache[siteId];
+    return _cache.getResult(siteId);
   }
 
   /// Get cached broken links for a site
@@ -86,7 +77,7 @@ class LinkCheckerProvider extends ChangeNotifier {
     if (_isDemoMode) {
       return DemoService.getBrokenLinks(siteId);
     }
-    return _brokenLinksCache[siteId] ?? [];
+    return _cache.getBrokenLinks(siteId);
   }
 
   /// Initialize with demo mode flag
@@ -101,37 +92,37 @@ class LinkCheckerProvider extends ChangeNotifier {
 
   /// Get progress for a site (returns checked/total)
   (int checked, int total) getProgress(String siteId) {
-    return (_checkedCounts[siteId] ?? 0, _totalCounts[siteId] ?? 0);
+    return (_progress.getCheckedCount(siteId), _progress.getTotalCount(siteId));
   }
 
   /// Check if external links are being processed
   bool isProcessingExternalLinks(String siteId) {
-    return _isProcessingExternalLinks[siteId] ?? false;
+    return _progress.isProcessingExternalLinks(siteId);
   }
 
   /// Get external links checking progress (returns checked/total)
   (int checked, int total) getExternalLinksProgress(String siteId) {
     return (
-      _externalLinksChecked[siteId] ?? 0,
-      _externalLinksTotal[siteId] ?? 0,
+      _progress.getExternalLinksChecked(siteId),
+      _progress.getExternalLinksTotal(siteId),
     );
   }
 
   /// Get current sitemap status code (updated in real-time during scan)
   int? getCurrentSitemapStatusCode(String siteId) {
-    return _currentSitemapStatusCode[siteId];
+    return _cache.getSitemapStatusCode(siteId);
   }
 
   /// Request cancellation of ongoing scan
   void cancelScan(String siteId) {
-    _cancelRequested[siteId] = true;
+    _progress.setCancelRequested(siteId, true);
     _startCooldown(siteId);
     notifyListeners();
   }
 
   @visibleForTesting
   void setCheckedCounts(String siteId, int value) {
-    _checkedCounts[siteId] = value;
+    _progress.setCheckedCount(siteId, value);
   }
 
   @visibleForTesting
@@ -139,7 +130,7 @@ class LinkCheckerProvider extends ChangeNotifier {
     required Site site,
     required String siteId,
   }) async {
-    final currentProgress = _checkedCounts[siteId] ?? 0;
+    final currentProgress = _progress.getCheckedCount(siteId);
     if (currentProgress <= 0) {
       return; // Nothing to save
     }
@@ -159,7 +150,7 @@ class LinkCheckerProvider extends ChangeNotifier {
 
   /// Check if cancellation was requested for a site
   bool isCancelRequested(String siteId) {
-    return _cancelRequested[siteId] ?? false;
+    return _progress.isCancelRequested(siteId);
   }
 
   /// Check if a site is currently being checked
@@ -196,7 +187,7 @@ class LinkCheckerProvider extends ChangeNotifier {
       // This would typically be a constant for demo sites
       return null; // or return a demo value
     }
-    return _precalculatedPageCounts[siteId];
+    return _progress.getPrecalculatedPageCount(siteId);
   }
 
   /// Pre-calculate the total page count for a site by loading its sitemap
@@ -214,7 +205,7 @@ class LinkCheckerProvider extends ChangeNotifier {
 
       if (pageCount != null && pageCount > 0) {
         // Cache the result
-        _precalculatedPageCounts[site.id] = pageCount;
+        _progress.setPrecalculatedPageCount(site.id, pageCount);
         notifyListeners();
       }
 
@@ -229,13 +220,13 @@ class LinkCheckerProvider extends ChangeNotifier {
   /// Clear the cached pre-calculated page count for a site.
   /// Should be called after the site's configuration (e.g., excludedPaths) changes.
   void clearPrecalculatedPageCount(String siteId) {
-    _precalculatedPageCounts.remove(siteId);
+    _progress.clearPrecalculatedPageCount(siteId);
     notifyListeners();
   }
 
   /// Get check history for a site
   List<LinkCheckResult> getCheckHistory(String siteId) {
-    return _checkHistory[siteId] ?? [];
+    return _cache.getHistory(siteId);
   }
 
   /// Load check history from Firestore
@@ -245,7 +236,9 @@ class LinkCheckerProvider extends ChangeNotifier {
         siteId,
         limit: limit,
       );
-      _checkHistory[siteId] = results;
+      for (final result in results) {
+        _cache.addToHistory(siteId, result);
+      }
       notifyListeners();
     } catch (e) {
       _errors[siteId] = 'Failed to load check history: $e';
@@ -294,75 +287,76 @@ class LinkCheckerProvider extends ChangeNotifier {
     // Reset state
     _checkStates[siteId] = LinkCheckState.checking;
     _errors.remove(siteId);
-    _cancelRequested[siteId] = false; // Reset cancel flag
+    _progress.setCancelRequested(siteId, false); // Reset cancel flag
 
     // Store previous progress before potentially resetting
-    final previousChecked = _checkedCounts[siteId] ?? 0;
-    final previousTotal = _totalCounts[siteId] ?? 0;
+    final previousChecked = _progress.getCheckedCount(siteId);
+    final previousTotal = _progress.getTotalCount(siteId);
 
     // Reset progress counters for a fresh scan, but keep previous progress when continuing
     if (!continueFromLastScan) {
-      _checkedCounts[siteId] = 0;
+      _progress.setCheckedCount(siteId, 0);
       // Use precalculated page count if available to avoid recalculating sitemap
-      final precalculatedTotal = _precalculatedPageCounts[siteId];
-      _totalCounts[siteId] = precalculatedTotal ?? 0;
+      final precalculatedTotal = _progress.getPrecalculatedPageCount(siteId);
+      _progress.setTotalCount(siteId, precalculatedTotal ?? 0);
     } else {
       // Preserve existing progress to avoid flashing 0 on resume
       // Prefer pagesCompleted from cached result for accuracy
-      final latestResult = _resultCache[siteId];
-      _checkedCounts[siteId] =
-          latestResult?.pagesCompleted ??
-          latestResult?.pagesScanned ??
-          site.lastScannedPageIndex;
+      final latestResult = _cache.getResult(siteId);
+      _progress.setCheckedCount(
+        siteId,
+        latestResult?.pagesCompleted ??
+            latestResult?.pagesScanned ??
+            site.lastScannedPageIndex,
+      );
       // Use precalculated page count if available, otherwise let onProgress update it
-      final precalculatedTotal = _precalculatedPageCounts[siteId];
-      _totalCounts[siteId] = precalculatedTotal ?? 0;
+      final precalculatedTotal = _progress.getPrecalculatedPageCount(siteId);
+      _progress.setTotalCount(siteId, precalculatedTotal ?? 0);
     }
-    _isProcessingExternalLinks[siteId] = false;
-    _externalLinksChecked[siteId] = 0;
-    _externalLinksTotal[siteId] = 0;
+    _progress.setIsProcessingExternalLinks(siteId, false);
+    _progress.setExternalLinksProgress(siteId, 0, 0);
 
     notifyListeners();
 
     try {
       // Perform the link check with progress callback
       // Pass precalculated page count to optimize sitemap loading
-      final precalculatedTotal = _precalculatedPageCounts[siteId];
+      final precalculatedTotal = _progress.getPrecalculatedPageCount(siteId);
       final result = await _linkCheckerService.checkSiteLinks(
         site,
         checkExternalLinks: checkExternalLinks,
         continueFromLastScan: continueFromLastScan,
         precalculatedPageCount: precalculatedTotal,
         onProgress: (checked, total) {
-          _checkedCounts[siteId] = checked;
+          _progress.setCheckedCount(siteId, checked);
           // Only update total if it's different (sitemap might have changed)
-          if (total != _totalCounts[siteId]) {
-            _totalCounts[siteId] = total;
+          if (total != _progress.getTotalCount(siteId)) {
+            _progress.setTotalCount(siteId, total);
           }
 
           notifyListeners();
         },
         onExternalLinksProgress: (checked, total) {
-          _externalLinksChecked[siteId] = checked;
-          _externalLinksTotal[siteId] = total;
+          _progress.setExternalLinksProgress(siteId, checked, total);
 
           // Mark as processing links when this callback is first called
-          if (!(_isProcessingExternalLinks[siteId] ?? false)) {
-            _isProcessingExternalLinks[siteId] = true;
+          if (!_progress.isProcessingExternalLinks(siteId)) {
+            _progress.setIsProcessingExternalLinks(siteId, true);
           }
 
           notifyListeners();
         },
         onSitemapStatusUpdate: (statusCode) {
           // Update current sitemap status in real-time
-          _currentSitemapStatusCode[siteId] = statusCode;
+          _cache.setSitemapStatusCode(siteId, statusCode);
           notifyListeners();
         },
         shouldCancel: () => isCancelRequested(siteId),
       );
 
       // Cache the result
-      _resultCache[siteId] = result;
+      _cache.saveResult(siteId, result);
+      _cache.addToHistory(siteId, result);
 
       // Update state based on whether all pages were scanned
       // - If scanCompleted=true: Mark as LinkCheckState.completed (site scan done)
@@ -376,8 +370,8 @@ class LinkCheckerProvider extends ChangeNotifier {
 
       // Preserve final progress counts after completion (don't reset to 0)
       // This keeps the progress bar visible with final stats (#247, #262)
-      _checkedCounts[siteId] = result.pagesScanned;
-      _totalCounts[siteId] = result.totalPagesInSitemap;
+      _progress.setCheckedCount(siteId, result.pagesScanned);
+      _progress.setTotalCount(siteId, result.totalPagesInSitemap);
 
       // Keep progress display (don't reset _isProcessingExternalLinks)
       notifyListeners(); // Immediate UI update with scan results
@@ -387,7 +381,7 @@ class LinkCheckerProvider extends ChangeNotifier {
         final brokenLinks = await _linkCheckerService.getBrokenLinks(
           result.id!,
         );
-        _brokenLinksCache[siteId] = brokenLinks;
+        _cache.saveBrokenLinks(siteId, brokenLinks);
       }
 
       // Update site's lastScannedPageIndex
@@ -407,7 +401,10 @@ class LinkCheckerProvider extends ChangeNotifier {
       // Handle error - preserve the last known state for continue functionality
       _checkStates[siteId] = LinkCheckState.error;
       _errors[siteId] = e.toString();
-      _isProcessingExternalLinks[siteId] = false; // Reset flag on error
+      _progress.setIsProcessingExternalLinks(
+        siteId,
+        false,
+      ); // Reset flag on error
 
       // Save current progress on cancellation or error
       await saveProgressOnInterruption(site: site, siteId: siteId);
@@ -422,10 +419,10 @@ class LinkCheckerProvider extends ChangeNotifier {
       // - The scan fails immediately (currentProgress == 0)
       // - There was previous progress to display (previousChecked > 0)
       if (!continueFromLastScan && previousChecked > 0) {
-        final currentProgress = _checkedCounts[siteId] ?? 0;
+        final currentProgress = _progress.getCheckedCount(siteId);
         if (currentProgress == 0) {
-          _checkedCounts[siteId] = previousChecked;
-          _totalCounts[siteId] = previousTotal;
+          _progress.setCheckedCount(siteId, previousChecked);
+          _progress.setTotalCount(siteId, previousTotal);
         }
       }
 
@@ -443,14 +440,14 @@ class LinkCheckerProvider extends ChangeNotifier {
     try {
       final result = await _linkCheckerService.getLatestCheckResult(siteId);
       if (result != null) {
-        _resultCache[siteId] = result;
+        _cache.saveResult(siteId, result);
 
         // Also load broken links using resultId
         if (result.id != null) {
           final brokenLinks = await _linkCheckerService.getBrokenLinks(
             result.id!,
           );
-          _brokenLinksCache[siteId] = brokenLinks;
+          _cache.saveBrokenLinks(siteId, brokenLinks);
         }
 
         _checkStates[siteId] = LinkCheckState.completed;
@@ -471,10 +468,9 @@ class LinkCheckerProvider extends ChangeNotifier {
       await _linkCheckerService.deleteLinkCheckResult(resultId);
 
       // If this was the cached result, clear it and reload
-      final cachedResult = _resultCache[siteId];
+      final cachedResult = _cache.getResult(siteId);
       if (cachedResult?.id == resultId) {
-        _resultCache.remove(siteId);
-        _brokenLinksCache.remove(siteId);
+        _cache.deleteResult(siteId, resultId);
         // Try to load the next most recent result
         await loadLatestResult(siteId);
       }
@@ -491,25 +487,22 @@ class LinkCheckerProvider extends ChangeNotifier {
   void resetState(String siteId) {
     _checkStates.remove(siteId);
     _errors.remove(siteId);
-    _checkedCounts.remove(siteId);
-    _totalCounts.remove(siteId);
+    _progress.resetProgress(siteId);
     notifyListeners();
   }
 
   /// Clear all cached data
   void clearAllCache() {
     _checkStates.clear();
-    _resultCache.clear();
-    _brokenLinksCache.clear();
+    _cache.clearAllCaches();
     _errors.clear();
-    _checkedCounts.clear();
-    _totalCounts.clear();
+    _progress.clearAll();
     notifyListeners();
   }
 
   /// Get all check history across all sites
   List<({String siteId, LinkCheckResult result})> getAllCheckHistory() {
-    return _allCheckHistory;
+    return _cache.getAllHistory();
   }
 
   /// Load all check history from Firestore (across all sites)
@@ -519,9 +512,9 @@ class LinkCheckerProvider extends ChangeNotifier {
         limit: limit,
       );
 
-      _allCheckHistory = results
-          .map((result) => (siteId: result.siteId, result: result))
-          .toList();
+      for (final result in results) {
+        _cache.addToHistory(result.siteId, result);
+      }
 
       notifyListeners();
     } catch (e) {
@@ -537,10 +530,10 @@ class LinkCheckerProvider extends ChangeNotifier {
   ) async {
     try {
       // Check cache first
-      final cached = _brokenLinksCache[siteId];
-      if (cached != null && cached.isNotEmpty) {
+      final cached = _cache.getBrokenLinks(siteId);
+      if (cached.isNotEmpty) {
         // Verify if this is for the same result
-        final cachedResult = _resultCache[siteId];
+        final cachedResult = _cache.getResult(siteId);
         if (cachedResult?.id == resultId) {
           return cached;
         }
