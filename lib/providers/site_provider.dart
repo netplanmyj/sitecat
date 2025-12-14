@@ -238,7 +238,7 @@ class SiteProvider extends ChangeNotifier {
     return Validation.siteName(name);
   }
 
-  String? validateSiteUrl(String? url, {String? excludeSiteId}) {
+  String? validateSiteUrl(String? url) {
     return Validation.siteUrl(url);
   }
 

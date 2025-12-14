@@ -63,10 +63,7 @@ class SiteFormFields {
                 prefixIcon: Icon(Icons.link),
                 border: OutlineInputBorder(),
               ),
-              validator: (value) => siteProvider.validateSiteUrl(
-                value,
-                excludeSiteId: excludeSiteId,
-              ),
+              validator: (value) => siteProvider.validateSiteUrl(value),
               keyboardType: TextInputType.url,
               textInputAction: TextInputAction.next,
             ),

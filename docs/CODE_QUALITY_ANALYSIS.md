@@ -139,10 +139,12 @@ final Map<String, List<LinkCheckResult>> _checkHistory = {};
 4. ⏳ **Result**: 750+ new test lines, 50%+ coverage for critical modules
 
 ### **Phase 2: DUPLICATE CODE REMOVAL (Week 2-3, HIGH)**
-- [x] Centralize validation logic (`lib/utils/validation.dart`), refactor `SiteProvider` and `SiteFormFields`
-- [ ] Extract common dialog helpers/widgets (in progress)
 
-### **Phase 2: DUPLICATE CODE REMOVAL (Week 2-3, HIGH)**
+**Progress:**
+- [x] Centralize validation logic (`lib/utils/validation.dart`), refactor `SiteProvider` and `SiteFormFields`
+- [x] Extract common dialog helpers/widgets (`lib/utils/dialogs.dart`) and refactor key callers
+
+**Tasks:**
 1. **Merge History Screens** (~350 lines saved)
    - Create `BaseHistoryScreen<T>` 
    - Reduce duplication from 359+359 → 200+50+50
