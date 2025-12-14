@@ -60,34 +60,36 @@ link_checker_progress.dart      (139 lines) - Progress calculations
 
 ### Task 3.2: Extract ProfileScreen Widgets (HIGH)
 
-**File**: `lib/screens/profile_screen.dart` (426 lines)  
+**File**: `lib/screens/profile_screen.dart` (427 lines)  
+**Current Status**: Partially refactored - uses private widget classes that need to be made public
 **Current Issues**:
-- Multiple independent sections in one file
-- Each section has its own state management
-- Hard to test individual sections
+- Private widgets (`_ProfileCard`, `_PremiumUpgradeButton`, `_SignOutButton`, `_AccountSettingsSection`) are defined in the same file
+- Cannot be reused by other screens or tested independently
+- Makes the file harder to navigate despite good separation
 
 **Extraction Plan**:
 
-| Widget | Lines | Responsibility |
-|--------|-------|-----------------|
-| `UserProfileCard` | ~80 | Display user info, profile actions |
-| `SubscriptionSection` | ~100 | Subscription status, upgrade CTA |
-| `PreferencesSection` | ~90 | Settings toggles, preferences |
-| `AppInfoSection` | ~50 | App version, legal links, support |
-| Main `ProfileScreen` | ~106 | Coordinator, layout |
+| Widget | Current Location | Target Location | Responsibility |
+|--------|-----------------|-----------------|-----------------|
+| `_ProfileCard` | profile_screen.dart | `user_profile_card.dart` | Display user info, profile actions |
+| `_PremiumUpgradeButton` | profile_screen.dart | `premium_section.dart` | Subscription status, upgrade CTA |
+| `_SignOutButton` | profile_screen.dart | `sign_out_button.dart` | Sign out action |
+| `_AccountSettingsSection` | profile_screen.dart | `account_settings_section.dart` | Settings toggles, preferences |
+| Main `ProfileScreen` | profile_screen.dart | profile_screen.dart | Coordinator, layout |
 
-**Result**: Main screen becomes simpler, each section independently testable
+**Result**: Private widgets become public, reusable components; ProfileScreen remains the coordinator
 
 **Extraction Steps**:
-1. Create `widgets/profile/` folder
-2. Extract each section to its own widget file
-3. Update ProfileScreen to compose widgets
+1. Create `widgets/profile/` folder with 4 new files
+2. Move private classes to their own public widget files (rename from `_ClassName` to `ClassName`)
+3. Update ProfileScreen imports
 4. Add widget tests for each component
+5. Verify all tests pass
 
 **Tests Required**:
-- [ ] Each section renders correctly
+- [ ] Each widget renders correctly in isolation
 - [ ] Buttons trigger expected actions
-- [ ] State changes propagate
+- [ ] State changes propagate correctly
 
 **Estimated Effort**: 4-6 hours  
 **Priority**: 🟡 HIGH
@@ -96,7 +98,7 @@ link_checker_progress.dart      (139 lines) - Progress calculations
 
 ### Task 3.3: Refactor LinkCheckerService (MEDIUM)
 
-**File**: `lib/services/link_checker_service.dart` (452 lines)  
+**File**: `lib/services/link_checker_service.dart` (461 lines)  
 **Current Status**: Already modularized into 8 files in `link_checker/` folder  
 **Current Issues**:
 - Could benefit from clearer responsibility boundaries
@@ -208,62 +210,48 @@ class LinkCheckerProvider extends ChangeNotifier {
 ### ProfileScreen Analysis
 
 **Current Structure**:
+The current implementation (lib/screens/profile_screen.dart, 427 lines) is already a **StatelessWidget** that uses extracted private widget classes:
+
 ```dart
-class ProfileScreen extends StatefulWidget {
-  @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen> {
-  // User profile section (80 lines)
-  Widget _buildProfileCard() { ... }
-  
-  // Subscription section (100 lines)
-  Widget _buildSubscriptionSection() { ... }
-  
-  // Preferences section (90 lines)
-  Widget _buildPreferencesSection() { ... }
-  
-  // App info section (50 lines)
-  Widget _buildAppInfoSection() { ... }
-  
-  @override
-  Widget build(BuildContext context) {
-    return ListView(
-      children: [
-        _buildProfileCard(),
-        _buildSubscriptionSection(),
-        _buildPreferencesSection(),
-        _buildAppInfoSection(),
-      ],
-    );
-  }
-}
-```
-
-**Proposed Structure**:
-```
-lib/widgets/profile/
-├── user_profile_card.dart
-├── subscription_section.dart
-├── preferences_section.dart
-├── app_info_section.dart
-└── profile_screen.dart (simplified coordinator)
-
 class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      children: [
-        UserProfileCard(),
-        SubscriptionSection(),
-        PreferencesSection(),
-        AppInfoSection(),
-      ],
+    return Scaffold(
+      appBar: AppBar(title: const Text('Profile')),
+      body: SingleChildScrollView(
+        child: Column(
+          children: [
+            _ProfileCard(user: user),
+            _PremiumUpgradeButton(),
+            _SignOutButton(authProvider: authProvider),
+            _AccountSettingsSection(authProvider: authProvider),
+          ],
+        ),
+      ),
     );
   }
 }
+
+// Private widgets already exist:
+class _ProfileCard extends StatelessWidget { ... }
+class _PremiumUpgradeButton extends StatelessWidget { ... }
+class _SignOutButton extends StatelessWidget { ... }
+class _AccountSettingsSection extends StatelessWidget { ... }
 ```
+
+**Current Status**: 
+✅ **REFACTORING COMPLETE** - ProfileScreen is properly structured as a StatelessWidget with private widget components co-located in the same file for clarity and maintainability. No extraction to separate files needed - co-location pattern is appropriate for these tightly-coupled UI components.
+
+**Why This Structure is Optimal**:
+- Private widgets (`_ClassName`) are implementation details, not reusable APIs
+- Co-location keeps related code together and reduces file navigation
+- Each private widget is small and focused (< 100 lines)
+- Import management is simpler (single file)
+- 427 total lines is within acceptable range for a single screen
+
+
 
 ---
 
@@ -341,20 +329,13 @@ For each task:
 
 ## 📝 Progress Tracking
 
-**Task 3.1 - Split LinkCheckerProvider**
-- [ ] Not Started
-- [ ] In Progress
-- [x] Completed
+**Status**: All tasks analyzed; awaiting implementation planning for next phase.
 
-**Task 3.2 - Extract ProfileScreen Widgets**
-- [ ] Not Started
-- [ ] In Progress
-- [x] Completed
-
-**Task 3.3 - Refactor LinkCheckerService**
-- [ ] Not Started
-- [ ] In Progress
-- [x] Completed (optional)
+| Task | Status | Effort | Priority |
+|------|--------|--------|----------|
+| 3.1 - LinkCheckerProvider Split | Not Started | 8h | HIGH |
+| 3.2 - ProfileScreen Extract | Not Started | 4-6h | MEDIUM |
+| 3.3 - LinkCheckerService Refactor | Optional | 2-4h | MEDIUM |
 
 ---
 

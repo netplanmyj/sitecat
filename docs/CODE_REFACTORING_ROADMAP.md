@@ -190,7 +190,7 @@ mixin CacheableProvider on ChangeNotifier {
   - Test coverage: `test/utils/validation_test.dart` (64 lines, all edge cases)
   - PR #280 merged
 - [x] Dialog helpers/widgets extraction (`lib/utils/dialogs.dart`) - 3 reusable patterns (confirm, info, error)
-  - Applied in: `SitesScreen`, `MyS iteSection`, `DemoModeBadge`
+  - Applied in: `SitesScreen`, `MySitesSection`, `DemoModeBadge`
   - Test coverage: `test/utils/dialogs_test.dart` (116 lines, behavior tests)
   - PR #280 merged
 - [x] BuildContext safety patterns implemented (ScaffoldMessenger pre-capture)
