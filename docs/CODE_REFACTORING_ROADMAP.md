@@ -183,14 +183,27 @@ mixin CacheableProvider on ChangeNotifier {
 
 ## ✅ Progress Update (2025-12-14)
 
+**Phase 2 COMPLETED** ✅
 - [x] Copilot contribution guidelines added and merged (PR #278)
-- [x] Validation utils centralized (`lib/utils/validation.dart`) and applied in `SiteProvider` and `SiteFormFields`
-- [ ] Common dialog helpers/widgets extraction (in progress under `refactor/phase2-utils-and-dialogs-276`)
-- [ ] Update callers to use dialog helpers
+- [x] Validation utils centralized (`lib/utils/validation.dart`) - 4 validators (siteName, siteUrl, sitemapInput, checkInterval)
+  - Applied in: `SiteProvider` (3 validators), `SiteFormFields` (1 validator)
+  - Test coverage: `test/utils/validation_test.dart` (64 lines, all edge cases)
+  - PR #280 merged
+- [x] Dialog helpers/widgets extraction (`lib/utils/dialogs.dart`) - 3 reusable patterns (confirm, info, error)
+  - Applied in: `SitesScreen`, `MyS iteSection`, `DemoModeBadge`
+  - Test coverage: `test/utils/dialogs_test.dart` (116 lines, behavior tests)
+  - PR #280 merged
+- [x] BuildContext safety patterns implemented (ScaffoldMessenger pre-capture)
+- [x] 362 tests passing (+20 new tests for validation & dialogs)
+- [x] All CI checks passing (analyze, format, test)
 
-Notes:
-- Validation logic is now unified, reducing duplication and ensuring consistent messages.
-- Dialog pattern work is planned as part of Phase 2 and will proceed next.
+**Phase 2 Summary**:
+- Centralized form validation logic → reduces duplication, ensures consistency
+- Reusable dialog patterns → standardizes UI interactions across app
+- Added 20+ tests → improves confidence in utility functions
+- Code deletion: Removed 153 lines of duplication, improved maintainability
+
+**Next**: Phase 3 Large File Refactoring
 
 ## 📦 Phase 3: Large File Refactoring (HIGH)
 
