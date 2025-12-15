@@ -8,6 +8,7 @@ import '../widgets/site_info_card.dart';
 import '../widgets/link_check_section.dart';
 import '../widgets/site_detail/site_scan_section.dart';
 import 'broken_links_screen.dart';
+import '../utils/navigation_guard.dart';
 
 class SiteDetailScreen extends StatefulWidget {
   final Site site;
@@ -39,93 +40,108 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.site.name),
-        backgroundColor: Colors.orange,
-        foregroundColor: Colors.white,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Consumer<MonitoringProvider>(
-                builder: (context, monitoring, child) {
-                  final latestResult = monitoring.getLatestResult(
-                    widget.site.id,
-                  );
-                  return Consumer<LinkCheckerProvider>(
-                    builder: (context, linkChecker, child) {
-                      final precalculatedPageCount = linkChecker
-                          .getPrecalculatedPageCount(widget.site.id);
-                      return SiteInfoCard(
-                        site: widget.site,
-                        sitemapStatus: latestResult,
-                        cachedSitemapStatusCode: monitoring
-                            .getCachedSitemapStatus(widget.site.id),
-                        isCheckingSitemap: monitoring.isChecking(
-                          widget.site.id,
-                        ),
-                        precalculatedPageCount: precalculatedPageCount,
-                        getTimeUntilNextCheck: () =>
-                            monitoring.getTimeUntilNextCheck(widget.site.id),
-                        onRefreshSitemap: () => _quickCheck(),
-                      );
-                    },
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              SiteScanSection(
-                site: widget.site,
-                onSiteScan: (checkExternalLinks) {
-                  setState(() {
-                    _checkExternalLinks = checkExternalLinks;
-                  });
-                  _siteScan();
-                },
-                onContinueScan: _continueScan,
-              ),
-              const SizedBox(height: 16),
-              LinkCheckSection(
-                site: widget.site,
-                onCheckComplete: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Link check completed'),
-                      backgroundColor: Colors.green,
-                    ),
-                  );
-                },
-                onCheckError: (error) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Error: $error'),
-                      backgroundColor: Colors.red,
-                    ),
-                  );
-                },
-                onViewBrokenLinks: (site, brokenLinks, result) {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => BrokenLinksScreen(
-                        site: site,
-                        brokenLinks: brokenLinks,
-                        result: result,
+    final linkCheckerProvider = context.watch<LinkCheckerProvider>();
+    final isScanning = linkCheckerProvider.isChecking(widget.site.id);
+
+    return PopScope(
+      canPop: !isScanning,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final ok = await confirmAndSaveIfScanning(context, widget.site.id);
+        if (ok && context.mounted) {
+          Navigator.of(context).maybePop();
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(widget.site.name),
+          backgroundColor: Colors.orange,
+          foregroundColor: Colors.white,
+        ),
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Consumer<MonitoringProvider>(
+                  builder: (context, monitoring, child) {
+                    final latestResult = monitoring.getLatestResult(
+                      widget.site.id,
+                    );
+                    return Consumer<LinkCheckerProvider>(
+                      builder: (context, linkChecker, child) {
+                        final precalculatedPageCount = linkChecker
+                            .getPrecalculatedPageCount(widget.site.id);
+                        return SiteInfoCard(
+                          site: widget.site,
+                          sitemapStatus: latestResult,
+                          cachedSitemapStatusCode: monitoring
+                              .getCachedSitemapStatus(widget.site.id),
+                          isCheckingSitemap: monitoring.isChecking(
+                            widget.site.id,
+                          ),
+                          precalculatedPageCount: precalculatedPageCount,
+                          getTimeUntilNextCheck: () =>
+                              monitoring.getTimeUntilNextCheck(widget.site.id),
+                          onRefreshSitemap: () => _quickCheck(),
+                        );
+                      },
+                    );
+                  },
+                ),
+                const SizedBox(height: 16),
+                SiteScanSection(
+                  site: widget.site,
+                  onSiteScan: (checkExternalLinks) {
+                    setState(() {
+                      _checkExternalLinks = checkExternalLinks;
+                    });
+                    _siteScan();
+                  },
+                  onContinueScan: _continueScan,
+                ),
+                const SizedBox(height: 16),
+                LinkCheckSection(
+                  site: widget.site,
+                  onCheckComplete: () {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Link check completed'),
+                        backgroundColor: Colors.green,
                       ),
-                    ),
-                  );
-                },
-              ),
-            ],
+                    );
+                  },
+                  onCheckError: (error) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Error: $error'),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                  },
+                  onViewBrokenLinks: (site, brokenLinks, result) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => BrokenLinksScreen(
+                          site: site,
+                          brokenLinks: brokenLinks,
+                          result: result,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
+
+  // Navigation warning is handled via confirmAndSaveIfScanning helper
 
   Future<void> _quickCheck() async {
     final provider = context.read<MonitoringProvider>();

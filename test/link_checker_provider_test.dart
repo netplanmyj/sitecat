@@ -89,6 +89,9 @@ class _FakeLinkCheckerService implements LinkCheckerClient {
     return null;
   }
 
+  @override
+  Future<void> saveInterruptedResult(LinkCheckResult result) async {}
+
   int setHistoryLimitCallCount = 0;
   bool? lastHistoryLimitPremiumStatus;
 

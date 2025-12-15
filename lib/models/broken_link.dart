@@ -195,4 +195,48 @@ class LinkCheckResult {
       'currentBatchEnd': currentBatchEnd,
     };
   }
+
+  /// Create a copy of LinkCheckResult with modified fields
+  LinkCheckResult copyWith({
+    String? id,
+    String? siteId,
+    String? checkedUrl,
+    String? checkedSitemapUrl,
+    int? sitemapStatusCode,
+    DateTime? timestamp,
+    int? totalLinks,
+    int? brokenLinks,
+    int? internalLinks,
+    int? externalLinks,
+    Duration? scanDuration,
+    int? pagesScanned,
+    int? totalPagesInSitemap,
+    bool? scanCompleted,
+    int? newLastScannedPageIndex,
+    int? pagesCompleted,
+    int? currentBatchStart,
+    int? currentBatchEnd,
+  }) {
+    return LinkCheckResult(
+      id: id ?? this.id,
+      siteId: siteId ?? this.siteId,
+      checkedUrl: checkedUrl ?? this.checkedUrl,
+      checkedSitemapUrl: checkedSitemapUrl ?? this.checkedSitemapUrl,
+      sitemapStatusCode: sitemapStatusCode ?? this.sitemapStatusCode,
+      timestamp: timestamp ?? this.timestamp,
+      totalLinks: totalLinks ?? this.totalLinks,
+      brokenLinks: brokenLinks ?? this.brokenLinks,
+      internalLinks: internalLinks ?? this.internalLinks,
+      externalLinks: externalLinks ?? this.externalLinks,
+      scanDuration: scanDuration ?? this.scanDuration,
+      pagesScanned: pagesScanned ?? this.pagesScanned,
+      totalPagesInSitemap: totalPagesInSitemap ?? this.totalPagesInSitemap,
+      scanCompleted: scanCompleted ?? this.scanCompleted,
+      newLastScannedPageIndex:
+          newLastScannedPageIndex ?? this.newLastScannedPageIndex,
+      pagesCompleted: pagesCompleted ?? this.pagesCompleted,
+      currentBatchStart: currentBatchStart ?? this.currentBatchStart,
+      currentBatchEnd: currentBatchEnd ?? this.currentBatchEnd,
+    );
+  }
 }
