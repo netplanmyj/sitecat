@@ -15,10 +15,9 @@ class LinkCheckerHttpClient {
     Duration delay = const Duration(milliseconds: 200),
     bool Function(T value)? shouldRetry,
   }) async {
-    T result;
-    for (var attempt = 0; ; attempt++) {
+    for (var attempt = 0; attempt <= retries; attempt++) {
       try {
-        result = await action();
+        final result = await action();
         if (shouldRetry != null && shouldRetry(result) && attempt < retries) {
           await Future.delayed(delay);
           continue;
@@ -29,9 +28,10 @@ class LinkCheckerHttpClient {
         await Future.delayed(delay);
       }
     }
+    throw Exception('_retry: unreachable code');
   }
 
-  /// Check URL with HEAD request before fetching content
+  /// Check URL with HEAD request before fetching content (with retry on transient failures)
   Future<({int statusCode, String? contentType})> checkUrlHead(
     String url,
   ) async {
@@ -48,7 +48,7 @@ class LinkCheckerHttpClient {
         }
       },
       retries: 1,
-      shouldRetry: (v) => v.statusCode == 0,
+      shouldRetry: (v) => v.statusCode == 0 || v.statusCode >= 500,
     );
   }
 
@@ -58,13 +58,8 @@ class LinkCheckerHttpClient {
       // Convert localhost for Android emulator
       final convertedUrl = UrlHelper.convertLocalhostForPlatform(url);
 
-      // Step 1: HEAD request to check status and content type (retry on transient failure)
-      final headCheck = await _retry<({int statusCode, String? contentType})>(
-        () => checkUrlHead(convertedUrl),
-        retries: 1,
-        delay: const Duration(milliseconds: 200),
-        shouldRetry: (v) => v.statusCode == 0 || (v.statusCode >= 500),
-      );
+      // Step 1: HEAD request to check status and content type (retry built-in)
+      final headCheck = await checkUrlHead(convertedUrl);
 
       // Skip if not OK status
       if (headCheck.statusCode != 200) {
@@ -77,14 +72,21 @@ class LinkCheckerHttpClient {
         return null;
       }
 
-      // Step 2: GET request to fetch content (retry on transient failure)
+      // Step 2: GET request to fetch content (retry on transient failures: network errors and 5xx)
       final response = await _retry<http.Response>(
-        () => _httpClient
-            .get(Uri.parse(convertedUrl))
-            .timeout(const Duration(seconds: 10)),
+        () async {
+          try {
+            return await _httpClient
+                .get(Uri.parse(convertedUrl))
+                .timeout(const Duration(seconds: 10));
+          } catch (_) {
+            // Return a dummy response with statusCode 0 to indicate network error
+            return http.Response('', 0);
+          }
+        },
         retries: 1,
         delay: const Duration(milliseconds: 200),
-        shouldRetry: (r) => r.statusCode >= 500,
+        shouldRetry: (r) => r.statusCode == 0 || r.statusCode >= 500,
       );
 
       if (response.statusCode == 200) {
