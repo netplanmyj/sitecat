@@ -36,6 +36,7 @@ abstract class LinkCheckerClient {
   Future<List<LinkCheckResult>> getCheckResults(String siteId, {int limit});
   Future<List<LinkCheckResult>> getAllCheckResults({int limit});
   Future<void> deleteLinkCheckResult(String resultId);
+  Future<void> saveInterruptedResult(LinkCheckResult result);
 }
 
 /// Service for checking broken links on websites
@@ -430,6 +431,16 @@ class LinkCheckerService implements LinkCheckerClient {
   Future<void> deleteLinkCheckResult(String resultId) async {
     if (_currentUserId == null) return;
     await _repo.deleteLinkCheckResult(resultId);
+  }
+
+  /// Save interrupted scan result to Firestore
+  /// Called when user navigates away during an active scan
+  @override
+  Future<void> saveInterruptedResult(LinkCheckResult result) async {
+    if (_currentUserId == null) {
+      throw Exception('User must be authenticated to save results');
+    }
+    await _repo.saveResult(result);
   }
 
   /// Filter out URLs that match excluded paths

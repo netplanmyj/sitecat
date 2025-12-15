@@ -491,6 +491,45 @@ class LinkCheckerProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Save current scan progress to Results and reset scan state
+  /// Called when user navigates away during an active scan
+  Future<void> saveProgressAndReset(String siteId) async {
+    try {
+      // Only save if actively scanning
+      if (!isChecking(siteId)) {
+        return;
+      }
+
+      // Get current progress
+      final checkedCount = _progress.getCheckedCount(siteId);
+      final totalCount = _progress.getTotalCount(siteId);
+      final cachedResult = _cache.getResult(siteId);
+
+      // If no progress, just reset
+      if (checkedCount == 0 || cachedResult == null) {
+        resetState(siteId);
+        return;
+      }
+
+      // Create interrupted result with current progress
+      final interruptedResult = cachedResult.copyWith(
+        pagesScanned: checkedCount,
+        totalPagesInSitemap: totalCount,
+        scanCompleted: false, // Mark as incomplete
+        timestamp: DateTime.now(),
+      );
+
+      // Save to Firestore
+      await _linkCheckerService.saveInterruptedResult(interruptedResult);
+
+      // Reset scan state
+      resetState(siteId);
+    } catch (e) {
+      _errors[siteId] = 'Failed to save progress: $e';
+      notifyListeners();
+    }
+  }
+
   /// Clear all cached data
   void clearAllCache() {
     _checkStates.clear();
