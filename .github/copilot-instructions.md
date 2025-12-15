@@ -643,15 +643,14 @@ class Site with FirestoreSerializable {
 
 **Pattern implementation**:
 ```dart
-// Separate concern: Cache management (no UI updates)
-class LinkCheckerCache extends ChangeNotifier {
+// Separate concern: Cache management (plain data holder)
+class LinkCheckerCache {
   final Map<String, LinkCheckResult> _results = {};
   final Map<String, List<BrokenLink>> _brokenLinks = {};
   
   LinkCheckResult? getResult(String siteId) => _results[siteId];
   void setResult(String siteId, LinkCheckResult result) {
     _results[siteId] = result;
-    notifyListeners(); // Efficient cache-only updates
   }
   void clear(String siteId) {
     _results.remove(siteId);
@@ -659,8 +658,8 @@ class LinkCheckerCache extends ChangeNotifier {
   }
 }
 
-// Separate concern: Progress tracking (no UI state)
-class LinkCheckerProgress extends ChangeNotifier {
+// Separate concern: Progress tracking (plain data holder)
+class LinkCheckerProgress {
   final Map<String, int> _checkedCounts = {};
   final Map<String, int> _totalCounts = {};
   final Map<String, bool> _processingExternal = {};
@@ -669,20 +668,17 @@ class LinkCheckerProgress extends ChangeNotifier {
   void setProgress(String siteId, int checked, int total) {
     _checkedCounts[siteId] = checked;
     _totalCounts[siteId] = total;
-    notifyListeners(); // Progress-only updates
   }
 }
 
-// Provider focuses on UI state and coordination
+// Provider focuses on UI state, notifications, and coordination
 class LinkCheckerProvider extends ChangeNotifier {
   final LinkCheckerCache _cache;
   final LinkCheckerProgress _progress;
   final Map<String, LinkCheckState> _checkStates = {}; // UI only
   
-  // Screen watches LinkCheckerProvider for UI state changes
-  // Screen watches LinkCheckerCache for cached results
-  // Screen watches LinkCheckerProgress for progress updates
-  // Each listener only re-renders when its concern changes
+  // LinkCheckerProvider calls notifyListeners() after delegating to cache/progress
+  // Screen watches LinkCheckerProvider for UI state changes and derived cache/progress data
 }
 ```
 
@@ -786,7 +782,8 @@ class LinkCheckerService {
 
 **Real Example from SiteCat** (site_form_screen.dart refactoring):
 ```dart
-// ❌ BEFORE: 780 lines - everything in one file
+// ❌ BEFORE (historical, pre-refactor): 780 lines - everything in one file
+// (Current file after refactoring: 257 lines)
 class SiteFormScreen extends StatefulWidget {
   @override
   State<SiteFormScreen> createState() => _SiteFormScreenState();
@@ -830,13 +827,13 @@ lib/widgets/site_form/
 ├── excluded_paths_editor.dart   # Path management (110 lines)
 └── warning_item.dart            # Single warning item (30 lines)
 
-// Main screen becomes thin orchestrator
+// Main screen becomes thin orchestrator (current state: 257 lines)
 class SiteFormScreen extends StatefulWidget {
   final Site? site;
   const SiteFormScreen({super.key, this.site});
 
   @override
-  State<SiteFormScreenState> createState() => _SiteFormScreenState();
+  State<SiteFormScreen> createState() => _SiteFormScreenState();
 }
 
 class _SiteFormScreenState extends State<SiteFormScreen> {
@@ -1010,4 +1007,4 @@ testWidgets('SiteFormScreen validates required fields', (tester) async {
 - **テスト性**: 小さいウィジェットは単体テスト容易
 - **再利用性**: ActionButtons, SiteLimitCard は別の画面で再利用
 - **パフォーマンス**: 部分的な再ビルドが効率的
-- **可読性**: Screen の build() メソッドが简潔
+- **可読性**: Screen の build() メソッドが簡潔
