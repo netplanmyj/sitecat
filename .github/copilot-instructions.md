@@ -3,7 +3,7 @@
 ## Project Overview
 SiteCat is an iOS-first Flutter app for website monitoring and broken link detection. It uses Firebase for backend (Auth, Firestore, Functions) and implements a freemium IAP model (¥1,200 lifetime).
 
-**Current Status**: v1.0.8 (Build 76) - App Store live in 175 countries, 409 tests passing
+**Current Status**: v1.0.8 (Build 76) - App Store live in 175 countries, 409 tests passing, 7 providers, 8 services
 
 ## Architecture Overview: Provider Pattern + Modular Services
 
@@ -12,7 +12,7 @@ SiteCat is an iOS-first Flutter app for website monitoring and broken link detec
 ```
 lib/
 ├── screens/              # UI only - display data via Consumer<Provider>
-├── providers/            # State mgmt (5 files): auth, site, monitoring, link_checker, subscription
+├── providers/            # State mgmt (7 files): auth, site, monitoring, link_checker, link_checker_progress, link_checker_cache, subscription
 ├── services/             # Business logic
 │   ├── auth_service.dart
 │   ├── site_service.dart              # Firestore CRUD, URL validation
@@ -97,7 +97,7 @@ void initialize(String userId) {
 # This MUST pass before creating a PR - CI will block merge otherwise
 flutter analyze                              # Lint check (must pass)
 dart format --set-exit-if-changed .          # Format (must pass)  
-flutter test                                 # All 168 tests (must pass)
+flutter test                                 # All 409 tests (must pass)
 
 # One-liner (recommended)
 flutter analyze && dart format --set-exit-if-changed . && flutter test
@@ -106,7 +106,7 @@ flutter analyze && dart format --set-exit-if-changed . && flutter test
 **Why These Matter**:
 - `flutter analyze`: Detects lint errors, type issues, dead code (configured in `analysis_options.yaml`)
 - `dart format`: Enforces consistent code style across team
-- `flutter test`: Prevents regressions (currently 168 tests, targeting 50%+ coverage)
+- `flutter test`: Prevents regressions (currently 409 tests passing)
 
 ### CI/CD Pipeline
 - **GitHub Actions** (`ci.yml`): Runs on every PR to `main` - auto-runs analyze, format, test. **PR merge BLOCKED if any step fails**.
@@ -127,6 +127,7 @@ flutter analyze && dart format --set-exit-if-changed . && flutter test
 - **Mock Pattern**: Use `fake_cloud_firestore` + `firebase_auth_mocks` (no emulator)
 - **File Pattern**: `test/<mirror_lib_structure>/*_test.dart`
 - **Mockito**: For generating mocks - run `dart run build_runner build` after changes
+- **Current Coverage**: 409 tests passing across all layers
 
 ## Critical Implementation Patterns
 
@@ -466,3 +467,547 @@ try {
 - Provider state persists across hot reload (be aware during development)
 - Services are singletons - test if pooling/resource cleanup is needed
 - **Always**: Test on physical device or emulator before pushing (UI glitches may not appear in hot reload)
+
+## Common Refactoring Patterns (Real Scenarios in SiteCat)
+
+### Pattern 1: Splitting Overgrown Providers (LinkCheckerProvider 554 lines → Progressive Split)
+**Scenario**: Provider manages too many responsibilities - UI state, caching, progress tracking, demo mode
+
+**Example from SiteCat**:
+```dart
+// ❌ BEFORE: All responsibilities in one Provider
+class LinkCheckerProvider extends ChangeNotifier {
+  final Map<String, LinkCheckState> _checkStates = {};
+  final Map<String, String> _errors = {};
+  final Map<String, LinkCheckResult?> _cachedResults = {};  // Cache logic mixed in
+  final Map<String, (int, int)> _progressTracking = {};     // Progress mixed in
+  final Map<String, bool> _demoMode = {};                    // Demo state mixed in
+  
+  // 50+ methods handling all concerns
+}
+
+// ✅ AFTER: Delegated to specialized classes (already done in SiteCat!)
+class LinkCheckerProvider extends ChangeNotifier {
+  final LinkCheckerCache _cache;        // Separate cache management
+  final LinkCheckerProgress _progress;  // Separate progress tracking
+  
+  LinkCheckerProvider({
+    LinkCheckerCache? cache,
+    LinkCheckerProgress? progress,
+  }) : _cache = cache ?? LinkCheckerCache(),
+       _progress = progress ?? LinkCheckerProgress();
+       
+  LinkCheckResult? getCachedResult(String siteId) => _cache.getResult(siteId);
+  (int, int) getProgress(String siteId) => 
+    (_progress.getCheckedCount(siteId), _progress.getTotalCount(siteId));
+}
+```
+
+**Apply this pattern when**:
+- Provider has 400+ lines with multiple state management concerns
+- Multiple unrelated state variables (cache, progress, UI state, config)
+- Testing requires mocking different aspects independently
+
+**Extraction steps**:
+1. Identify cohesive state groups (cache, progress, errors, UI flags)
+2. Create specialized classes with single responsibility
+3. Use constructor injection for testability
+4. Provider delegates to these classes via getters/setters
+5. Update all dependent Screens to use new API
+6. Update tests to mock new classes
+
+### Pattern 2: Service Module Extraction (LinkCheckerService 461 lines → 8 specialized files)
+**Scenario**: Service handles multiple domain concerns - orchestration, parsing, validation, HTTP, storage
+
+**Example from SiteCat**:
+```dart
+// ❌ BEFORE: Monolithic service
+class LinkCheckerService {
+  // HTTP client concerns (100 lines)
+  Future<Response> checkLink(String url) { ... }
+  
+  // Sitemap parsing (120 lines)
+  Future<List<String>> parseSitemap(String url) { ... }
+  
+  // Link validation (150 lines)
+  Future<List<BrokenLink>> validateLinks(List<String> urls) { ... }
+  
+  // Firestore operations (80 lines)
+  Future<void> saveResults(LinkCheckResult result) { ... }
+}
+
+// ✅ AFTER: Modular service hierarchy (already done in SiteCat!)
+lib/services/link_checker/
+├── http_client.dart        # HTTP concerns only
+├── sitemap_parser.dart     # Parsing logic
+├── link_extractor.dart     # Link discovery
+├── link_validator.dart     # Validation logic
+├── result_builder.dart     # Result construction
+├── result_repository.dart  # Firestore operations
+├── scan_orchestrator.dart  # Orchestration (Isolate)
+└── models.dart             # Type definitions
+
+// Main service becomes an orchestrator
+class LinkCheckerService implements LinkCheckerClient {
+  late final LinkCheckerHttpClient _httpHelper;
+  late final SitemapParser _sitemapParser;
+  late final ScanOrchestrator _orchestrator;
+  late final LinkExtractor _extractor;
+  late final ResultBuilder _resultBuilder;
+  LinkCheckResultRepository? _repository;
+  
+  // Delegates to specialized components
+  Future<LinkCheckResult> checkSiteLinks(Site site, {...}) async {
+    final urls = await _orchestrator.scan(site);
+    return _resultBuilder.build(urls);
+  }
+}
+```
+
+**Apply this pattern when**:
+- Service file > 500 lines with distinct functional domains
+- Different parts require independent testing
+- Cross-cutting concerns like HTTP, parsing, storage mixed together
+
+**Extraction steps**:
+1. Identify functional domains (HTTP, parsing, validation, storage, orchestration)
+2. Create specialized class for each domain with single interface
+3. Extract related methods and their dependencies
+4. Create abstract interfaces for dependency injection
+5. Main service becomes thin orchestrator delegating to specialized classes
+6. Each class independently testable with mocks
+7. Update provider to inject mocked versions in tests
+
+### Pattern 3: Model Serialization Consolidation (Avoiding Duplication)
+**Scenario**: Multiple models share similar `fromFirestore()`/`toFirestore()` patterns
+
+**Example from SiteCat** (apply to new models):
+```dart
+// ❌ BEFORE: Duplicated serialization logic
+class Site {
+  factory Site.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Site(
+      id: doc.id,
+      url: data['url'] as String,
+      excludedPaths: List<String>.from(data['excludedPaths'] ?? []),
+      lastScannedPageIndex: data['lastScannedPageIndex'] as int? ?? 0,
+      // ... 20 more fields with repetitive null-coalescing
+    );
+  }
+}
+
+class MonitoringResult {
+  factory MonitoringResult.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return MonitoringResult(
+      id: doc.id,
+      siteId: data['siteId'] as String,
+      status: data['status'] as int? ?? 0,
+      // ... same pattern repeated
+    );
+  }
+}
+
+// ✅ AFTER: Extract to mixin or base class
+mixin FirestoreSerializable {
+  T get<T>(Map<String, dynamic> data, String key, {T? defaultValue}) {
+    return (data[key] as T?) ?? (defaultValue as T);
+  }
+  
+  List<T> getList<T>(Map<String, dynamic> data, String key, {List<T>? defaultValue}) {
+    return List<T>.from(data[key] as List? ?? defaultValue ?? []);
+  }
+}
+
+class Site with FirestoreSerializable {
+  factory Site.fromFirestore(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>;
+    return Site(
+      id: doc.id,
+      url: get<String>(data, 'url'),
+      excludedPaths: getList<String>(data, 'excludedPaths'),
+      lastScannedPageIndex: get<int>(data, 'lastScannedPageIndex', defaultValue: 0),
+    );
+  }
+}
+```
+
+**Apply this pattern when**:
+- Multiple models have `fromFirestore()` boilerplate
+- Null-coalescing and type casting duplicated across models
+- Changes to serialization strategy require updating many files
+
+### Pattern 4: State Management Separation (Cache + Progress Providers)
+**Scenario**: Provider UI state mixed with caching and progress tracking (already in SiteCat!)
+
+**Pattern implementation**:
+```dart
+// Separate concern: Cache management (no UI updates)
+class LinkCheckerCache extends ChangeNotifier {
+  final Map<String, LinkCheckResult> _results = {};
+  final Map<String, List<BrokenLink>> _brokenLinks = {};
+  
+  LinkCheckResult? getResult(String siteId) => _results[siteId];
+  void setResult(String siteId, LinkCheckResult result) {
+    _results[siteId] = result;
+    notifyListeners(); // Efficient cache-only updates
+  }
+  void clear(String siteId) {
+    _results.remove(siteId);
+    _brokenLinks.remove(siteId);
+  }
+}
+
+// Separate concern: Progress tracking (no UI state)
+class LinkCheckerProgress extends ChangeNotifier {
+  final Map<String, int> _checkedCounts = {};
+  final Map<String, int> _totalCounts = {};
+  final Map<String, bool> _processingExternal = {};
+  
+  int getCheckedCount(String siteId) => _checkedCounts[siteId] ?? 0;
+  void setProgress(String siteId, int checked, int total) {
+    _checkedCounts[siteId] = checked;
+    _totalCounts[siteId] = total;
+    notifyListeners(); // Progress-only updates
+  }
+}
+
+// Provider focuses on UI state and coordination
+class LinkCheckerProvider extends ChangeNotifier {
+  final LinkCheckerCache _cache;
+  final LinkCheckerProgress _progress;
+  final Map<String, LinkCheckState> _checkStates = {}; // UI only
+  
+  // Screen watches LinkCheckerProvider for UI state changes
+  // Screen watches LinkCheckerCache for cached results
+  // Screen watches LinkCheckerProgress for progress updates
+  // Each listener only re-renders when its concern changes
+}
+```
+
+**Benefits**:
+- Screen widgets can be more granular listeners
+- Cache updates don't trigger UI state re-renders
+- Progress updates don't reload cached data
+- Testing each concern independently
+- Performance: Fine-grained reactivity
+
+### Pattern 5: Extracting Constants and Magic Numbers
+**Scenario**: Magic numbers spread across code, making premium feature gates hard to manage
+
+**Current SiteCat pattern** (already implemented):
+```dart
+// ✅ GOOD: Centralized in AppConstants
+class AppConstants {
+  AppConstants._(); // Private constructor
+  
+  // Feature limits
+  static const int freePlanSiteLimit = 3;
+  static const int premiumSiteLimit = 30;
+  
+  static const int freePlanPageLimit = 200;
+  static const int premiumPlanPageLimit = 1000;
+  
+  static const int freePlanHistoryLimit = 10;
+  static const int premiumHistoryLimit = 50;
+  
+  // Business logic
+  static const Duration minimumCheckInterval = Duration(seconds: 10);
+  static const Duration checkTimeout = Duration(seconds: 10);
+}
+
+// Usage in Services
+class LinkCheckerService {
+  int _pageLimit = AppConstants.freePlanPageLimit;
+  int _historyLimit = AppConstants.freePlanHistoryLimit;
+  
+  void setPageLimit(bool isPremium) {
+    _pageLimit = isPremium 
+      ? AppConstants.premiumPlanPageLimit 
+      : AppConstants.freePlanPageLimit;
+    // Recreate orchestrator with new limit
+    _orchestrator = ScanOrchestrator(pageLimit: _pageLimit);
+  }
+}
+```
+
+**Apply this pattern when**:
+- Same number appears in 2+ files (duplicate business rule)
+- Constants represent feature gates or business logic
+- Changing a value requires updating multiple files
+
+### Pattern 6: Lazy Initialization with Repository Pattern (Already in SiteCat!)
+**Scenario**: Service needs to maintain Firestore repository but only for authenticated users
+
+**Implementation from SiteCat**:
+```dart
+// ❌ BEFORE: Create repository in constructor (fails for unauthenticated users)
+class LinkCheckerService {
+  late LinkCheckResultRepository _repository;
+  
+  LinkCheckerService() {
+    _repository = LinkCheckResultRepository(userId: _auth.currentUser!.uid);
+    // ❌ Crashes if user not logged in yet
+  }
+}
+
+// ✅ AFTER: Lazy initialization with caching
+class LinkCheckerService {
+  LinkCheckResultRepository? _repository;
+  String? _repositoryUserId;
+  
+  // Lazy getter - only creates when first accessed
+  LinkCheckResultRepository get _repo {
+    final userId = _currentUserId!; // Checked at access time
+    if (_repository == null || _repositoryUserId != userId) {
+      _repositoryUserId = userId;
+      _repository = LinkCheckResultRepository(
+        firestore: _firestore,
+        userId: userId,
+        historyLimit: _historyLimit,
+      );
+    }
+    return _repository!;
+  }
+  
+  String? get _currentUserId => _auth.currentUser?.uid;
+}
+```
+
+**Benefits**:
+- Safe for unauthenticated users (repo not created until needed)
+- Automatically recreates if user logs out/in (different userId)
+- Single source of truth for userId validation
+- Testable: Can pass mock repository in constructor
+
+### Pattern 7: Widget Decomposition (Screen/Widget Splitting - Critical for UI Maintainability)
+**Scenario**: Screen/Widget file grows too large with mixed concerns - form logic, validation UI, error handling, multiple sections
+
+**Real Example from SiteCat** (site_form_screen.dart refactoring):
+```dart
+// ❌ BEFORE: 780 lines - everything in one file
+class SiteFormScreen extends StatefulWidget {
+  @override
+  State<SiteFormScreen> createState() => _SiteFormScreenState();
+}
+
+class _SiteFormScreenState extends State<SiteFormScreen> {
+  // Form state (50+ lines)
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _urlController = TextEditingController();
+  // ...
+  
+  // Site limit UI (80 lines)
+  Widget _buildSiteLimitUI() { ... }
+  
+  // Form fields (150 lines)
+  Widget _buildNameField() { ... }
+  Widget _buildUrlField() { ... }
+  
+  // Action buttons (60 lines)
+  Widget _buildActionButtons() { ... }
+  
+  // Warning dialogs (100 lines)
+  Widget _buildUrlChangeWarning() { ... }
+  
+  // Excluded paths section (200 lines)
+  Widget _buildExcludedPathsEditor() { ... }
+  
+  // Main build method (200 lines)
+  @override
+  Widget build(BuildContext context) { ... }
+}
+
+// ✅ AFTER: 257 lines + 7 separate widgets = ~650 lines total (16% reduction in main file)
+lib/widgets/site_form/
+├── site_form_body.dart          # Main form layout (105 lines)
+├── site_form_fields.dart        # Input fields (80 lines)
+├── site_limit_card.dart         # Site limit UI (65 lines)
+├── action_buttons.dart          # Save/Cancel buttons (45 lines)
+├── url_change_warning_dialog.dart  # Warning modal (70 lines)
+├── excluded_paths_editor.dart   # Path management (110 lines)
+└── warning_item.dart            # Single warning item (30 lines)
+
+// Main screen becomes thin orchestrator
+class SiteFormScreen extends StatefulWidget {
+  final Site? site;
+  const SiteFormScreen({super.key, this.site});
+
+  @override
+  State<SiteFormScreenState> createState() => _SiteFormScreenState();
+}
+
+class _SiteFormScreenState extends State<SiteFormScreen> {
+  // Only core form state
+  final _formKey = GlobalKey<FormState>();
+  final _nameController = TextEditingController();
+  final _urlController = TextEditingController();
+  final _sitemapUrlController = TextEditingController();
+  final _newPathController = TextEditingController();
+  late List<String> _excludedPaths;
+  bool _isLoading = false;
+
+  @override
+  Widget build(BuildContext context) {
+    // Check site limit first
+    if (_siteCountReachedLimit(context)) {
+      return Scaffold(
+        appBar: AppBar(),
+        body: SiteLimitCard(
+          siteCount: _currentSiteCount,
+          siteLimit: _siteLimit,
+          onBackPressed: () => Navigator.pop(context),
+        ),
+      );
+    }
+
+    // Main form
+    return Scaffold(
+      appBar: AppBar(title: Text(widget.isEdit ? 'Edit Site' : 'Add Site')),
+      body: SiteFormBody(
+        formKey: _formKey,
+        nameController: _nameController,
+        urlController: _urlController,
+        sitemapUrlController: _sitemapUrlController,
+        newPathController: _newPathController,
+        excludedPaths: _excludedPaths,
+        isEdit: widget.isEdit,
+        editingSite: widget.site,
+        onAddPath: _addExcludedPath,
+        onRemovePath: _removeExcludedPath,
+      ),
+      bottomNavigationBar: ActionButtons(
+        isLoading: _isLoading,
+        onSave: _handleSave,
+        onCancel: () => Navigator.pop(context),
+      ),
+    );
+  }
+}
+
+// Helper widget (reusable in SiteFormBody)
+class SiteFormFields extends StatelessWidget {
+  final TextEditingController nameController;
+  final TextEditingController urlController;
+  final VoidCallback onUrlChanged;
+  // ...
+  
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        TextFormField(/* name field */),
+        TextFormField(/* url field */)
+      ],
+    );
+  }
+}
+```
+
+**Widget分割の基準**:
+
+| 基準 | 判断 | 例 |
+|------|------|-----|
+| **行数** | 200行以上 → 分割検討 | form_body.dart (105行) - OK |
+| **責務** | 複数の関心事混在 | 形式フィールド + 警告UI + パス管理 |
+| **再利用性** | 他の画面で再利用可能か | SiteLimitCard, ActionButtons は再利用 |
+| **テスト** | 単体テスト困難か | ネストしたビルドメソッドは難しい |
+| **複雑さ** | 条件分岐やループが多い | 除外パスエディタ (100行) - 分割 |
+
+**分割の手順**:
+
+1. **機能グループ分析**
+   ```dart
+   // Identify sections
+   - Site limit check (60 lines)
+   - Form fields (80 lines)
+   - Action buttons (40 lines)
+   - Excluded paths editor (110 lines)
+   - Warning dialogs (70 lines)
+   ```
+
+2. **ウィジェット作成 (小さいものから)**
+   - `SiteLimitCard` - 単純な表示ウィジェット
+   - `ActionButtons` - ボタングループ
+   - `WarningItem` - リスト項目
+   - `ExcludedPathsEditor` - 複雑ロジック
+   - `SiteFormBody` - メインレイアウト
+
+3. **状態・コールバック設計**
+   ```dart
+   // Parent Screen retains form state
+   final _formKey = GlobalKey<FormState>();
+   final _nameController = TextEditingController();
+   
+   // Child widgets receive dependencies & callbacks
+   SiteFormBody(
+     formKey: _formKey,
+     nameController: _nameController,
+     onAddPath: _addExcludedPath,
+     onRemovePath: _removeExcludedPath,
+   )
+   ```
+
+4. **Screen 内のロジック保持**
+   - 初期化（initState）
+   - 状態管理（Provider呼び出し）
+   - ナビゲーション制御
+   - フォーム検証
+
+5. **Child Widgets は表示に専念**
+   - 受け取った値を表示
+   - ユーザー入力をコールバックで親に報告
+   - 複雑なロジックは避ける
+
+**パターン適用のチェックリスト**:
+- ✅ Screen/Widget が200行以上
+- ✅ `build()` メソッドが100行以上
+- ✅ `_buildXxx()` ヘルパーメソッドが5個以上
+- ✅ 同じパターンのUIが繰り返される（リスト項目など）
+- ✅ 他の画面で再利用したいウィジェットがある
+
+**禁止パターン**:
+```dart
+// ❌ AVOID: Child widget が複雑なロジック持つ
+class SiteFormBody extends StatefulWidget {  // ← Should be StatelessWidget
+  State createState() => _SiteFormBodyState();
+}
+class _SiteFormBodyState extends State<SiteFormBody> {
+  final _formKey = GlobalKey<FormState>();  // ← Logic in child
+  Future<void> _save() { ... }  // ← Should call parent callback
+}
+
+// ✅ GOOD: Child widget は表示と最小限のUI制御のみ
+class SiteFormBody extends StatelessWidget {  // ← Pure presentation
+  final GlobalKey<FormState> formKey;  // ← Receives from parent
+  final VoidCallback onSave;  // ← Calls parent for logic
+}
+```
+
+**分割後のテスト戦略**:
+```dart
+// Each widget individually testable
+testWidgets('SiteLimitCard shows lock icon', (tester) async {
+  await tester.pumpWidget(SiteLimitCard(
+    siteCount: 3,
+    siteLimit: 3,
+    onBackPressed: () {},
+  ));
+  expect(find.byIcon(Icons.lock_outline), findsOneWidget);
+});
+
+// Parent screen tests form flow
+testWidgets('SiteFormScreen validates required fields', (tester) async {
+  await tester.pumpWidget(createTestApp(SiteFormScreen()));
+  // ... test form validation
+});
+```
+
+**Benefits**:
+- **保守性**: 各ウィジェットは責務が明確
+- **テスト性**: 小さいウィジェットは単体テスト容易
+- **再利用性**: ActionButtons, SiteLimitCard は別の画面で再利用
+- **パフォーマンス**: 部分的な再ビルドが効率的
+- **可読性**: Screen の build() メソッドが简潔
