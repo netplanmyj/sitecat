@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logger/logger.dart';
 import 'package:sitecat/models/broken_link.dart';
@@ -109,6 +110,103 @@ class _FakeLinkCheckerService implements LinkCheckerClient {
     setPageLimitCallCount++;
     lastPageLimitPremiumStatus = isPremium;
   }
+}
+
+class _ControllableLinkCheckerService implements LinkCheckerClient {
+  final completer = Completer<LinkCheckResult>();
+  LinkCheckResult? lastSavedInterrupted;
+  int saveCalls = 0;
+  bool emitProgress = true;
+
+  // Provide a latest result to seed cache via loadLatestResult
+  LinkCheckResult latest = LinkCheckResult(
+    id: 'r1',
+    siteId: 'site_1',
+    checkedUrl: 'https://example.com',
+    timestamp: DateTime.now().subtract(const Duration(minutes: 1)),
+    totalLinks: 10,
+    brokenLinks: 0,
+    internalLinks: 8,
+    externalLinks: 2,
+    scanDuration: const Duration(seconds: 1),
+    pagesScanned: 5,
+    totalPagesInSitemap: 50,
+    scanCompleted: false,
+    newLastScannedPageIndex: 5,
+  );
+
+  @override
+  Future<LinkCheckResult> checkSiteLinks(
+    Site site, {
+    bool checkExternalLinks = false,
+    bool continueFromLastScan = false,
+    int? precalculatedPageCount,
+    void Function(int, int)? onProgress,
+    void Function(int, int)? onExternalLinksProgress,
+    void Function(int?)? onSitemapStatusUpdate,
+    bool Function()? shouldCancel,
+  }) async {
+    // Simulate progress so provider stores counts (10/100) when enabled
+    if (emitProgress) {
+      onProgress?.call(10, 100);
+    }
+    return completer.future;
+  }
+
+  @override
+  Future<int?> loadSitemapPageCount(
+    Site site, {
+    void Function(int? p1)? onSitemapStatusUpdate,
+  }) async {
+    return null;
+  }
+
+  @override
+  Future<void> deleteLinkCheckResult(String resultId) async {}
+
+  @override
+  Future<List<LinkCheckResult>> getAllCheckResults({int limit = 50}) async {
+    return [];
+  }
+
+  @override
+  Future<List<BrokenLink>> getBrokenLinks(String resultId) async {
+    return [];
+  }
+
+  @override
+  Future<List<LinkCheckResult>> getCheckResults(
+    String siteId, {
+    int limit = 50,
+  }) async {
+    return [];
+  }
+
+  @override
+  Future<LinkCheckResult?> getLatestCheckResult(String siteId) async {
+    return latest;
+  }
+
+  bool throwOnSave = false;
+  @override
+  Future<void> saveInterruptedResult(LinkCheckResult result) async {
+    saveCalls++;
+    lastSavedInterrupted = result;
+    if (throwOnSave) {
+      throw Exception('save-failed');
+    }
+  }
+
+  @override
+  void setHistoryLimit(bool isPremium) {}
+
+  @override
+  void setPageLimit(bool isPremium) {}
+}
+
+class _NoopSiteService implements SiteUpdater {
+  @override
+  Future<void> updateSite(Site site) async {}
 }
 
 Site _buildSite({int lastScannedPageIndex = 0}) {
@@ -284,6 +382,108 @@ void main() {
         stages['external']!['checked'],
         equals(stages['external']!['total']),
       );
+    });
+  });
+
+  group('LinkCheckerProvider - saveProgressAndReset', () {
+    testWidgets('saves progress and resets when scanning (happy path)', (
+      tester,
+    ) async {
+      final fakeService = _ControllableLinkCheckerService();
+      final provider = LinkCheckerProvider(
+        linkCheckerService: fakeService,
+        siteService: _NoopSiteService(),
+      );
+
+      final site = _buildSite();
+      // Seed cache with latest result
+      await provider.loadLatestResult(site.id);
+
+      // Start scan (will remain in checking state until we complete completer)
+      // ignore: unawaited_futures
+      provider.checkSiteLinks(site);
+      await tester.pump(const Duration(milliseconds: 10));
+
+      expect(provider.isChecking(site.id), isTrue);
+
+      // Act: save and reset during active scan
+      await provider.saveProgressAndReset(site.id);
+
+      // Assert saved and reset
+      expect(fakeService.saveCalls, 1);
+      expect(fakeService.lastSavedInterrupted, isNotNull);
+      expect(fakeService.lastSavedInterrupted!.pagesScanned, 10);
+      expect(fakeService.lastSavedInterrupted!.totalPagesInSitemap, 100);
+      expect(fakeService.lastSavedInterrupted!.scanCompleted, isFalse);
+      expect(provider.isChecking(site.id), isFalse);
+
+      // Clean up pending future
+      fakeService.completer.complete(fakeService.latest);
+    });
+
+    testWidgets('no-op when not scanning', (tester) async {
+      final fakeService = _ControllableLinkCheckerService();
+      final provider = LinkCheckerProvider(
+        linkCheckerService: fakeService,
+        siteService: _NoopSiteService(),
+      );
+
+      // Not scanning by default
+      await provider.saveProgressAndReset('site_1');
+      expect(fakeService.saveCalls, 0);
+    });
+
+    testWidgets('no-op when no progress exists (checkedCount == 0)', (
+      tester,
+    ) async {
+      final fakeService = _ControllableLinkCheckerService();
+      final provider = LinkCheckerProvider(
+        linkCheckerService: fakeService,
+        siteService: _NoopSiteService(),
+      );
+
+      final site = _buildSite();
+      await provider.loadLatestResult(site.id);
+
+      // Start scan but do not report progress (keep 0/0)
+      // Adapt the service to not call onProgress this time
+      fakeService.emitProgress = false;
+      // ignore: unawaited_futures
+      provider.checkSiteLinks(site);
+      await tester.pump(const Duration(milliseconds: 10));
+
+      // Force checkedCount to 0 just in case
+      expect(provider.isChecking(site.id), isTrue);
+      await provider.saveProgressAndReset(site.id);
+
+      // Should reset without saving
+      expect(fakeService.saveCalls, 0);
+      expect(provider.isChecking(site.id), isFalse);
+
+      fakeService.completer.complete(fakeService.latest);
+    });
+
+    testWidgets('sets error when save fails but does not throw', (
+      tester,
+    ) async {
+      final fakeService = _ControllableLinkCheckerService()..throwOnSave = true;
+      final provider = LinkCheckerProvider(
+        linkCheckerService: fakeService,
+        siteService: _NoopSiteService(),
+      );
+
+      final site = _buildSite();
+      await provider.loadLatestResult(site.id);
+      // Start and set some progress
+      // ignore: unawaited_futures
+      provider.checkSiteLinks(site);
+      await tester.pump(const Duration(milliseconds: 10));
+
+      await provider.saveProgressAndReset(site.id);
+
+      expect(provider.getError(site.id), contains('Failed to save progress'));
+
+      fakeService.completer.complete(fakeService.latest);
     });
   });
 

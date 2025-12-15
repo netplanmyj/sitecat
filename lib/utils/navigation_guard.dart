@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/link_checker_provider.dart';
+import 'dialogs.dart';
 
 /// 前向き遷移や戻る操作の前に、スキャン中なら
 /// 「保存して終了」ダイアログを表示し、承認時に保存してから進むヘルパー。
@@ -14,24 +15,12 @@ Future<bool> confirmAndSaveIfScanning(
     return true; // スキャン中でなければそのまま遷移OK
   }
 
-  final shouldLeave = await showDialog<bool>(
-    context: context,
-    builder: (ctx) {
-      return AlertDialog(
-        title: const Text('スキャンを終了しますか？'),
-        content: const Text('現在の進行状況をResultsに保存して終了します。よろしいですか？'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('キャンセル'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('保存して終了'),
-          ),
-        ],
-      );
-    },
+  final shouldLeave = await Dialogs.confirm(
+    context,
+    title: 'スキャンを終了しますか？',
+    message: '現在の進行状況をResultsに保存して終了します。よろしいですか？',
+    okText: '保存して終了',
+    cancelText: 'キャンセル',
   );
 
   if (shouldLeave == true && context.mounted) {
