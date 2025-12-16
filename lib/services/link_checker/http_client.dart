@@ -9,20 +9,47 @@ class LinkCheckerHttpClient {
 
   LinkCheckerHttpClient(this._httpClient);
 
-  /// Check URL with HEAD request before fetching content
+  Future<T> _retry<T>(
+    Future<T> Function() action, {
+    int retries = 1,
+    Duration delay = const Duration(milliseconds: 200),
+    bool Function(T value)? shouldRetry,
+  }) async {
+    for (var attempt = 0; attempt <= retries; attempt++) {
+      try {
+        final result = await action();
+        if (shouldRetry != null && shouldRetry(result) && attempt < retries) {
+          await Future.delayed(delay);
+          continue;
+        }
+        return result;
+      } catch (_) {
+        if (attempt >= retries) rethrow;
+        await Future.delayed(delay);
+      }
+    }
+    throw Exception('_retry: unreachable code');
+  }
+
+  /// Check URL with HEAD request before fetching content (with retry on transient failures)
   Future<({int statusCode, String? contentType})> checkUrlHead(
     String url,
   ) async {
-    try {
-      final response = await _httpClient
-          .head(Uri.parse(url))
-          .timeout(const Duration(seconds: 5));
-
-      final contentType = response.headers['content-type']?.toLowerCase();
-      return (statusCode: response.statusCode, contentType: contentType);
-    } catch (e) {
-      return (statusCode: 0, contentType: null);
-    }
+    return _retry<({int statusCode, String? contentType})>(
+      () async {
+        try {
+          final response = await _httpClient
+              .head(Uri.parse(url))
+              .timeout(const Duration(seconds: 5));
+          final contentType = response.headers['content-type']?.toLowerCase();
+          return (statusCode: response.statusCode, contentType: contentType);
+        } catch (_) {
+          return (statusCode: 0, contentType: null);
+        }
+      },
+      retries: 1,
+      shouldRetry: (v) => v.statusCode == 0 || v.statusCode >= 500,
+    );
   }
 
   /// Fetch HTML content from a URL (with HEAD pre-check)
@@ -31,7 +58,7 @@ class LinkCheckerHttpClient {
       // Convert localhost for Android emulator
       final convertedUrl = UrlHelper.convertLocalhostForPlatform(url);
 
-      // Step 1: HEAD request to check status and content type
+      // Step 1: HEAD request to check status and content type (retry built-in)
       final headCheck = await checkUrlHead(convertedUrl);
 
       // Skip if not OK status
@@ -45,10 +72,22 @@ class LinkCheckerHttpClient {
         return null;
       }
 
-      // Step 2: GET request to fetch content
-      final response = await _httpClient
-          .get(Uri.parse(convertedUrl))
-          .timeout(const Duration(seconds: 10));
+      // Step 2: GET request to fetch content (retry on transient failures: network errors and 5xx)
+      final response = await _retry<http.Response>(
+        () async {
+          try {
+            return await _httpClient
+                .get(Uri.parse(convertedUrl))
+                .timeout(const Duration(seconds: 10));
+          } catch (_) {
+            // Return a dummy response with statusCode 0 to indicate network error
+            return http.Response('', 0);
+          }
+        },
+        retries: 1,
+        delay: const Duration(milliseconds: 200),
+        shouldRetry: (r) => r.statusCode == 0 || r.statusCode >= 500,
+      );
 
       if (response.statusCode == 200) {
         return response.body;
@@ -97,10 +136,15 @@ class LinkCheckerHttpClient {
         url.toString(),
       );
 
-      // Use HEAD request for efficiency
-      final response = await _httpClient
-          .head(Uri.parse(convertedUrl))
-          .timeout(const Duration(seconds: 5));
+      // Use HEAD request for efficiency with simple retry
+      final response = await _retry<http.Response>(
+        () => _httpClient
+            .head(Uri.parse(convertedUrl))
+            .timeout(const Duration(seconds: 5)),
+        retries: 1,
+        delay: const Duration(milliseconds: 200),
+        shouldRetry: (r) => false, // rely on catch for network retry
+      );
 
       // Consider 404 and 5xx as broken
       if (response.statusCode == 404 || response.statusCode >= 500) {
@@ -109,7 +153,21 @@ class LinkCheckerHttpClient {
 
       return null; // Link is OK
     } on http.ClientException catch (e) {
-      return (statusCode: 0, error: 'Network error: ${e.message}');
+      // Retry once more on network error
+      try {
+        final convertedUrl = UrlHelper.convertLocalhostForPlatform(
+          url.toString(),
+        );
+        final resp = await _httpClient
+            .head(Uri.parse(convertedUrl))
+            .timeout(const Duration(seconds: 5));
+        if (resp.statusCode == 404 || resp.statusCode >= 500) {
+          return (statusCode: resp.statusCode, error: null);
+        }
+        return null;
+      } catch (_) {
+        return (statusCode: 0, error: 'Network error: ${e.message}');
+      }
     } catch (e) {
       return (statusCode: 0, error: 'Error: $e');
     }
