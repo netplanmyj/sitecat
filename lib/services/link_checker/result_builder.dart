@@ -50,23 +50,10 @@ class ResultBuilder {
     final endTime = DateTime.now();
     final newLastScannedPageIndex = scanCompleted ? 0 : resumeFromIndex;
 
-    // Calculate cumulative statistics
-    final previousTotalLinks = previousResult?.totalLinks ?? 0;
-    final previousInternalLinks = previousResult?.internalLinks ?? 0;
-    final previousExternalLinks = previousResult?.externalLinks ?? 0;
-
+    // Calculate statistics for current batch only.
+    // TODO: When supporting cumulative results for continued scans,
+    // aggregate statistics across batches instead of per-batch only.
     final totalLinksCount = totalInternalLinksCount + totalExternalLinksCount;
-    final cumulativeTotalLinks = continueFromLastScan && previousResult != null
-        ? previousTotalLinks + totalLinksCount
-        : totalLinksCount;
-    final cumulativeInternalLinks =
-        continueFromLastScan && previousResult != null
-        ? previousInternalLinks + totalInternalLinksCount
-        : totalInternalLinksCount;
-    final cumulativeExternalLinks =
-        continueFromLastScan && previousResult != null
-        ? previousExternalLinks + totalExternalLinksCount
-        : totalExternalLinksCount;
 
     // Compute batch range (1-based for UI display)
     final batchStart = startIndex + 1;
@@ -79,10 +66,10 @@ class ResultBuilder {
       checkedSitemapUrl: site.sitemapUrl,
       sitemapStatusCode: sitemapStatusCode,
       timestamp: DateTime.now(),
-      totalLinks: cumulativeTotalLinks,
+      totalLinks: totalLinksCount,
       brokenLinks: allBrokenLinks.length,
-      internalLinks: cumulativeInternalLinks,
-      externalLinks: cumulativeExternalLinks,
+      internalLinks: totalInternalLinksCount,
+      externalLinks: totalExternalLinksCount,
       scanDuration: endTime.difference(startTime),
       pagesScanned: pagesScannedCount,
       totalPagesInSitemap: totalPagesInSitemap,
