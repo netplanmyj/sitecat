@@ -50,23 +50,13 @@ class ResultBuilder {
     final endTime = DateTime.now();
     final newLastScannedPageIndex = scanCompleted ? 0 : resumeFromIndex;
 
-    // Calculate cumulative statistics
-    final previousTotalLinks = previousResult?.totalLinks ?? 0;
-    final previousInternalLinks = previousResult?.internalLinks ?? 0;
-    final previousExternalLinks = previousResult?.externalLinks ?? 0;
-
+    // Calculate statistics for current batch only
+    // Note: Issue #270 (merge Results on continue) will add cumulative logic later.
+    // For now, each batch shows only its own Int/Ext counts.
     final totalLinksCount = totalInternalLinksCount + totalExternalLinksCount;
-    final cumulativeTotalLinks = continueFromLastScan && previousResult != null
-        ? previousTotalLinks + totalLinksCount
-        : totalLinksCount;
-    final cumulativeInternalLinks =
-        continueFromLastScan && previousResult != null
-        ? previousInternalLinks + totalInternalLinksCount
-        : totalInternalLinksCount;
-    final cumulativeExternalLinks =
-        continueFromLastScan && previousResult != null
-        ? previousExternalLinks + totalExternalLinksCount
-        : totalExternalLinksCount;
+    final batchTotalLinks = totalLinksCount;
+    final batchInternalLinks = totalInternalLinksCount;
+    final batchExternalLinks = totalExternalLinksCount;
 
     // Compute batch range (1-based for UI display)
     final batchStart = startIndex + 1;
@@ -79,10 +69,10 @@ class ResultBuilder {
       checkedSitemapUrl: site.sitemapUrl,
       sitemapStatusCode: sitemapStatusCode,
       timestamp: DateTime.now(),
-      totalLinks: cumulativeTotalLinks,
+      totalLinks: batchTotalLinks,
       brokenLinks: allBrokenLinks.length,
-      internalLinks: cumulativeInternalLinks,
-      externalLinks: cumulativeExternalLinks,
+      internalLinks: batchInternalLinks,
+      externalLinks: batchExternalLinks,
       scanDuration: endTime.difference(startTime),
       pagesScanned: pagesScannedCount,
       totalPagesInSitemap: totalPagesInSitemap,
