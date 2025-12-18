@@ -41,6 +41,7 @@ class _FakeLinkCheckerClient implements LinkCheckerClient {
     bool checkExternalLinks = true,
     bool continueFromLastScan = false,
     int? precalculatedPageCount,
+    List<Uri>? cachedSitemapUrls,
     void Function(int checked, int total)? onProgress,
     void Function(int checked, int total)? onExternalLinksProgress,
     void Function(int? statusCode)? onSitemapStatusUpdate,
@@ -56,6 +57,14 @@ class _FakeLinkCheckerClient implements LinkCheckerClient {
 
   @override
   Future<int?> loadSitemapPageCount(
+    Site site, {
+    void Function(int? statusCode)? onSitemapStatusUpdate,
+  }) {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<List<Uri>?> loadSitemapUrls(
     Site site, {
     void Function(int? statusCode)? onSitemapStatusUpdate,
   }) {

@@ -26,13 +26,26 @@ class ScanOrchestrator {
   /// allowing the UI to show an immediate total page count without waiting for
   /// sitemap loading to complete. However, sitemap loading is always performed
   /// to get the actual URLs and handle any configuration changes (e.g., excluded paths).
+  ///
+  /// Issue #291: [cachedUrls] parameter allows skipping sitemap reload when URLs
+  /// are already cached, reducing Site Scan startup delay from 10-20s to near-instant.
   Future<SitemapLoadResult> loadSitemapUrls({
     required Site site,
     required Uri baseUrl,
     required Uri originalBaseUrl,
     int? precalculatedPageCount,
+    List<Uri>? cachedUrls,
     void Function(int? statusCode)? onSitemapStatusUpdate,
   }) async {
+    // Issue #291: Use cached URLs if available (skip sitemap reload)
+    if (cachedUrls != null && cachedUrls.isNotEmpty) {
+      return SitemapLoadResult(
+        urls: cachedUrls,
+        totalPages: cachedUrls.length,
+        statusCode: null, // Status already checked during pre-calculation
+      );
+    }
+
     List<Uri> allInternalPages = [];
     int? sitemapStatusCode;
 

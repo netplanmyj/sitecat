@@ -43,6 +43,7 @@ class _FakeLinkCheckerService implements LinkCheckerClient {
     bool checkExternalLinks = true,
     bool continueFromLastScan = false,
     int? precalculatedPageCount,
+    List<Uri>? cachedSitemapUrls,
     void Function(int p1, int p2)? onProgress,
     void Function(int p1, int p2)? onExternalLinksProgress,
     void Function(int? p1)? onSitemapStatusUpdate,
@@ -62,6 +63,21 @@ class _FakeLinkCheckerService implements LinkCheckerClient {
       throw Exception('Failed to load sitemap page count');
     }
     return _pageCountToReturn;
+  }
+
+  @override
+  Future<List<Uri>?> loadSitemapUrls(
+    Site site, {
+    void Function(int? statusCode)? onSitemapStatusUpdate,
+  }) async {
+    if (_shouldThrowOnLoadPageCount) {
+      throw Exception('Failed to load sitemap URLs');
+    }
+    if (_pageCountToReturn == null) return null;
+    return List.generate(
+      _pageCountToReturn!,
+      (i) => Uri.parse('${site.url}/page$i'),
+    );
   }
 
   @override
@@ -141,6 +157,7 @@ class _ControllableLinkCheckerService implements LinkCheckerClient {
     bool checkExternalLinks = false,
     bool continueFromLastScan = false,
     int? precalculatedPageCount,
+    List<Uri>? cachedSitemapUrls,
     void Function(int, int)? onProgress,
     void Function(int, int)? onExternalLinksProgress,
     void Function(int?)? onSitemapStatusUpdate,
@@ -155,6 +172,14 @@ class _ControllableLinkCheckerService implements LinkCheckerClient {
 
   @override
   Future<int?> loadSitemapPageCount(
+    Site site, {
+    void Function(int? p1)? onSitemapStatusUpdate,
+  }) async {
+    return null;
+  }
+
+  @override
+  Future<List<Uri>?> loadSitemapUrls(
     Site site, {
     void Function(int? p1)? onSitemapStatusUpdate,
   }) async {

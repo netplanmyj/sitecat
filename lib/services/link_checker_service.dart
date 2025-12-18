@@ -22,12 +22,17 @@ abstract class LinkCheckerClient {
     bool checkExternalLinks,
     bool continueFromLastScan,
     int? precalculatedPageCount,
+    List<Uri>? cachedSitemapUrls,
     void Function(int checked, int total)? onProgress,
     void Function(int checked, int total)? onExternalLinksProgress,
     void Function(int? statusCode)? onSitemapStatusUpdate,
     bool Function()? shouldCancel,
   });
   Future<int?> loadSitemapPageCount(
+    Site site, {
+    void Function(int? statusCode)? onSitemapStatusUpdate,
+  });
+  Future<List<Uri>?> loadSitemapUrls(
     Site site, {
     void Function(int? statusCode)? onSitemapStatusUpdate,
   });
@@ -166,6 +171,8 @@ class LinkCheckerService implements LinkCheckerClient {
     bool continueFromLastScan = false, // Continue from last scanned index
     int?
     precalculatedPageCount, // Pre-calculated page count to avoid re-loading sitemap
+    List<Uri>?
+    cachedSitemapUrls, // Issue #291: Cached sitemap URLs to skip reload
     void Function(int checked, int total)? onProgress,
     void Function(int checked, int total)? onExternalLinksProgress,
     void Function(int? statusCode)? onSitemapStatusUpdate,
@@ -193,17 +200,47 @@ class LinkCheckerService implements LinkCheckerClient {
         : site.copyWith(excludedPaths: []);
 
     // ========================================================================
+    // STEP 0: Quick Check equivalent (Issue #291: Unify Quick Scan and Site Scan)
+    // ========================================================================
+    // Perform GET request to base URL to get status code and response time
+    int? baseUrlStatusCode;
+    int? baseUrlResponseTime;
+    bool? baseUrlIsUp;
+
+    try {
+      final quickCheckStart = DateTime.now();
+      final response = await _httpClient
+          .get(baseUrl)
+          .timeout(const Duration(seconds: 10));
+      final quickCheckEnd = DateTime.now();
+
+      baseUrlStatusCode = response.statusCode;
+      baseUrlResponseTime = quickCheckEnd
+          .difference(quickCheckStart)
+          .inMilliseconds;
+      baseUrlIsUp = baseUrlStatusCode >= 200 && baseUrlStatusCode < 400;
+
+      _logger.d(
+        'Quick check for ${site.url}: status=$baseUrlStatusCode, time=${baseUrlResponseTime}ms',
+      );
+    } catch (e) {
+      baseUrlStatusCode = 0;
+      baseUrlResponseTime = null;
+      baseUrlIsUp = false;
+      _logger.e('Quick check failed for ${site.url}: $e');
+    }
+
+    // ========================================================================
     // STEP 1: Load sitemap URLs and check accessibility
     // ========================================================================
-    // Note: The precalculatedPageCount parameter is used for UI display purposes
-    // (to show an immediate total count), but does not skip or optimize sitemap loading.
-    // Sitemap is always fully loaded to get URLs and handle configuration changes.
+    // Issue #291: Use cached URLs if available to avoid 10-20s sitemap reload delay
     final sitemapData = await _orchestrator.loadSitemapUrls(
       site: siteForScanning,
       baseUrl: baseUrl,
       originalBaseUrl: originalBaseUrl,
       onSitemapStatusUpdate: onSitemapStatusUpdate,
       precalculatedPageCount: precalculatedPageCount,
+      cachedUrls: cachedSitemapUrls,
     );
     final allInternalPages = sitemapData.urls;
     final totalPagesInSitemap = sitemapData.totalPages;
@@ -355,6 +392,9 @@ class LinkCheckerService implements LinkCheckerClient {
       continueFromLastScan: continueFromLastScan,
       startTime: startTime,
       startIndex: startIndex,
+      baseUrlStatusCode: baseUrlStatusCode,
+      baseUrlResponseTime: baseUrlResponseTime,
+      baseUrlIsUp: baseUrlIsUp,
     );
   }
 
@@ -366,6 +406,26 @@ class LinkCheckerService implements LinkCheckerClient {
   /// or null if the sitemap cannot be loaded.
   @override
   Future<int?> loadSitemapPageCount(
+    Site site, {
+    void Function(int? statusCode)? onSitemapStatusUpdate,
+  }) async {
+    try {
+      final urls = await loadSitemapUrls(
+        site,
+        onSitemapStatusUpdate: onSitemapStatusUpdate,
+      );
+      return urls?.length;
+    } catch (e) {
+      _logger.e('Error loading sitemap page count for ${site.id}: $e');
+      return null;
+    }
+  }
+
+  /// Load sitemap URLs for a site (Issue #291: Cache URLs to reduce scan startup delay)
+  /// Returns the list of URLs from the sitemap after applying excluded paths,
+  /// or null if the sitemap cannot be loaded.
+  @override
+  Future<List<Uri>?> loadSitemapUrls(
     Site site, {
     void Function(int? statusCode)? onSitemapStatusUpdate,
   }) async {
@@ -382,9 +442,9 @@ class LinkCheckerService implements LinkCheckerClient {
         onSitemapStatusUpdate: onSitemapStatusUpdate,
       );
 
-      return sitemapData.urls.length;
+      return sitemapData.urls;
     } catch (e) {
-      _logger.e('Error loading sitemap page count for ${site.id}: $e');
+      _logger.e('Error loading sitemap URLs for ${site.id}: $e');
       return null;
     }
   }
