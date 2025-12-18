@@ -59,6 +59,19 @@ class MockMonitoringService extends _i1.Mock implements _i3.MonitoringService {
           as _i4.Future<_i2.MonitoringResult>);
 
   @override
+  _i4.Future<_i2.MonitoringResult> quickCheckSite(_i5.Site? site) =>
+      (super.noSuchMethod(
+            Invocation.method(#quickCheckSite, [site]),
+            returnValue: _i4.Future<_i2.MonitoringResult>.value(
+              _FakeMonitoringResult_0(
+                this,
+                Invocation.method(#quickCheckSite, [site]),
+              ),
+            ),
+          )
+          as _i4.Future<_i2.MonitoringResult>);
+
+  @override
   _i4.Stream<List<_i2.MonitoringResult>> getSiteResults(
     String? siteId, {
     int? limit = 50,

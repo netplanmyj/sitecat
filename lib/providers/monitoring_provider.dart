@@ -24,6 +24,8 @@ class MonitoringProvider extends ChangeNotifier {
 
   // State variables
   final Map<String, List<MonitoringResult>> _resultsBySite = {};
+  final Map<String, MonitoringResult?> _quickCheckCache =
+      {}; // Cache for quick check results (memory-only)
   final Map<String, bool> _isChecking = {};
   final Map<String, int?> _sitemapStatusCache =
       {}; // Cache for sitemap status code
@@ -42,9 +44,14 @@ class MonitoringProvider extends ChangeNotifier {
     }
   }
 
-  /// Get monitoring results for a specific site
+  /// Get monitoring results for a specific site (Firestore persisted results only)
   List<MonitoringResult> getSiteResults(String siteId) {
     return _resultsBySite[siteId] ?? [];
+  }
+
+  /// Get quick check result for a site (memory-only, not persisted)
+  MonitoringResult? getQuickCheckResult(String siteId) {
+    return _quickCheckCache[siteId];
   }
 
   /// Check if a site is currently being monitored
@@ -139,8 +146,47 @@ class MonitoringProvider extends ChangeNotifier {
     return _cooldownService.getTimeUntilNextCheck(siteId);
   }
 
-  /// Perform a manual check on a site
+  /// Perform a manual check on a site (saves to Firestore)
   Future<bool> checkSite(Site site) async {
+    return _performCheck(
+      site,
+      serviceCall: () => _monitoringService.checkSite(site),
+      onSuccess: (result) {
+        // Update local cache with Firestore-persisted result
+        final existingResults = _resultsBySite[site.id] ?? [];
+        _resultsBySite[site.id] = [result, ...existingResults];
+      },
+    );
+  }
+
+  /// Perform a quick check on a site (does NOT save to Firestore - memory only).
+  ///
+  /// Practical differences from [checkSite]:
+  /// - No Firestore document is created, so the returned [MonitoringResult] will have
+  ///   an empty `id`.
+  /// - The site's `lastChecked` timestamp is **not** updated.
+  /// - Results are stored in a separate cache and do **not** appear in [getSiteResults]
+  ///   or [getAllResults].
+  ///
+  /// Use this for temporary checks that should only appear in the Site Information card.
+  /// Issue #294: Quick Scan results should not appear in Results page.
+  Future<bool> quickCheckSite(Site site) async {
+    return _performCheck(
+      site,
+      serviceCall: () => _monitoringService.quickCheckSite(site),
+      onSuccess: (result) {
+        // Store in separate quick check cache (not mixed with Firestore results)
+        _quickCheckCache[site.id] = result;
+      },
+    );
+  }
+
+  /// Internal helper to perform check with common logic
+  Future<bool> _performCheck(
+    Site site, {
+    required Future<MonitoringResult> Function() serviceCall,
+    required void Function(MonitoringResult) onSuccess,
+  }) async {
     // Disable checking in demo mode
     if (_isDemoMode) {
       _setError('Site monitoring is not available in demo mode');
@@ -165,11 +211,10 @@ class MonitoringProvider extends ChangeNotifier {
 
       _setChecking(site.id, true);
 
-      final result = await _monitoringService.checkSite(site);
+      final result = await serviceCall();
 
-      // Update local cache
-      final existingResults = _resultsBySite[site.id] ?? [];
-      _resultsBySite[site.id] = [result, ...existingResults];
+      // Execute caller-specific success logic
+      onSuccess(result);
 
       // Cache sitemap status if available
       if (result.sitemapStatusCode != null) {

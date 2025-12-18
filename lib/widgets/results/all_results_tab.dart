@@ -4,11 +4,9 @@ import '../../models/broken_link.dart';
 import '../../models/monitoring_result.dart';
 import '../../models/site.dart';
 import '../../providers/link_checker_provider.dart';
-import '../../providers/monitoring_provider.dart';
 import '../../providers/site_provider.dart';
 import '../../widgets/common/empty_state.dart';
 import '../../screens/broken_links_screen.dart';
-import '../monitoring/quick_check_card.dart';
 import '../link_check/full_scan_card.dart';
 
 // Unified result type for Quick Check and Site Scan
@@ -38,22 +36,15 @@ class AllResultsTab extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer3<LinkCheckerProvider, MonitoringProvider, SiteProvider>(
-      builder: (context, linkChecker, monitoring, siteProvider, child) {
-        // Combine Quick Check and Site Scan results
+    return Consumer2<LinkCheckerProvider, SiteProvider>(
+      builder: (context, linkChecker, siteProvider, child) {
+        // Issue #294: Show only Site Scan results (no Quick Check results)
         final allResults = <UnifiedResult>[];
 
-        // Add Site Scan results
+        // Add Site Scan results only
         for (final item in linkChecker.getAllCheckHistory()) {
           allResults.add(
             FullScanResult(siteId: item.siteId, result: item.result),
-          );
-        }
-
-        // Add Quick Check results
-        for (final item in monitoring.getAllResults()) {
-          allResults.add(
-            QuickCheckResult(siteId: item.siteId, result: item.result),
           );
         }
 
@@ -67,7 +58,7 @@ class AllResultsTab extends StatelessWidget {
               child: EmptyState(
                 icon: Icons.assessment,
                 title: 'No results yet',
-                subtitle: 'Run a scan or check to see results',
+                subtitle: 'Run a site scan to see results',
               ),
             ),
           );
@@ -91,10 +82,7 @@ class AllResultsTab extends StatelessWidget {
             );
 
             return switch (item) {
-              QuickCheckResult() => QuickCheckCard(
-                site: site,
-                result: item.result,
-              ),
+              // Issue #294: Only show Site Scan results
               FullScanResult() => FullScanCard(
                 site: site,
                 result: item.result,
@@ -117,6 +105,8 @@ class AllResultsTab extends StatelessWidget {
                   }
                 },
               ),
+              // Issue #294: QuickCheckResult should never appear here
+              QuickCheckResult() => const SizedBox.shrink(),
             };
           },
         );
