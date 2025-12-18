@@ -209,8 +209,11 @@ class LinkCheckerService implements LinkCheckerClient {
 
     try {
       final quickCheckStart = DateTime.now();
+      final convertedUrl = UrlHelper.convertLocalhostForPlatform(
+        baseUrl.toString(),
+      );
       final response = await _httpClient
-          .get(baseUrl)
+          .get(Uri.parse(convertedUrl))
           .timeout(const Duration(seconds: 10));
       final quickCheckEnd = DateTime.now();
 

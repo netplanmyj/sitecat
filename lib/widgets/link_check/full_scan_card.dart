@@ -135,34 +135,47 @@ class FullScanCard extends StatelessWidget {
                     child: SingleChildScrollView(
                       scrollDirection: Axis.horizontal,
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceAround,
+                        mainAxisAlignment: MainAxisAlignment.start,
                         children: [
                           // Quick Check metrics
                           if (result.baseUrlResponseTime != null)
-                            _buildStatItem(
-                              Icons.speed,
-                              '${result.baseUrlResponseTime}ms',
-                              'Response',
-                              result.baseUrlResponseTime! < 1000
-                                  ? Colors.green
-                                  : Colors.orange,
+                            Padding(
+                              padding: const EdgeInsets.only(right: 16),
+                              child: _buildStatItem(
+                                Icons.speed,
+                                '${result.baseUrlResponseTime}ms',
+                                'Response',
+                                result.baseUrlResponseTime! < 1000
+                                    ? Colors.green
+                                    : Colors.orange,
+                              ),
                             ),
                           if (result.baseUrlStatusCode != null)
-                            _buildStatItem(
-                              Icons.code,
-                              '${result.baseUrlStatusCode}',
-                              'Status',
-                              result.baseUrlStatusCode! >= 200 &&
-                                      result.baseUrlStatusCode! < 300
-                                  ? Colors.green
-                                  : Colors.orange,
+                            Padding(
+                              padding: const EdgeInsets.only(right: 16),
+                              child: _buildStatItem(
+                                Icons.code,
+                                result.baseUrlStatusCode == 0
+                                    ? 'Error'
+                                    : '${result.baseUrlStatusCode}',
+                                'Status',
+                                result.baseUrlStatusCode == 0
+                                    ? Colors.red
+                                    : (result.baseUrlStatusCode! >= 200 &&
+                                              result.baseUrlStatusCode! < 300
+                                          ? Colors.green
+                                          : Colors.orange),
+                              ),
                             ),
                           // Site Scan metrics
-                          _buildStatItem(
-                            Icons.description,
-                            '${result.totalPagesInSitemap}',
-                            'Pages',
-                            Colors.blue,
+                          Padding(
+                            padding: const EdgeInsets.only(right: 16),
+                            child: _buildStatItem(
+                              Icons.description,
+                              '${result.totalPagesInSitemap}',
+                              'Pages',
+                              Colors.blue,
+                            ),
                           ),
                           _buildStatItem(
                             Icons.link_off,
