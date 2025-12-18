@@ -66,11 +66,18 @@ class MonitoringService {
     return result.copyWith(id: docRef.id);
   }
 
-  /// Perform a quick check on a site (does NOT save to Firestore - memory only)
-  /// Use this for temporary checks that should only appear in Site Information card
-  /// Issue #294: Quick Scan results should not appear in Results page
-  Future<MonitoringResult> quickCheckSite(Site site) async {
-    return await _performHealthCheck(site);
+  /// Perform a quick check on a site (does NOT save to Firestore - memory only).
+  ///
+  /// Practical differences from [checkSite]:
+  /// - No Firestore document is created, so the returned [MonitoringResult] will have
+  ///   an empty `id`.
+  /// - The site's `lastChecked` timestamp is **not** updated.
+  /// - No cleanup of old results is triggered.
+  ///
+  /// Use this for temporary checks that should only appear in the Site Information card.
+  /// Issue #294: Quick Scan results should not appear in Results page.
+  Future<MonitoringResult> quickCheckSite(Site site) {
+    return _performHealthCheck(site);
   }
 
   /// Internal method to perform HTTP health check

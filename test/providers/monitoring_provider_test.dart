@@ -153,6 +153,67 @@ void main() {
     });
   });
 
+  group('quickCheckSite', () {
+    test('performs quick check and caches in separate cache', () async {
+      final site = buildSite();
+      final result = buildResult();
+      when(
+        mockMonitoringService.quickCheckSite(any),
+      ).thenAnswer((_) async => result);
+
+      final success = await provider.quickCheckSite(site);
+
+      expect(success, isTrue);
+      expect(provider.isChecking(site.id), isFalse);
+      // Quick check result should be in separate cache
+      expect(provider.getQuickCheckResult(site.id), equals(result));
+      // Quick check result should NOT appear in getSiteResults
+      expect(provider.getSiteResults(site.id), isEmpty);
+      expect(provider.getCachedSitemapStatus(site.id), 200);
+      expect(provider.getTimeUntilNextCheck(site.id), isNotNull);
+      verify(mockMonitoringService.quickCheckSite(any)).called(1);
+    });
+
+    test('quick check results do not appear in getAllResults', () async {
+      final site = buildSite();
+      final result = buildResult();
+      when(
+        mockMonitoringService.quickCheckSite(any),
+      ).thenAnswer((_) async => result);
+
+      await provider.quickCheckSite(site);
+
+      // getAllResults should be empty (quick check not included)
+      expect(provider.getAllResults(), isEmpty);
+    });
+
+    test('blocks quick checks during cooldown window', () async {
+      final site = buildSite();
+      final result = buildResult();
+      when(
+        mockMonitoringService.quickCheckSite(any),
+      ).thenAnswer((_) async => result);
+
+      final first = await provider.quickCheckSite(site);
+      final second = await provider.quickCheckSite(site);
+
+      expect(first, isTrue);
+      expect(second, isFalse);
+      expect(provider.error, contains('Please wait'));
+      verify(mockMonitoringService.quickCheckSite(any)).called(1);
+    });
+
+    test('returns error in demo mode', () async {
+      await provider.initialize([], isDemoMode: true);
+      final site = buildSite();
+
+      final success = await provider.quickCheckSite(site);
+
+      expect(success, isFalse);
+      expect(provider.error, 'Site monitoring is not available in demo mode');
+    });
+  });
+
   group('cache helpers', () {
     test('cache and clear sitemap status', () {
       provider.cacheSitemapStatus('site-1', 404);
