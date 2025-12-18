@@ -128,63 +128,51 @@ class FullScanCard extends StatelessWidget {
 
               const SizedBox(height: 8),
 
-              // Stats (Issue #291: Added Quick Check metrics)
+              // Stats - evenly distributed across screen width (Issue #294)
               Row(
                 children: [
                   Expanded(
-                    child: SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.start,
-                        children: [
-                          // Quick Check metrics
-                          if (result.baseUrlResponseTime != null)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 16),
-                              child: _buildStatItem(
-                                Icons.speed,
-                                '${result.baseUrlResponseTime}ms',
-                                'Response',
-                                result.baseUrlResponseTime! < 1000
-                                    ? Colors.green
-                                    : Colors.orange,
-                              ),
-                            ),
-                          if (result.baseUrlStatusCode != null)
-                            Padding(
-                              padding: const EdgeInsets.only(right: 16),
-                              child: _buildStatItem(
-                                Icons.code,
-                                result.baseUrlStatusCode == 0
-                                    ? 'Error'
-                                    : '${result.baseUrlStatusCode}',
-                                'Status',
-                                result.baseUrlStatusCode == 0
-                                    ? Colors.red
-                                    : (result.baseUrlStatusCode! >= 200 &&
-                                              result.baseUrlStatusCode! < 300
-                                          ? Colors.green
-                                          : Colors.orange),
-                              ),
-                            ),
-                          // Site Scan metrics
-                          Padding(
-                            padding: const EdgeInsets.only(right: 16),
-                            child: _buildStatItem(
-                              Icons.description,
-                              '${result.totalPagesInSitemap}',
-                              'Pages',
-                              Colors.blue,
-                            ),
-                          ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        // Quick Check metrics (if available)
+                        if (result.baseUrlResponseTime != null)
                           _buildStatItem(
-                            Icons.link_off,
-                            '${result.brokenLinks}',
-                            'Broken',
-                            result.brokenLinks > 0 ? Colors.red : Colors.green,
+                            Icons.speed,
+                            '${result.baseUrlResponseTime}ms',
+                            'Response',
+                            result.baseUrlResponseTime! < 1000
+                                ? Colors.green
+                                : Colors.orange,
                           ),
-                        ],
-                      ),
+                        if (result.baseUrlStatusCode != null)
+                          _buildStatItem(
+                            Icons.code,
+                            result.baseUrlStatusCode == 0
+                                ? 'Error'
+                                : '${result.baseUrlStatusCode}',
+                            'Status',
+                            result.baseUrlStatusCode == 0
+                                ? Colors.red
+                                : (result.baseUrlStatusCode! >= 200 &&
+                                          result.baseUrlStatusCode! < 300
+                                      ? Colors.green
+                                      : Colors.orange),
+                          ),
+                        // Site Scan metrics
+                        _buildStatItem(
+                          Icons.description,
+                          '${result.totalPagesInSitemap}',
+                          'Pages',
+                          Colors.blue,
+                        ),
+                        _buildStatItem(
+                          Icons.link_off,
+                          '${result.brokenLinks}',
+                          'Broken',
+                          result.brokenLinks > 0 ? Colors.red : Colors.green,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 8),

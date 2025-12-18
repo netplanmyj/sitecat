@@ -139,7 +139,7 @@ class MonitoringProvider extends ChangeNotifier {
     return _cooldownService.getTimeUntilNextCheck(siteId);
   }
 
-  /// Perform a manual check on a site
+  /// Perform a manual check on a site (saves to Firestore)
   Future<bool> checkSite(Site site) async {
     // Disable checking in demo mode
     if (_isDemoMode) {
@@ -168,6 +168,57 @@ class MonitoringProvider extends ChangeNotifier {
       final result = await _monitoringService.checkSite(site);
 
       // Update local cache
+      final existingResults = _resultsBySite[site.id] ?? [];
+      _resultsBySite[site.id] = [result, ...existingResults];
+
+      // Cache sitemap status if available
+      if (result.sitemapStatusCode != null) {
+        cacheSitemapStatus(site.id, result.sitemapStatusCode);
+      }
+
+      // Start cooldown period
+      _cooldownService.startCooldown(site.id, minimumCheckInterval);
+
+      _setChecking(site.id, false);
+      return true;
+    } catch (e) {
+      _setError('Failed to check site: $e');
+      _setChecking(site.id, false);
+      return false;
+    }
+  }
+
+  /// Perform a quick check on a site (memory-only, does NOT save to Firestore)
+  /// Issue #294: Used for Site Information card display only
+  Future<bool> quickCheckSite(Site site) async {
+    // Disable checking in demo mode
+    if (_isDemoMode) {
+      _setError('Site monitoring is not available in demo mode');
+      return false;
+    }
+
+    try {
+      _clearError();
+
+      // Check if minimum interval has passed
+      if (!canCheckSite(site.id)) {
+        final remaining = getTimeUntilNextCheck(site.id);
+        if (remaining != null) {
+          final minutes = remaining.inMinutes;
+          final seconds = remaining.inSeconds % 60;
+          _setError(
+            'Please wait $minutes:${seconds.toString().padLeft(2, '0')} before checking again',
+          );
+          return false;
+        }
+      }
+
+      _setChecking(site.id, true);
+
+      // Use quickCheckSite (memory-only, no Firestore save)
+      final result = await _monitoringService.quickCheckSite(site);
+
+      // Update local cache only (no Firestore)
       final existingResults = _resultsBySite[site.id] ?? [];
       _resultsBySite[site.id] = [result, ...existingResults];
 

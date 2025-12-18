@@ -33,8 +33,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
       context.read<LinkCheckerProvider>().loadLatestResult(widget.site.id);
       // Pre-calculate target page count for display
       context.read<LinkCheckerProvider>().precalculatePageCount(widget.site);
-      // Auto-trigger quick scan to get fresh sitemap status
-      context.read<MonitoringProvider>().checkSite(widget.site);
+      // Auto-trigger quick scan to get fresh sitemap status (memory-only, Issue #294)
+      context.read<MonitoringProvider>().quickCheckSite(widget.site);
     });
   }
 
@@ -145,7 +145,8 @@ class _SiteDetailScreenState extends State<SiteDetailScreen> {
 
   Future<void> _quickCheck() async {
     final provider = context.read<MonitoringProvider>();
-    await provider.checkSite(widget.site);
+    // Use quickCheckSite (memory-only, Issue #294)
+    await provider.quickCheckSite(widget.site);
 
     if (!mounted) return;
 

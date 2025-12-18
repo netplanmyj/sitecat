@@ -33,8 +33,49 @@ class MonitoringService {
       .doc(userId)
       .collection('monitoringResults');
 
-  /// Perform a health check on a site
+  /// Perform a health check on a site (saves to Firestore)
+  /// Use this for persistent monitoring results that should appear in Results page
   Future<MonitoringResult> checkSite(Site site) async {
+    final result = await _performHealthCheck(site);
+
+    // Generate document reference with auto-generated ID
+    final docRef = _resultsCollection(_currentUserId!).doc();
+
+    // Save to Firestore asynchronously without waiting
+    // Firestore handles offline persistence automatically
+    docRef.set(result.toFirestore()).catchError((error) {
+      _logger.e('Firestore set() failed', error: error);
+    });
+
+    // Update site's lastChecked timestamp asynchronously
+    _firestore
+        .collection('users')
+        .doc(_currentUserId!)
+        .collection('sites')
+        .doc(site.id)
+        .update({'lastChecked': Timestamp.now()})
+        .catchError((error) {
+          _logger.e('Firestore update() failed', error: error);
+        });
+
+    // Cleanup old monitoring results (keep only latest 10 per site)
+    _cleanupOldResults(site.id).catchError((error) {
+      _logger.e('Failed to cleanup old monitoring results', error: error);
+    });
+
+    return result.copyWith(id: docRef.id);
+  }
+
+  /// Perform a quick check on a site (does NOT save to Firestore - memory only)
+  /// Use this for temporary checks that should only appear in Site Information card
+  /// Issue #294: Quick Scan results should not appear in Results page
+  Future<MonitoringResult> quickCheckSite(Site site) async {
+    return await _performHealthCheck(site);
+  }
+
+  /// Internal method to perform HTTP health check
+  /// Returns MonitoringResult without Firestore operations
+  Future<MonitoringResult> _performHealthCheck(Site site) async {
     if (_currentUserId == null) {
       throw Exception('User must be authenticated to check sites');
     }
@@ -108,8 +149,8 @@ class MonitoringService {
     final responseTime = endTime.difference(startTime).inMilliseconds;
 
     // Create monitoring result with sitemap status
-    final result = MonitoringResult(
-      id: '', // Will be set by Firestore
+    return MonitoringResult(
+      id: '', // ID will be set by Firestore (if saved) or left empty (if memory-only)
       siteId: site.id,
       userId: _currentUserId!,
       timestamp: DateTime.now(),
@@ -119,33 +160,6 @@ class MonitoringService {
       error: error,
       sitemapStatusCode: sitemapStatusCode,
     );
-
-    // Generate document reference with auto-generated ID
-    final docRef = _resultsCollection(_currentUserId!).doc();
-
-    // Save to Firestore asynchronously without waiting
-    // Firestore handles offline persistence automatically
-    docRef.set(result.toFirestore()).catchError((error) {
-      _logger.e('Firestore set() failed', error: error);
-    });
-
-    // Update site's lastChecked timestamp asynchronously
-    _firestore
-        .collection('users')
-        .doc(_currentUserId!)
-        .collection('sites')
-        .doc(site.id)
-        .update({'lastChecked': Timestamp.now()})
-        .catchError((error) {
-          _logger.e('Firestore update() failed', error: error);
-        });
-
-    // Cleanup old monitoring results (keep only latest 10 per site)
-    _cleanupOldResults(site.id).catchError((error) {
-      _logger.e('Failed to cleanup old monitoring results', error: error);
-    });
-
-    return result.copyWith(id: docRef.id);
   }
 
   /// Get monitoring results for a specific site

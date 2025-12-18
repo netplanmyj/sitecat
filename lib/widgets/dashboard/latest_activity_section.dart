@@ -4,10 +4,8 @@ import '../../models/broken_link.dart';
 import '../../models/monitoring_result.dart';
 import '../../models/site.dart';
 import '../../providers/link_checker_provider.dart';
-import '../../providers/monitoring_provider.dart';
 import '../../providers/site_provider.dart';
 import '../common/empty_state.dart';
-import '../monitoring/quick_check_card.dart';
 import '../link_check/full_scan_card.dart';
 import '../../screens/broken_links_screen.dart';
 
@@ -40,22 +38,15 @@ class LatestActivitySection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer3<LinkCheckerProvider, MonitoringProvider, SiteProvider>(
-      builder: (context, linkChecker, monitoring, siteProvider, child) {
-        // Combine Quick Check and Site Scan results
+    return Consumer2<LinkCheckerProvider, SiteProvider>(
+      builder: (context, linkChecker, siteProvider, child) {
+        // Issue #294: Show only Site Scan results (no Quick Check results)
         final allResults = <UnifiedDashboardResult>[];
 
-        // Add Site Scan results
+        // Add Site Scan results only
         for (final item in linkChecker.getAllCheckHistory()) {
           allResults.add(
             FullScanDashboardResult(siteId: item.siteId, result: item.result),
-          );
-        }
-
-        // Add Quick Check results
-        for (final item in monitoring.getAllResults()) {
-          allResults.add(
-            QuickCheckDashboardResult(siteId: item.siteId, result: item.result),
           );
         }
 
@@ -107,6 +98,7 @@ class LatestActivitySection extends StatelessWidget {
                     ),
                   );
 
+                  // Issue #294: Only show Site Scan results
                   return switch (item) {
                     FullScanDashboardResult() => FullScanCard(
                       site: site,
@@ -128,10 +120,8 @@ class LatestActivitySection extends StatelessWidget {
                         }
                       },
                     ),
-                    QuickCheckDashboardResult() => QuickCheckCard(
-                      site: site,
-                      result: item.result,
-                    ),
+                    // QuickCheckDashboardResult removed (Issue #294)
+                    _ => const SizedBox.shrink(),
                   };
                 },
               ),
