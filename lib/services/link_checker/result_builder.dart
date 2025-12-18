@@ -46,6 +46,9 @@ class ResultBuilder {
     required bool continueFromLastScan,
     required DateTime startTime,
     required int startIndex,
+    int? baseUrlStatusCode,
+    int? baseUrlResponseTime,
+    bool? baseUrlIsUp,
   }) async {
     final endTime = DateTime.now();
     final newLastScannedPageIndex = scanCompleted ? 0 : resumeFromIndex;
@@ -78,6 +81,9 @@ class ResultBuilder {
       pagesCompleted: pagesCompleted,
       currentBatchStart: batchStart,
       currentBatchEnd: batchEnd,
+      baseUrlStatusCode: baseUrlStatusCode,
+      baseUrlResponseTime: baseUrlResponseTime,
+      baseUrlIsUp: baseUrlIsUp,
     );
 
     // Create repository instance for this operation

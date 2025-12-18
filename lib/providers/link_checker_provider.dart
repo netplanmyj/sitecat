@@ -193,6 +193,8 @@ class LinkCheckerProvider extends ChangeNotifier {
   /// Pre-calculate the total page count for a site by loading its sitemap
   /// This determines how many pages will be scanned based on the site's current sitemap
   /// and excluded paths configuration.
+  ///
+  /// Issue #291: Also caches sitemap URLs to avoid re-loading during Site Scan startup
   Future<int?> precalculatePageCount(Site site) async {
     if (_isDemoMode) {
       // Demo mode: return null (demo sites don't have real page counts)
@@ -200,16 +202,24 @@ class LinkCheckerProvider extends ChangeNotifier {
     }
 
     try {
-      // Use the link checker service's lightweight sitemap loader
-      final pageCount = await _linkCheckerService.loadSitemapPageCount(site);
+      // Use the link checker service's lightweight sitemap loader with URL caching
+      final sitemapUrls = await _linkCheckerService.loadSitemapUrls(site);
 
-      if (pageCount != null && pageCount > 0) {
-        // Cache the result
-        _progress.setPrecalculatedPageCount(site.id, pageCount);
-        notifyListeners();
+      if (sitemapUrls != null) {
+        final pageCount = sitemapUrls.length;
+
+        // Cache page count and URLs only if pageCount > 0 (Issue #291)
+        // Don't cache 0 page count - treat as invalid/empty sitemap
+        if (pageCount > 0) {
+          _progress.setPrecalculatedPageCount(site.id, pageCount);
+          _cache.saveSitemapUrls(site.id, sitemapUrls);
+          notifyListeners();
+        }
+
+        return pageCount;
       }
 
-      return pageCount;
+      return null;
     } catch (e) {
       // Log error but don't throw - gracefully handle failures
       _logger.e('Error pre-calculating page count for ${site.id}: $e');
@@ -219,8 +229,10 @@ class LinkCheckerProvider extends ChangeNotifier {
 
   /// Clear the cached pre-calculated page count for a site.
   /// Should be called after the site's configuration (e.g., excludedPaths) changes.
+  /// Issue #291: Also clears sitemap URL cache to force reload
   void clearPrecalculatedPageCount(String siteId) {
     _progress.clearPrecalculatedPageCount(siteId);
+    _cache.clearSitemapUrls(siteId); // Clear URL cache too
     notifyListeners();
   }
 
@@ -320,13 +332,16 @@ class LinkCheckerProvider extends ChangeNotifier {
 
     try {
       // Perform the link check with progress callback
-      // Pass precalculated page count to optimize sitemap loading
+      // Issue #291: Pass cached sitemap URLs to avoid 10-20s reload delay
       final precalculatedTotal = _progress.getPrecalculatedPageCount(siteId);
+      final cachedSitemapUrls = _cache.getSitemapUrls(siteId);
+
       final result = await _linkCheckerService.checkSiteLinks(
         site,
         checkExternalLinks: checkExternalLinks,
         continueFromLastScan: continueFromLastScan,
         precalculatedPageCount: precalculatedTotal,
+        cachedSitemapUrls: cachedSitemapUrls,
         onProgress: (checked, total) {
           _progress.setCheckedCount(siteId, checked);
           // Only update total if it's different (sitemap might have changed)

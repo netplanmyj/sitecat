@@ -11,6 +11,9 @@ class LinkCheckerCache {
   final Map<String, List<LinkCheckResult>> _checkHistory = {};
   final Map<String, int?> _currentSitemapStatusCode = {};
 
+  // Sitemap URL cache (Issue #291: Reduce Site Scan startup delay)
+  final Map<String, List<Uri>> _sitemapUrlsCache = {};
+
   // All results across sites (for global history)
   final List<({String siteId, LinkCheckResult result})> _allCheckHistory = [];
 
@@ -133,12 +136,30 @@ class LinkCheckerCache {
     return _currentSitemapStatusCode[siteId];
   }
 
+  /// Save sitemap URLs to cache (Issue #291: Reduce Site Scan startup delay)
+  void saveSitemapUrls(String siteId, List<Uri> urls) {
+    _sitemapUrlsCache[siteId] = urls;
+    _logger.d('Cached ${urls.length} sitemap URLs for $siteId');
+  }
+
+  /// Get cached sitemap URLs
+  List<Uri>? getSitemapUrls(String siteId) {
+    return _sitemapUrlsCache[siteId];
+  }
+
+  /// Clear sitemap URL cache for a specific site
+  void clearSitemapUrls(String siteId) {
+    _sitemapUrlsCache.remove(siteId);
+    _logger.d('Cleared sitemap URL cache for $siteId');
+  }
+
   /// Clear all cache for a specific site
   void clearCache(String siteId) {
     _resultCache.remove(siteId);
     _brokenLinksCache.remove(siteId);
     _checkHistory.remove(siteId);
     _currentSitemapStatusCode.remove(siteId);
+    _sitemapUrlsCache.remove(siteId);
 
     // Remove from global history
     _allCheckHistory.removeWhere((item) => item.siteId == siteId);
@@ -152,6 +173,7 @@ class LinkCheckerCache {
     _brokenLinksCache.clear();
     _checkHistory.clear();
     _currentSitemapStatusCode.clear();
+    _sitemapUrlsCache.clear();
     _allCheckHistory.clear();
     _logger.d('Cleared all caches');
   }
@@ -163,6 +185,7 @@ class LinkCheckerCache {
       'brokenLinksCacheSize': _brokenLinksCache.length,
       'checkHistorySize': _checkHistory.length,
       'sitemapStatusCodeSize': _currentSitemapStatusCode.length,
+      'sitemapUrlsCacheSize': _sitemapUrlsCache.length,
       'globalHistorySize': _allCheckHistory.length,
     };
   }

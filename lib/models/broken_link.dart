@@ -127,6 +127,13 @@ class LinkCheckResult {
   final int? currentBatchStart; // Start index (1-based) of current batch
   final int? currentBatchEnd; // End index (1-based) of current batch
 
+  // Quick Check metrics (Issue #291: Unify Quick Scan and Site Scan)
+  final int?
+  baseUrlStatusCode; // HTTP status code from base URL GET request (200=OK, 404=Not Found, 0=Network Error)
+  final int?
+  baseUrlResponseTime; // Response time in milliseconds from base URL GET request
+  final bool? baseUrlIsUp; // Whether base URL is accessible (status 200-399)
+
   LinkCheckResult({
     this.id,
     required this.siteId,
@@ -146,6 +153,9 @@ class LinkCheckResult {
     this.pagesCompleted,
     this.currentBatchStart,
     this.currentBatchEnd,
+    this.baseUrlStatusCode,
+    this.baseUrlResponseTime,
+    this.baseUrlIsUp,
   });
 
   /// Create LinkCheckResult from Firestore document
@@ -170,6 +180,9 @@ class LinkCheckResult {
       pagesCompleted: data['pagesCompleted'] as int?,
       currentBatchStart: data['currentBatchStart'] as int?,
       currentBatchEnd: data['currentBatchEnd'] as int?,
+      baseUrlStatusCode: data['baseUrlStatusCode'] as int?,
+      baseUrlResponseTime: data['baseUrlResponseTime'] as int?,
+      baseUrlIsUp: data['baseUrlIsUp'] as bool?,
     );
   }
 
@@ -193,6 +206,9 @@ class LinkCheckResult {
       'pagesCompleted': pagesCompleted,
       'currentBatchStart': currentBatchStart,
       'currentBatchEnd': currentBatchEnd,
+      'baseUrlStatusCode': baseUrlStatusCode,
+      'baseUrlResponseTime': baseUrlResponseTime,
+      'baseUrlIsUp': baseUrlIsUp,
     };
   }
 
@@ -216,6 +232,9 @@ class LinkCheckResult {
     int? pagesCompleted,
     int? currentBatchStart,
     int? currentBatchEnd,
+    int? baseUrlStatusCode,
+    int? baseUrlResponseTime,
+    bool? baseUrlIsUp,
   }) {
     return LinkCheckResult(
       id: id ?? this.id,
@@ -237,6 +256,9 @@ class LinkCheckResult {
       pagesCompleted: pagesCompleted ?? this.pagesCompleted,
       currentBatchStart: currentBatchStart ?? this.currentBatchStart,
       currentBatchEnd: currentBatchEnd ?? this.currentBatchEnd,
+      baseUrlStatusCode: baseUrlStatusCode ?? this.baseUrlStatusCode,
+      baseUrlResponseTime: baseUrlResponseTime ?? this.baseUrlResponseTime,
+      baseUrlIsUp: baseUrlIsUp ?? this.baseUrlIsUp,
     );
   }
 }
