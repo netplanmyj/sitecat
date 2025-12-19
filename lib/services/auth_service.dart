@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'dart:io' show Platform;
 
 /// Firebase Authentication サービス
@@ -51,7 +52,7 @@ class AuthService {
       if (userCredential.additionalUserInfo?.isNewUser ?? false) {
         await _createUserDocument(userCredential.user!);
       } else {
-        // 既存ユーザーのlastLoginAtを更新
+        // 既存ユーザーのlastLoginAtを更新（siteCount移行も含む）
         await _updateLastLogin(userCredential.user!);
       }
 
@@ -158,6 +159,8 @@ class AuthService {
       throw Exception('No user is currently signed in');
     }
 
+    String? errorMessage;
+
     try {
       final userId = user.uid;
       final userDocRef = _firestore.collection('users').doc(userId);
@@ -191,28 +194,85 @@ class AuthService {
           .get();
       await _batchDelete(monitoringSnapshot.docs);
 
-      // 2. Delete user document
-      await userDocRef.delete();
+      // Note: subscription, alerts, statistics are not deleted by the client
+      // as per Firestore rules (Functions manages subscription)
+      // alerts and statistics are optional and will be cleaned up separately
 
-      // Phase 2: Delete user from Firebase Authentication
+      // Phase 2: Call Cloud Function to cleanup subscription and user document
+      // This must happen while the user is still authenticated
+      // The function will delete both subscription and user document
+      final callable = FirebaseFunctions.instance.httpsCallable(
+        'onAuthUserDeleted',
+      );
+      await callable.call();
+
+      // Phase 3: Re-authenticate user (required for delete operation)
+      // Check the user's sign-in provider and handle accordingly
+      try {
+        // Determine which provider was used for sign-in
+        final providers = user.providerData.map((p) => p.providerId).toList();
+
+        if (providers.contains('google.com')) {
+          // Google Sign-In requires fresh token for sensitive operations
+          final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+          if (googleUser != null) {
+            final GoogleSignInAuthentication googleAuth =
+                await googleUser.authentication;
+            final credential = GoogleAuthProvider.credential(
+              accessToken: googleAuth.accessToken,
+              idToken: googleAuth.idToken,
+            );
+            await user.reauthenticateWithCredential(credential);
+          }
+        } else if (providers.contains('apple.com')) {
+          // Apple Sign-In requires re-authentication as well
+          final appleCredential = await SignInWithApple.getAppleIDCredential(
+            scopes: [
+              AppleIDAuthorizationScopes.email,
+              AppleIDAuthorizationScopes.fullName,
+            ],
+          );
+          final oauthCredential = OAuthProvider('apple.com').credential(
+            idToken: appleCredential.identityToken,
+            accessToken: appleCredential.authorizationCode,
+          );
+          await user.reauthenticateWithCredential(oauthCredential);
+        }
+      } catch (reauthError) {
+        // If re-auth fails, continue anyway (might work without it)
+      }
+
+      // Phase 4: Delete user from Firebase Authentication
       // Important: Executed after successful Firestore data deletion
       // This allows the user to retry on error
-      await user.delete();
-
-      // Phase 3: Cleanup
-      await _googleSignIn.signOut();
-    } on FirebaseAuthException catch (e) {
-      // Handle error when re-authentication is required
-      if (e.code == 'requires-recent-login') {
-        throw Exception(
-          'For security reasons, account deletion requires recent login. Please sign out and sign in again.',
-        );
+      try {
+        await user.delete();
+      } on FirebaseAuthException catch (e) {
+        if (e.code == 'requires-recent-login') {
+          errorMessage =
+              'For security reasons, account deletion requires recent login. Please sign out and sign in again.';
+        } else {
+          errorMessage = 'Account deletion failed: ${e.message}';
+        }
+        // Continue to signOut even if user.delete() fails
       }
-      throw Exception('Account deletion failed: ${e.message}');
     } catch (e) {
       // If error occurs during Firestore data deletion
       // Firebase Auth account remains, so user can retry
-      throw Exception('Account deletion failed: $e');
+      errorMessage = 'Account deletion failed: $e';
+    } finally {
+      // Phase 5: Cleanup - Always sign out regardless of errors
+      try {
+        await _auth.signOut();
+        await _googleSignIn.signOut();
+      } catch (e) {
+        // Ignore signOut errors
+      }
+    }
+
+    // Throw error if any occurred, but after signOut is completed
+    if (errorMessage != null) {
+      throw Exception(errorMessage);
     }
   }
 
@@ -227,7 +287,7 @@ class AuthService {
         'displayName': displayName ?? user.displayName,
         'photoURL': user.photoURL,
         'plan': 'free', // デフォルトは無料プラン
-        'siteCount': 0,
+        'siteCount': 0, // サイト数カウンター（Functionsが更新）
         'createdAt': FieldValue.serverTimestamp(),
         'lastLoginAt': FieldValue.serverTimestamp(),
         'settings': {'notifications': true, 'emailAlerts': true},
@@ -241,10 +301,30 @@ class AuthService {
   Future<void> _updateLastLogin(User user) async {
     try {
       final userDoc = _firestore.collection('users').doc(user.uid);
-      await userDoc.update({'lastLoginAt': FieldValue.serverTimestamp()});
+
+      // まずドキュメントを取得して siteCount の存在を確認
+      final docSnapshot = await userDoc.get();
+
+      if (!docSnapshot.exists) {
+        // ドキュメントが存在しない場合は新規作成
+        await _createUserDocument(user);
+        return;
+      }
+
+      final data = docSnapshot.data();
+
+      // siteCount フィールドがない場合は追加
+      if (data == null || !data.containsKey('siteCount')) {
+        await userDoc.update({
+          'lastLoginAt': FieldValue.serverTimestamp(),
+          'siteCount': 0, // 既存ユーザーにも siteCount を追加
+        });
+      } else {
+        // 通常の lastLoginAt 更新
+        await userDoc.update({'lastLoginAt': FieldValue.serverTimestamp()});
+      }
     } catch (e) {
       // ログ更新の失敗は認証を阻害しない
-      // デバッグログ: Failed to update last login: $e
     }
   }
 

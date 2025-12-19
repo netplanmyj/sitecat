@@ -184,3 +184,44 @@ export const enforceLinkCheckHistoryLimit = onDocumentCreated(
     }
   }
 );
+/**
+ * Callable HTTPS function to clean up subscription and other user-related
+ * data from Firestore as part of the account deletion flow.
+ *
+ * This function is NOT an Auth trigger. It must be explicitly invoked by
+ * the client BEFORE deleting the user from Firebase Authentication.
+ *
+ * @param request - Must have authenticated user context
+ */
+export const onAuthUserDeleted = onCall(
+  {maxInstances: 10},
+  async (request) => {
+    const userId = request.auth?.uid;
+    if (!userId) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    try {
+      const userDocRef = db.collection("users").doc(userId);
+      const subscriptionCol = userDocRef.collection("subscription");
+      const subscriptionSnapshot = await subscriptionCol.get();
+
+      // Delete all subscription documents
+      if (!subscriptionSnapshot.empty) {
+        const deletions = subscriptionSnapshot.docs.map((doc) =>
+          doc.ref.delete()
+        );
+        await Promise.all(deletions);
+        logger.info("Deleted subscription documents for user", {userId});
+      }
+
+      // Delete user document itself
+      await userDocRef.delete();
+      logger.info("Cleaned up user data after deletion", {userId});
+      return {ok: true};
+    } catch (error) {
+      logger.error("Error cleaning up user data", {userId, error});
+      throw new HttpsError("internal", "Failed to cleanup user data");
+    }
+  }
+);

@@ -7,27 +7,33 @@ service cloud.firestore {
       // ユーザープロフィールへのアクセス（自分のみ）
       allow read: if request.auth != null && request.auth.uid == userId;
 
-      // ユーザープロフィールの書き込み（siteCount/isPremium はサーバー専用）
+      // ユーザープロフィールの書き込み（siteCount/isPremium はサーバー専用 - クライアント書き込み禁止）
       allow write: if request.auth != null
         && request.auth.uid == userId
         && (
-          request.resource.data == null // delete
-          || !request.resource.data.keys().hasAny(['siteCount', 'isPremium'])
+          request.resource.data == null // delete のみ許可
+          || (
+            // 他の更新時（siteCount/isPremium を含まない）
+            !request.resource.data.keys().hasAny(['siteCount', 'isPremium'])
+          )
         );
 
       // プラン判定（サーバー側で保持する購読ドキュメントを参照）
       function isPremiumUser() {
-        let subscriptionDoc = get(/databases/$(database)/documents/users/$(userId)/subscription/lifetime);
-        return subscriptionDoc.exists() && subscriptionDoc.data.isActive == true;
+        let subPath = /databases/$(database)/documents/users/$(userId)/subscription/lifetime;
+        return exists(subPath) && get(subPath).data.isActive == true;
       }
 
       // サイト数上限（無料3 / 有料30）
       function siteCreationAllowed() {
-        let userDoc = get(/databases/$(database)/documents/users/$(userId));
-        let currentCount = userDoc.exists() && userDoc.data.siteCount is int ? userDoc.data.siteCount : 0;
-        let isPremium = userDoc.exists() && userDoc.data.isPremium == true;
+        let userPath = /databases/$(database)/documents/users/$(userId);
+        // ユーザードキュメントが存在し、siteCount が有効な整数を持つことを確認
+        let userDoc = get(userPath);
+        let hasValidSiteCount = userDoc.data != null && userDoc.data.siteCount is int;
+        // プレミアム判定はサブスクリプションドキュメントで行う
+        let isPremium = isPremiumUser();
         let limit = isPremium ? 30 : 3;
-        return currentCount < limit;
+        return hasValidSiteCount && userDoc.data.siteCount < limit;
       }
       
       // サイトサブコレクション - ユーザー配下に存在
@@ -105,7 +111,7 @@ service cloud.firestore {
       
       // サブスクリプション情報サブコレクション - ユーザー配下に存在
       match /subscription/{subscriptionId} {
-        // 自分のユーザーID配下のサブスクリプション情報のみアクセス可能（読み取り専用）
+        // 自分のユーザーID配下のサブスクリプション情報のみアクセス可能
         allow read: if request.auth != null && request.auth.uid == userId;
         // 書き込みは Cloud Functions 側でのみ実施（直接書き込みは禁止）
         allow create, update, delete: if false;
