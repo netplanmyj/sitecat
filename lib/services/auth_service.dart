@@ -3,6 +3,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:logger/logger.dart';
 import 'dart:io' show Platform;
 
 /// Firebase Authentication サービス
@@ -15,6 +16,7 @@ class AuthService {
         '775763766826-st83dsn9npb5i4r74g4i930ceii7flq5.apps.googleusercontent.com',
   );
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Logger _logger = Logger();
 
   /// 現在のユーザー取得
   User? get currentUser => _auth.currentUser;
@@ -200,11 +202,20 @@ class AuthService {
 
       // Phase 2: Call Cloud Function to cleanup subscription and user document
       // This must happen while the user is still authenticated
-      // The function will delete both subscription and user document
+      // The function will delete subscription, sites, monitoring results, and user document
       final callable = FirebaseFunctions.instance.httpsCallable(
         'onAuthUserDeleted',
       );
-      await callable.call();
+      try {
+        await callable.call();
+        _logger.i('Cloud Function onAuthUserDeleted completed successfully');
+      } catch (cfError) {
+        _logger.e('Cloud Function failed: $cfError');
+        errorMessage =
+            'Failed to cleanup user data. Please try again. Error: $cfError';
+        // Rethrow to prevent further execution if cleanup fails
+        rethrow;
+      }
 
       // Phase 3: Re-authenticate user (required for delete operation)
       // Check the user's sign-in provider and handle accordingly

@@ -113,8 +113,30 @@ service cloud.firestore {
       match /subscription/{subscriptionId} {
         // 自分のユーザーID配下のサブスクリプション情報のみアクセス可能
         allow read: if request.auth != null && request.auth.uid == userId;
-        // 書き込みは Cloud Functions 側でのみ実施（直接書き込みは禁止）
+        // 書き込み・削除は Cloud Functions 側でのみ実施（直接書き込みは禁止）
         allow create, update, delete: if false;
+      }
+      
+      // モニタリング結果サブコレクション - ユーザー配下に存在
+      match /monitoringResults/{resultId} {
+        // 自分のユーザーID配下のモニタリング結果のみアクセス可能
+        allow read: if request.auth != null && request.auth.uid == userId;
+        // 書き込み・削除は Cloud Functions 側でのみ実施（直接書き込みは禁止）
+        allow create, update, delete: if false;
+      }
+      
+      // リンク検査結果サブコレクション - ユーザー配下に存在
+      match /linkCheckResults/{checkId} {
+        // 自分のユーザーID配下のリンク検査結果のみアクセス可能
+        allow read: if request.auth != null && request.auth.uid == userId;
+        // 書き込み・削除は Cloud Functions 側でのみ実施（直接書き込みは禁止）
+        allow create, update, delete: if false;
+        
+        // リンク切れサブコレクション
+        match /brokenLinks/{linkId} {
+          allow read: if request.auth != null && request.auth.uid == userId;
+          allow create, update, delete: if false;
+        }
       }
     }
   }

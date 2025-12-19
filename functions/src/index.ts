@@ -191,6 +191,9 @@ export const enforceLinkCheckHistoryLimit = onDocumentCreated(
  * This function is NOT an Auth trigger. It must be explicitly invoked by
  * the client BEFORE deleting the user from Firebase Authentication.
  *
+ * Deletes all subcollections (subscription, sites, monitoring results,
+ * link check results, etc.) before deleting the user document itself.
+ *
  * @param request - Must have authenticated user context
  */
 export const onAuthUserDeleted = onCall(
@@ -203,16 +206,29 @@ export const onAuthUserDeleted = onCall(
 
     try {
       const userDocRef = db.collection("users").doc(userId);
-      const subscriptionCol = userDocRef.collection("subscription");
-      const subscriptionSnapshot = await subscriptionCol.get();
+      const collectionNames = [
+        "subscription",
+        "sites",
+        "monitoringResults",
+        "linkCheckResults",
+      ];
 
-      // Delete all subscription documents
-      if (!subscriptionSnapshot.empty) {
-        const deletions = subscriptionSnapshot.docs.map((doc) =>
-          doc.ref.delete()
-        );
-        await Promise.all(deletions);
-        logger.info("Deleted subscription documents for user", {userId});
+      // Delete all subcollections
+      for (const collectionName of collectionNames) {
+        const subcollectionRef = userDocRef.collection(collectionName);
+        const subcollectionSnapshot = await subcollectionRef.get();
+
+        if (!subcollectionSnapshot.empty) {
+          // Batch delete documents (max 500 per batch)
+          const deletions = subcollectionSnapshot.docs.map((doc) =>
+            doc.ref.delete()
+          );
+          await Promise.all(deletions);
+          logger.info(`Deleted ${collectionName} documents for user`, {
+            userId,
+            count: subcollectionSnapshot.size,
+          });
+        }
       }
 
       // Delete user document itself
