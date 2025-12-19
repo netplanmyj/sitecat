@@ -37,6 +37,7 @@ const PREMIUM_HISTORY_LIMIT = 50;
 /**
  * Returns true when the user has an active premium subscription.
  * @param {string} userId Firestore user id.
+ * @return {Promise<boolean>} True if user has active premium subscription.
  */
 async function isPremiumUser(userId: string): Promise<boolean> {
   try {
@@ -59,6 +60,7 @@ async function isPremiumUser(userId: string): Promise<boolean> {
 /**
  * Site creation limit based on subscription.
  * @param {string} userId Firestore user id.
+ * @return {Promise<number>} Maximum number of sites allowed.
  */
 async function getSiteLimit(userId: string): Promise<number> {
   const premium = await isPremiumUser(userId);
@@ -68,6 +70,7 @@ async function getSiteLimit(userId: string): Promise<number> {
 /**
  * Link check history retention limit based on subscription.
  * @param {string} userId Firestore user id.
+ * @return {Promise<number>} Maximum number of history records to retain.
  */
 async function getHistoryLimit(userId: string): Promise<number> {
   const premium = await isPremiumUser(userId);
