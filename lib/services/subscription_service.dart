@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:logger/logger.dart';
 
@@ -12,6 +13,7 @@ class SubscriptionService {
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFunctions _functions = FirebaseFunctions.instance;
   final Logger _logger = Logger();
 
   /// 買い切り版の商品ID
@@ -214,27 +216,27 @@ class SubscriptionService {
       return;
     }
 
-    try {
-      final docRef = _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('subscription')
-          .doc('lifetime');
+    await _savePurchaseViaFunctions(purchaseDetails);
+  }
 
-      // Firestoreに購入情報を保存
-      await docRef.set({
+  Future<void> _savePurchaseViaFunctions(
+    PurchaseDetails purchaseDetails,
+  ) async {
+    try {
+      final callable = _functions.httpsCallable('saveLifetimePurchase');
+      await callable.call({
         'productId': purchaseDetails.productID,
-        'purchaseDate': FieldValue.serverTimestamp(),
-        'isActive': true,
         'platform': Platform.isIOS ? 'ios' : 'android',
         'transactionId': purchaseDetails.purchaseID,
         'verificationData':
             purchaseDetails.verificationData.serverVerificationData,
       });
-
-      _logger.i('Purchase saved to Firestore: ${purchaseDetails.productID}');
+      _logger.i(
+        'Purchase saved via Cloud Functions: ${purchaseDetails.productID}',
+      );
     } catch (e) {
-      _logger.e('Error saving purchase to Firestore: $e');
+      _logger.e('Error saving purchase via Cloud Functions: $e');
+      rethrow;
     }
   }
 
