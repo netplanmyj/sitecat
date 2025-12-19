@@ -236,6 +236,7 @@ class SubscriptionService {
       );
     } catch (e) {
       _logger.e('Error saving purchase via Cloud Functions: $e');
+      rethrow;
     }
   }
 

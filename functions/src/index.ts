@@ -40,13 +40,21 @@ const FREE_HISTORY_LIMIT = 10;
 const PREMIUM_HISTORY_LIMIT = 50;
 
 async function isPremiumUser(userId: string): Promise<boolean> {
-	const subDoc = await db
-		.collection("users")
-		.doc(userId)
-		.collection("subscription")
-		.doc(SUBSCRIPTION_DOC_ID)
-		.get();
-	return subDoc.exists && subDoc.data()?.isActive === true;
+	try {
+		const subDoc = await db
+			.collection("users")
+			.doc(userId)
+			.collection("subscription")
+			.doc(SUBSCRIPTION_DOC_ID)
+			.get();
+		return subDoc.exists && subDoc.data()?.isActive === true;
+	} catch (error) {
+		logger.error("Failed to determine premium status, treating as free user", {
+			userId,
+			error,
+		});
+		return false;
+	}
 }
 
 async function getSiteLimit(userId: string): Promise<number> {
@@ -82,20 +90,21 @@ export const saveLifetimePurchase = onCall({ maxInstances: 10 }, async (request)
 		.collection("subscription")
 		.doc(SUBSCRIPTION_DOC_ID);
 
-	await docRef.set(
-		{
-			productId,
-			purchaseDate: FieldValue.serverTimestamp(),
-			isActive: true,
-			platform,
-			transactionId: transactionId ?? null,
-			verificationData: verificationData ?? null,
-		},
-		{ merge: true }
-	);
+	const payload = {
+		productId,
+		purchaseDate: FieldValue.serverTimestamp(),
+		isActive: true,
+		platform,
+		transactionId: transactionId ?? null,
+		verificationData: verificationData ?? null,
+	};
 
+	await docRef.set(payload, { merge: true });
+	await db.collection("users").doc(userId).set({ isPremium: true }, { merge: true });
+
+	const saved = await docRef.get();
 	logger.info("Saved lifetime purchase", { userId, productId, platform });
-	return { ok: true };
+	return { ok: true, subscription: saved.data() ?? {} };
 });
 
 export const onSiteCreated = onDocumentCreated("users/{userId}/sites/{siteId}", async (event) => {
@@ -105,11 +114,11 @@ export const onSiteCreated = onDocumentCreated("users/{userId}/sites/{siteId}", 
 	const siteCount = siteCountSnap.data().count ?? 0;
 	const limit = await getSiteLimit(userId);
 
-	// Persist the count for rules-side checks
+	// Persist the updated count so Firestore rules can use it on future requests
 	await db.collection("users").doc(userId).set({ siteCount }, { merge: true });
 
 	if (siteCount > limit) {
-		// Over limit: delete the newly created site
+		// Over limit: delete the newly created site (and rely on subcollections not existing yet)
 		await event.data?.ref.delete();
 		logger.warn("Site creation rejected: over limit", { userId, siteCount, limit });
 	}
