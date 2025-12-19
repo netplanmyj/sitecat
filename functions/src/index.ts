@@ -1,17 +1,12 @@
-/**
- * Import function triggers from their respective submodules:
- *
- * import {onCall} from "firebase-functions/v2/https";
- * import {onDocumentWritten} from "firebase-functions/v2/firestore";
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
-
+// Functions entry point. Keeps deployment lint-clean for rules/functions.
 import {setGlobalOptions} from "firebase-functions";
 import {initializeApp} from "firebase-admin/app";
 import {getFirestore, FieldValue} from "firebase-admin/firestore";
 import {onCall, HttpsError} from "firebase-functions/v2/https";
-import {onDocumentCreated, onDocumentDeleted} from "firebase-functions/v2/firestore";
+import {
+  onDocumentCreated,
+  onDocumentDeleted,
+} from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
 
 // Start writing functions
@@ -27,7 +22,7 @@ import * as logger from "firebase-functions/logger";
 // functions should each use functions.runWith({ maxInstances: 10 }) instead.
 // In the v1 API, each function can only serve one request per container, so
 // this will be the maximum concurrent request count.
-setGlobalOptions({ maxInstances: 10 });
+setGlobalOptions({maxInstances: 10});
 
 initializeApp();
 const db = getFirestore();
@@ -39,120 +34,153 @@ const PREMIUM_PLAN_SITE_LIMIT = 30;
 const FREE_HISTORY_LIMIT = 10;
 const PREMIUM_HISTORY_LIMIT = 50;
 
+/**
+ * Returns true when the user has an active premium subscription.
+ * @param {string} userId Firestore user id.
+ * @return {Promise<boolean>} True if user has active premium subscription.
+ */
 async function isPremiumUser(userId: string): Promise<boolean> {
-	try {
-		const subDoc = await db
-			.collection("users")
-			.doc(userId)
-			.collection("subscription")
-			.doc(SUBSCRIPTION_DOC_ID)
-			.get();
-		return subDoc.exists && subDoc.data()?.isActive === true;
-	} catch (error) {
-		logger.error("Failed to determine premium status, treating as free user", {
-			userId,
-			error,
-		});
-		return false;
-	}
+  try {
+    const subDoc = await db
+      .collection("users")
+      .doc(userId)
+      .collection("subscription")
+      .doc(SUBSCRIPTION_DOC_ID)
+      .get();
+    return subDoc.exists && subDoc.data()?.isActive === true;
+  } catch (error) {
+    logger.error("Treating user as free due to lookup error", {
+      userId,
+      error,
+    });
+    return false;
+  }
 }
 
+/**
+ * Site creation limit based on subscription.
+ * @param {string} userId Firestore user id.
+ * @return {Promise<number>} Maximum number of sites allowed.
+ */
 async function getSiteLimit(userId: string): Promise<number> {
-	const premium = await isPremiumUser(userId);
-	return premium ? PREMIUM_PLAN_SITE_LIMIT : FREE_PLAN_SITE_LIMIT;
+  const premium = await isPremiumUser(userId);
+  return premium ? PREMIUM_PLAN_SITE_LIMIT : FREE_PLAN_SITE_LIMIT;
 }
 
+/**
+ * Link check history retention limit based on subscription.
+ * @param {string} userId Firestore user id.
+ * @return {Promise<number>} Maximum number of history records to retain.
+ */
 async function getHistoryLimit(userId: string): Promise<number> {
-	const premium = await isPremiumUser(userId);
-	return premium ? PREMIUM_HISTORY_LIMIT : FREE_HISTORY_LIMIT;
+  const premium = await isPremiumUser(userId);
+  return premium ? PREMIUM_HISTORY_LIMIT : FREE_HISTORY_LIMIT;
 }
 
-export const saveLifetimePurchase = onCall({ maxInstances: 10 }, async (request) => {
-	const userId = request.auth?.uid;
-	if (!userId) {
-		throw new HttpsError("unauthenticated", "Authentication required");
-	}
+export const saveLifetimePurchase = onCall(
+  {maxInstances: 10},
+  async (request) => {
+    const userId = request.auth?.uid;
+    if (!userId) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
 
-	const data = request.data ?? {};
-	const { productId, platform, transactionId, verificationData } = data;
+    const data = request.data ?? {};
+    const {productId, platform, transactionId, verificationData} = data;
 
-	if (productId !== LIFETIME_PRODUCT_ID) {
-		throw new HttpsError("invalid-argument", "Invalid productId");
-	}
+    if (productId !== LIFETIME_PRODUCT_ID) {
+      throw new HttpsError("invalid-argument", "Invalid productId");
+    }
 
-	if (!platform) {
-		throw new HttpsError("invalid-argument", "platform is required");
-	}
+    if (!platform) {
+      throw new HttpsError("invalid-argument", "platform is required");
+    }
 
-	const docRef = db
-		.collection("users")
-		.doc(userId)
-		.collection("subscription")
-		.doc(SUBSCRIPTION_DOC_ID);
+    const docRef = db
+      .collection("users")
+      .doc(userId)
+      .collection("subscription")
+      .doc(SUBSCRIPTION_DOC_ID);
 
-	const payload = {
-		productId,
-		purchaseDate: FieldValue.serverTimestamp(),
-		isActive: true,
-		platform,
-		transactionId: transactionId ?? null,
-		verificationData: verificationData ?? null,
-	};
+    const payload = {
+      productId,
+      purchaseDate: FieldValue.serverTimestamp(),
+      isActive: true,
+      platform,
+      transactionId: transactionId ?? null,
+      verificationData: verificationData ?? null,
+    };
 
-	await docRef.set(payload, { merge: true });
-	await db.collection("users").doc(userId).set({ isPremium: true }, { merge: true });
+    await docRef.set(payload, {merge: true});
+    await db
+      .collection("users")
+      .doc(userId)
+      .set({isPremium: true}, {merge: true});
 
-	const saved = await docRef.get();
-	logger.info("Saved lifetime purchase", { userId, productId, platform });
-	return { ok: true, subscription: saved.data() ?? {} };
-});
+    const saved = await docRef.get();
+    logger.info("Saved lifetime purchase", {userId, productId, platform});
+    return {ok: true, subscription: saved.data() ?? {}};
+  }
+);
 
-export const onSiteCreated = onDocumentCreated("users/{userId}/sites/{siteId}", async (event) => {
-	const userId = event.params.userId as string;
-	const sitesCol = db.collection("users").doc(userId).collection("sites");
-	const siteCountSnap = await sitesCol.count().get();
-	const siteCount = siteCountSnap.data().count ?? 0;
-	const limit = await getSiteLimit(userId);
+export const onSiteCreated = onDocumentCreated(
+  "users/{userId}/sites/{siteId}",
+  async (event) => {
+    const userId = event.params.userId as string;
+    const sitesCol = db.collection("users").doc(userId).collection("sites");
+    const siteCountSnap = await sitesCol.count().get();
+    const siteCount = siteCountSnap.data().count ?? 0;
+    const limit = await getSiteLimit(userId);
 
-	// Persist the updated count so Firestore rules can use it on future requests
-	await db.collection("users").doc(userId).set({ siteCount }, { merge: true });
+    // Persist the updated count so rules can use it on future requests
+    await db.collection("users").doc(userId).set({siteCount}, {merge: true});
 
-	if (siteCount > limit) {
-		// Over limit: delete the newly created site (and rely on subcollections not existing yet)
-		await event.data?.ref.delete();
-		logger.warn("Site creation rejected: over limit", { userId, siteCount, limit });
-	}
-});
+    if (siteCount > limit) {
+      await event.data?.ref.delete();
+      logger.warn("Site creation rejected: over limit", {
+        userId,
+        siteCount,
+        limit,
+      });
+    }
+  }
+);
 
-export const onSiteDeleted = onDocumentDeleted("users/{userId}/sites/{siteId}", async (event) => {
-	const userId = event.params.userId as string;
-	const sitesCol = db.collection("users").doc(userId).collection("sites");
-	const siteCountSnap = await sitesCol.count().get();
-	const siteCount = siteCountSnap.data().count ?? 0;
+export const onSiteDeleted = onDocumentDeleted(
+  "users/{userId}/sites/{siteId}",
+  async (event) => {
+    const userId = event.params.userId as string;
+    const sitesCol = db.collection("users").doc(userId).collection("sites");
+    const siteCountSnap = await sitesCol.count().get();
+    const siteCount = siteCountSnap.data().count ?? 0;
 
-	await db.collection("users").doc(userId).set({ siteCount }, { merge: true });
-});
+    await db.collection("users").doc(userId).set({siteCount}, {merge: true});
+  }
+);
 
 export const enforceLinkCheckHistoryLimit = onDocumentCreated(
-	"users/{userId}/linkCheckResults/{resultId}",
-	async (event) => {
-		const userId = event.params.userId as string;
-		const limit = await getHistoryLimit(userId);
-		const resultsCol = db.collection("users").doc(userId).collection("linkCheckResults");
+  "users/{userId}/linkCheckResults/{resultId}",
+  async (event) => {
+    const userId = event.params.userId as string;
+    const limit = await getHistoryLimit(userId);
+    const resultsCol = db
+      .collection("users")
+      .doc(userId)
+      .collection("linkCheckResults");
 
-		const snapshot = await resultsCol
-			.orderBy("checkedAt", "desc")
-			.offset(limit)
-			.get();
+    const snapshot = await resultsCol
+      .orderBy("checkedAt", "desc")
+      .offset(limit)
+      .get();
 
-		if (!snapshot.empty) {
-			const deletions = snapshot.docs.map((doc) => doc.ref.delete());
-			await Promise.all(deletions);
-			logger.info("Pruned linkCheckResults beyond history limit", {
-				userId,
-				deleted: snapshot.size,
-				limit,
-			});
-		}
-	}
+    if (!snapshot.empty) {
+      const deletions = snapshot.docs.map((doc) => doc.ref.delete());
+      await Promise.all(deletions);
+      logger.info("Pruned linkCheckResults beyond history limit", {
+        userId,
+        deleted: snapshot.size,
+        limit,
+      });
+    }
+  }
 );
