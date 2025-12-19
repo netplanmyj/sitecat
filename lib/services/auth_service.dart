@@ -52,7 +52,8 @@ class AuthService {
       if (userCredential.additionalUserInfo?.isNewUser ?? false) {
         await _createUserDocument(userCredential.user!);
       } else {
-        // 既存ユーザーのlastLoginAtを更新
+        // 既存ユーザーのlastLoginAtを更新（siteCount移行も含む）
+        await _updateLastLogin(userCredential.user!);
       }
 
       return userCredential;
@@ -206,17 +207,36 @@ class AuthService {
       await callable.call();
 
       // Phase 3: Re-authenticate user (required for delete operation)
-      // Google Sign-In requires fresh token for sensitive operations
+      // Check the user's sign-in provider and handle accordingly
       try {
-        final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
-        if (googleUser != null) {
-          final GoogleSignInAuthentication googleAuth =
-              await googleUser.authentication;
-          final credential = GoogleAuthProvider.credential(
-            accessToken: googleAuth.accessToken,
-            idToken: googleAuth.idToken,
+        // Determine which provider was used for sign-in
+        final providers = user.providerData.map((p) => p.providerId).toList();
+
+        if (providers.contains('google.com')) {
+          // Google Sign-In requires fresh token for sensitive operations
+          final GoogleSignInAccount? googleUser = await _googleSignIn.signIn();
+          if (googleUser != null) {
+            final GoogleSignInAuthentication googleAuth =
+                await googleUser.authentication;
+            final credential = GoogleAuthProvider.credential(
+              accessToken: googleAuth.accessToken,
+              idToken: googleAuth.idToken,
+            );
+            await user.reauthenticateWithCredential(credential);
+          }
+        } else if (providers.contains('apple.com')) {
+          // Apple Sign-In requires re-authentication as well
+          final appleCredential = await SignInWithApple.getAppleIDCredential(
+            scopes: [
+              AppleIDAuthorizationScopes.email,
+              AppleIDAuthorizationScopes.fullName,
+            ],
           );
-          await user.reauthenticateWithCredential(credential);
+          final oauthCredential = OAuthProvider('apple.com').credential(
+            idToken: appleCredential.identityToken,
+            accessToken: appleCredential.authorizationCode,
+          );
+          await user.reauthenticateWithCredential(oauthCredential);
         }
       } catch (reauthError) {
         // If re-auth fails, continue anyway (might work without it)
@@ -241,7 +261,7 @@ class AuthService {
       // Firebase Auth account remains, so user can retry
       errorMessage = 'Account deletion failed: $e';
     } finally {
-      // Phase 4: Cleanup - Always sign out regardless of errors
+      // Phase 5: Cleanup - Always sign out regardless of errors
       try {
         await _auth.signOut();
         await _googleSignIn.signOut();

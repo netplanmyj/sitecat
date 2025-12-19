@@ -185,8 +185,13 @@ export const enforceLinkCheckHistoryLimit = onDocumentCreated(
   }
 );
 /**
- * Triggered when a user is deleted from Firebase Authentication.
- * Cleans up subscription and other user-related data from Firestore.
+ * Callable HTTPS function to clean up subscription and other user-related
+ * data from Firestore as part of the account deletion flow.
+ *
+ * This function is NOT an Auth trigger. It must be explicitly invoked by
+ * the client BEFORE deleting the user from Firebase Authentication.
+ *
+ * @param request - Must have authenticated user context
  */
 export const onAuthUserDeleted = onCall(
   {maxInstances: 10},

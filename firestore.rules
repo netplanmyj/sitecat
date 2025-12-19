@@ -7,20 +7,13 @@ service cloud.firestore {
       // ユーザープロフィールへのアクセス（自分のみ）
       allow read: if request.auth != null && request.auth.uid == userId;
 
-      // ユーザープロフィールの書き込み（siteCount/isPremium はサーバー専用）
-      // 初回ユーザードキュメント作成時は siteCount: 0 の書き込みを許可
+      // ユーザープロフィールの書き込み（siteCount/isPremium はサーバー専用 - クライアント書き込み禁止）
       allow write: if request.auth != null
         && request.auth.uid == userId
         && (
-          request.resource.data == null // delete
+          request.resource.data == null // delete のみ許可
           || (
-            // 初回ユーザードキュメント作成時（必須フィールドが全て揃っている）
-            request.resource.data.keys().hasAll(['uid', 'email', 'plan', 'createdAt'])
-            && request.resource.data.plan == 'free'
-            && request.resource.data.siteCount == 0
-          )
-          || (
-            // その他の更新時（siteCount/isPremium を含まない）
+            // 他の更新時（siteCount/isPremium を含まない）
             !request.resource.data.keys().hasAny(['siteCount', 'isPremium'])
           )
         );
@@ -34,11 +27,13 @@ service cloud.firestore {
       // サイト数上限（無料3 / 有料30）
       function siteCreationAllowed() {
         let userPath = /databases/$(database)/documents/users/$(userId);
-        let currentCount = exists(userPath) && get(userPath).data.siteCount is int ? get(userPath).data.siteCount : 0;
+        // ユーザードキュメントが存在し、siteCount が有効な整数を持つことを確認
+        let userDoc = get(userPath);
+        let hasValidSiteCount = userDoc.data != null && userDoc.data.siteCount is int;
         // プレミアム判定はサブスクリプションドキュメントで行う
         let isPremium = isPremiumUser();
         let limit = isPremium ? 30 : 3;
-        return currentCount < limit;
+        return hasValidSiteCount && userDoc.data.siteCount < limit;
       }
       
       // サイトサブコレクション - ユーザー配下に存在
