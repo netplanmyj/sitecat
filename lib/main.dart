@@ -22,7 +22,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Firebase の初期化（必ず runApp より前に完了させる）
-  // 環境に応じたオプションを使用（Debug→dev, Release/Profile→prod）
+  // 環境に応じたオプションを使用（Debug/Profile→dev, Release→prod）
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
