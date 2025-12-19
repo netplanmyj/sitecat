@@ -231,6 +231,12 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
             backgroundColor: Colors.green,
           ),
         );
+      } else if (!success && mounted) {
+        final siteProvider = Provider.of<SiteProvider>(context, listen: false);
+        final message = siteProvider.error ?? 'Failed to save site';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: Colors.red),
+        );
       }
     } catch (e) {
       // Error is handled by the provider
