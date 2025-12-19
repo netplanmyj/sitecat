@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/site_provider.dart';
@@ -21,10 +22,11 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // Firebase の初期化（必ず runApp より前に完了させる）
-  // Note: Uses native configuration files (google-services.json/GoogleService-Info.plist)
-  // which are set to production environment (sitecat-prod)
+  // 環境に応じたオプションを使用（Debug→dev, Release/Profile→prod）
   try {
-    await Firebase.initializeApp();
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
   } on FirebaseException catch (e) {
     // If duplicate-app error occurs, it means Firebase is already initialized at native layer
     // This is expected behavior in some environments (e.g., TestFlight)
