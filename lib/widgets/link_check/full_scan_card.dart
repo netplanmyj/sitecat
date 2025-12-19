@@ -129,14 +129,15 @@ class FullScanCard extends StatelessWidget {
               const SizedBox(height: 8),
 
               // Stats - evenly distributed across screen width (Issue #294)
+              // Issue #296: Show Quick Check metrics only if available
               Row(
                 children: [
                   Expanded(
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                       children: [
-                        // Quick Check metrics (if available)
-                        if (result.baseUrlResponseTime != null)
+                        // Quick Check metrics (only if result includes them)
+                        if (result.baseUrlResponseTime != null) ...[
                           _buildStatItem(
                             Icons.speed,
                             '${result.baseUrlResponseTime}ms',
@@ -145,7 +146,8 @@ class FullScanCard extends StatelessWidget {
                                 ? Colors.green
                                 : Colors.orange,
                           ),
-                        if (result.baseUrlStatusCode != null)
+                        ],
+                        if (result.baseUrlStatusCode != null) ...[
                           _buildStatItem(
                             Icons.code,
                             result.baseUrlStatusCode == 0
@@ -159,7 +161,8 @@ class FullScanCard extends StatelessWidget {
                                       ? Colors.green
                                       : Colors.orange),
                           ),
-                        // Site Scan metrics
+                        ],
+                        // Site Scan metrics (always show)
                         _buildStatItem(
                           Icons.description,
                           '${result.totalPagesInSitemap}',

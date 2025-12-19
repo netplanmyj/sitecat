@@ -114,9 +114,11 @@ class LinkCheckerProvider extends ChangeNotifier {
   }
 
   /// Request cancellation of ongoing scan
+  /// Issue #292: Preserve current progress when cancelling
   void cancelScan(String siteId) {
     _progress.setCancelRequested(siteId, true);
     _startCooldown(siteId);
+    // Don't clear progress - keep displaying the final scanned page count
     notifyListeners();
   }
 

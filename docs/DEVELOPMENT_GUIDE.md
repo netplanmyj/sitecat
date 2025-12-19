@@ -208,18 +208,16 @@ git commit -m "Replace old feature with new implementation
 
 **🟡 警告レベル（500-999行）**
 
-（現在該当なし）
+1. **lib/providers/link_checker_provider.dart** (609行)
+   - Issue #296, #292 対応で成長（414行 → 609行）
+   - 次のバージョンで分割対応予定
+   - 主に: checkSiteLinks(), cancelScan(), progress管理等
 
 **🟢 経過観察（200-499行）**
 
-1. **lib/screens/site_form_screen.dart** (246行 → 最適化済み)
-   - Phase 1完了（ウィジェット分割済み）
-   - 5ウィジェットに分割: SiteLimitCard, SiteFormBody, ActionButtons, UrlChangeWarningDialog, WarningItem
-   - 旧: 780行 → 新: 246行 + 408行 (5ウィジェット) = 654行（126行削減、16%削減）
-
-2. **lib/providers/link_checker_provider.dart** (414行)
-3. **lib/screens/profile_screen.dart** (426行)
-4. **lib/widgets/site_detail/full_scan_section.dart** (405行)
+1. **lib/screens/profile_screen.dart** (426行)
+   - ユーザー設定と購読管理画面
+   - 次のバージョンで分割検討予定
 
 **✅ 完了済み（最適化済み）**
 - ✅ **lib/services/link_checker_service.dart** (722行 → 最適化済み)
@@ -227,10 +225,15 @@ git commit -m "Replace old feature with new implementation
   - 4ファイルに分割: models.dart, http_client.dart, sitemap_parser.dart, result_repository.dart
   - 旧: 1142行 → 新: 722行（420行削減、37%削減）
 
-- ✅ **lib/screens/site_form_screen.dart** (246行 → 最適化済み)
+- ✅ **lib/screens/site_form_screen.dart** (256行 → 最適化済み)
   - Phase 1完了（ウィジェット分割済み）
   - 5ウィジェットに分割: SiteLimitCard, SiteFormBody, ActionButtons, UrlChangeWarningDialog, WarningItem
   - 旧: 780行 → 新: 246行 + 408行 (5ウィジェット) = 654行（126行削減、16%削減）
+
+- ✅ **lib/widgets/site_detail/site_scan_section.dart** (297行 → 最適化済み)
+  - Issue #296, #292 対応でリファクタリング完了
+  - Progress bar 表示ロジック改善
+  - 旧: 405行 → 新: 297行（108行削減、27%削減）
 
 #### リファクタリング実施の流れ
 
