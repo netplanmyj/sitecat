@@ -121,6 +121,41 @@ gh issue close <Issue番号>
 - UI: 残り時間を CountdownTimer で表示（Start/Continue 共通で表示）
 - 設定: 30秒に固定。将来は設定画面で変更可能にする（別Issueで対応）
 
+### 1.4 Firebase環境の切替（dev/prod）
+
+**クライアントアプリ（Flutter）:**
+
+- マッピング: Debug/Profile → sitecat-dev、Release → sitecat-prod
+- 開発（dev）でテスト: 
+  ```bash
+  flutter run
+  ```
+- プロファイル（dev）で計測: 
+  ```bash
+  flutter run --profile
+  ```
+- 本番（prod）でテスト: 
+  ```bash
+  flutter run --release
+  ```
+
+備考:
+- iOSの`Info.plist`にはdev/prod両方のURLスキームを登録済みのため、ビルドモードに応じて認証が適切に動作します。
+- Firebase初期化は`lib/firebase_options.dart`の環境選択を`lib/main.dart`から利用しています（Debug/Profile→dev、Release→prod）。
+
+**バックエンド（Functions/Rules）デプロイ:**
+
+- 対象プロジェクトを指定してデプロイします。
+  ```bash
+  # dev にデプロイ
+  firebase deploy --only functions --project sitecat-dev
+  firebase deploy --only firestore:rules --project sitecat-dev
+
+  # prod にデプロイ
+  firebase deploy --only functions --project sitecat-prod
+  firebase deploy --only firestore:rules --project sitecat-prod
+  ```
+
 ### 2. コード規約
 - Dart公式のlintルールに従う
 - `analysis_options.yaml`の設定を遵守

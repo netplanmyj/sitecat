@@ -243,7 +243,7 @@ export const onAuthUserDeleted = onCall(
             }
           }
 
-          // Batch delete documents using Firestore WriteBatch (max 500 operations per batch)
+          // Batch delete documents (max 500 operations per batch)
           const BATCH_SIZE = 500;
           const docs = subcollectionSnapshot.docs;
           for (let i = 0; i < docs.length; i += BATCH_SIZE) {
