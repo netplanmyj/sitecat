@@ -57,18 +57,22 @@ class _SiteScanSectionState extends State<SiteScanSection> {
                 .getProgress(widget.site.id);
 
             // Calculate display values: prefer live totals during scan, fall back to cached
+            // Issue #292: Preserve final progress count after batch/scan completion
             final isFreshScanStarting = isCheckingLinks && currentTotal == 0;
             final progressTotal = isFreshScanStarting
                 ? 0
                 : (currentTotal > 0
                       ? currentTotal
                       : latestResult?.totalPagesInSitemap ?? 0);
-            // Use currentChecked during and after scan if available (#269)
-            // During scan OR after completion with currentChecked > 0, use currentChecked
-            // Only fall back to lastScannedPageIndex at the very start (not scanning & no progress)
-            final progressChecked = (isCheckingLinks || currentChecked > 0)
+
+            // Issue #292: Use appropriate page count based on scan state
+            // - During scan: use currentChecked (real-time progress)
+            // - After scan batch: use latestResult?.pagesScanned (final saved value)
+            // - Before first scan: use currentSite.lastScannedPageIndex (previous run)
+            final progressChecked = isCheckingLinks
                 ? currentChecked
-                : currentSite.lastScannedPageIndex;
+                : (latestResult?.pagesScanned ??
+                      currentSite.lastScannedPageIndex);
 
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -239,10 +243,7 @@ class _SiteScanSectionState extends State<SiteScanSection> {
                         const SizedBox(height: 8),
                         LinearProgressIndicator(
                           value: progressTotal > 0
-                              ? (isCheckingLinks
-                                        ? progressChecked
-                                        : currentSite.lastScannedPageIndex) /
-                                    progressTotal
+                              ? progressChecked / progressTotal
                               : 0,
                           backgroundColor: Colors.blue.shade100,
                           valueColor: AlwaysStoppedAnimation<Color>(
@@ -252,7 +253,7 @@ class _SiteScanSectionState extends State<SiteScanSection> {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '${isCheckingLinks ? progressChecked : currentSite.lastScannedPageIndex} / $progressTotal pages scanned',
+                          '$progressChecked / $progressTotal pages scanned',
                           style: TextStyle(
                             fontSize: 12,
                             color: Colors.blue.shade700,

@@ -1,0 +1,12 @@
+{
+  "recommendations": [
+    "Dart-Code.dart-code",
+    "Dart-Code.flutter",
+    "ms-vscode.extension-pack-for-java",
+    "GitHub.copilot",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "ms-azuretools.vscode-docker",
+    "Google.firebase-tools"
+  ]
+}
