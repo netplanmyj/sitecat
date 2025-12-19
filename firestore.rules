@@ -6,19 +6,34 @@ service cloud.firestore {
     match /users/{userId} {
       // ユーザープロフィールへのアクセス（自分のみ）
       allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // プラン判定（サーバー側で保持する購読ドキュメントを参照）
+      function isPremiumUser() {
+        let subscriptionDoc = get(/databases/$(database)/documents/users/$(userId)/subscription/lifetime);
+        return subscriptionDoc.exists() && subscriptionDoc.data.isActive == true;
+      }
+
+      // サイト数上限（無料3 / 有料30）
+      function siteCreationAllowed() {
+        let userDoc = get(/databases/$(database)/documents/users/$(userId));
+        let currentCount = userDoc.exists() && userDoc.data.siteCount is int ? userDoc.data.siteCount : 0;
+        let limit = isPremiumUser() ? 30 : 3;
+        return currentCount < limit;
+      }
       
       // サイトサブコレクション - ユーザー配下に存在
       match /sites/{siteId} {
         // 自分のユーザーID配下のサイトのみアクセス可能
-        allow read, write: if request.auth != null && request.auth.uid == userId;
+        allow read: if request.auth != null && request.auth.uid == userId;
         
         // サイト作成時のバリデーション
         allow create: if request.auth != null 
           && request.auth.uid == userId
-          && validateSiteData();
+          && validateSiteData()
+          && siteCreationAllowed();
         
-        // サイト更新時のバリデーション
-        allow update: if request.auth != null 
+        // サイト更新/削除時のバリデーション
+        allow update, delete: if request.auth != null 
           && request.auth.uid == userId
           && validateSiteData();
         
@@ -77,13 +92,10 @@ service cloud.firestore {
       
       // サブスクリプション情報サブコレクション - ユーザー配下に存在
       match /subscription/{subscriptionId} {
-        // 自分のユーザーID配下のサブスクリプション情報のみアクセス可能
+        // 自分のユーザーID配下のサブスクリプション情報のみアクセス可能（読み取り専用）
         allow read: if request.auth != null && request.auth.uid == userId;
-        // 作成・更新は認証済みユーザーのみ（アプリからの購入処理）
-        allow create: if request.auth != null && request.auth.uid == userId;
-        allow update: if request.auth != null && request.auth.uid == userId;
-        // 削除は禁止（購入履歴は保持）
-        allow delete: if false;
+        // 書き込みは Cloud Functions 側でのみ実施（直接書き込みは禁止）
+        allow create, update, delete: if false;
       }
     }
   }
