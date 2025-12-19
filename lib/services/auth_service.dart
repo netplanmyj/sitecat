@@ -326,18 +326,44 @@ class AuthService {
 
       final data = docSnapshot.data();
 
-      // siteCount フィールドがない場合は追加
+      // 必須フィールドの存在確認と初期化
+      final missingFields = <String, dynamic>{};
+
+      // siteCount が存在しない場合
       if (data == null || !data.containsKey('siteCount')) {
-        await userDoc.update({
-          'lastLoginAt': FieldValue.serverTimestamp(),
-          'siteCount': 0, // 既存ユーザーにも siteCount を追加
-        });
-      } else {
-        // 通常の lastLoginAt 更新
-        await userDoc.update({'lastLoginAt': FieldValue.serverTimestamp()});
+        missingFields['siteCount'] = 0;
+      }
+
+      // email が存在しない場合
+      if (data == null || !data.containsKey('email')) {
+        missingFields['email'] = user.email;
+      }
+
+      // createdAt が存在しない場合
+      if (data == null || !data.containsKey('createdAt')) {
+        missingFields['createdAt'] = FieldValue.serverTimestamp();
+      }
+
+      // uid が存在しない場合
+      if (data == null || !data.containsKey('uid')) {
+        missingFields['uid'] = user.uid;
+      }
+
+      // plan が存在しない場合
+      if (data == null || !data.containsKey('plan')) {
+        missingFields['plan'] = 'free';
+      }
+
+      // 常に lastLoginAt を更新
+      missingFields['lastLoginAt'] = FieldValue.serverTimestamp();
+
+      // 不足フィールドがある場合は一括更新
+      if (missingFields.isNotEmpty) {
+        await userDoc.update(missingFields);
       }
     } catch (e) {
       // ログ更新の失敗は認証を阻害しない
+      _logger.w('Failed to update last login: $e');
     }
   }
 
