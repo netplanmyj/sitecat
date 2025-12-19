@@ -219,11 +219,41 @@ export const onAuthUserDeleted = onCall(
         const subcollectionSnapshot = await subcollectionRef.get();
 
         if (!subcollectionSnapshot.empty) {
-          // Batch delete documents (max 500 per batch)
-          const deletions = subcollectionSnapshot.docs.map((doc) =>
-            doc.ref.delete()
-          );
-          await Promise.all(deletions);
+          // For linkCheckResults, also delete nested brokenLinks subcollections
+          if (collectionName === "linkCheckResults") {
+            for (const resultDoc of subcollectionSnapshot.docs) {
+              const brokenLinksRef = resultDoc.ref.collection("brokenLinks");
+              const brokenLinksSnapshot = await brokenLinksRef.get();
+              if (!brokenLinksSnapshot.empty) {
+                const BATCH_SIZE = 500;
+                const docs = brokenLinksSnapshot.docs;
+                for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+                  const batch = db.batch();
+                  const chunk = docs.slice(i, i + BATCH_SIZE);
+                  for (const doc of chunk) {
+                    batch.delete(doc.ref);
+                  }
+                  await batch.commit();
+                }
+                logger.info(
+                  `Deleted brokenLinks for linkCheckResult ${resultDoc.id}`,
+                  {userId, count: brokenLinksSnapshot.size}
+                );
+              }
+            }
+          }
+
+          // Batch delete documents using Firestore WriteBatch (max 500 operations per batch)
+          const BATCH_SIZE = 500;
+          const docs = subcollectionSnapshot.docs;
+          for (let i = 0; i < docs.length; i += BATCH_SIZE) {
+            const batch = db.batch();
+            const chunk = docs.slice(i, i + BATCH_SIZE);
+            for (const doc of chunk) {
+              batch.delete(doc.ref);
+            }
+            await batch.commit();
+          }
           logger.info(`Deleted ${collectionName} documents for user`, {
             userId,
             count: subcollectionSnapshot.size,

@@ -200,15 +200,17 @@ class AuthService {
       // as per Firestore rules (Functions manages subscription)
       // alerts and statistics are optional and will be cleaned up separately
 
-      // Phase 2: Call Cloud Function to cleanup subscription and user document
+      // Phase 2: Call Cloud Function to cleanup all user data
       // This must happen while the user is still authenticated
-      // The function will delete subscription, sites, monitoring results, and user document
+      // The function will delete subscription, sites, monitoring results, linkCheckResults, and user document
       final callable = FirebaseFunctions.instance.httpsCallable(
         'onAuthUserDeleted',
       );
       try {
         await callable.call();
-        _logger.i('Cloud Function onAuthUserDeleted completed successfully');
+        _logger.i(
+          'Cloud Function onAuthUserDeleted completed successfully for user ${user.uid}',
+        );
       } catch (cfError) {
         _logger.e('Cloud Function failed: $cfError');
         errorMessage =
