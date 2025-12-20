@@ -284,7 +284,7 @@ Widget build(BuildContext context) {
 
 ### 📊 Metrics
 - Test coverage: 32% → 48%
-- New test cases: +25 tests
+- New test cases: +20 tests
 - Zero known security gaps
 ```
 
@@ -312,7 +312,7 @@ Widget build(BuildContext context) {
 - ✅ Issue #300 実装完了（Apple receipt verification）
 - ✅ Issue #299 実装完了（Transactional creation）
 - ✅ Issue #301 テスト完了（CF tests ≥80% coverage）
-- 🔲 全429テスト通過（現在409テスト）
+- 🔲 全429テスト通過（現在409テスト、+20追加予定）
 - 🔲 `flutter analyze` 成功
 - 🔲 `dart format --check` 成功
 - 🔲 CI/CDパイプライン成功
@@ -381,7 +381,7 @@ Day 10: リグレッションテスト、準本番確認
 
 **Days 10-11: TestFlight 配布**
 ```
-Day 10: Build 108 XCode Cloud でビルド
+Day 10: Build 108 Xcode Cloud でビルド
 Day 11: TestFlight 配布、ベータテスター通知
 ```
 
@@ -413,7 +413,7 @@ Week 3 (1/2-1/8):
 |--------|---------|--------|------|
 | **Apple API 連携の複雑性** (Issue #300) | Medium | 🔴 Critical | 事前に sandbox 環境で検証、エラーログ詳細化 |
 | **Firestore Transaction 競合** (Issue #299) | Low | 🔴 Critical | 単体テスト + Cloud Functions テストで検証 |
-| **TestFlight 配布遅延** | Low | 🟠 High | XCode Cloud での自動ビルド活用 |
+| **TestFlight 配布遅延** | Low | 🟠 High | Xcode Cloud での自動ビルド活用 |
 | **iOS 実機テスト環境** | Low | 🟠 High | TestFlight ベータテスター 10+ 名確保 |
 | **App Store 審査拒否** | Very Low | 🔴 Critical | Privacy Policy 再確認、ガイドライン確認 |
 
