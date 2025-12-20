@@ -51,9 +51,21 @@ class AuthService {
       );
 
       // 初回ログイン時のユーザードキュメント作成
-      if (userCredential.additionalUserInfo?.isNewUser ?? false) {
+      final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+      _logger.i(
+        'Google sign-in completed for ${userCredential.user!.uid}. '
+        'isNewUser: $isNewUser',
+      );
+
+      if (isNewUser) {
+        _logger.i(
+          'Calling _createUserDocument for new user ${userCredential.user!.uid}',
+        );
         await _createUserDocument(userCredential.user!);
       } else {
+        _logger.i(
+          'Calling _updateLastLogin for existing user ${userCredential.user!.uid}',
+        );
         // 既存ユーザーのlastLoginAtを更新（siteCount移行も含む）
         await _updateLastLogin(userCredential.user!);
       }
@@ -291,6 +303,7 @@ class AuthService {
 
   /// 初回ログイン時のユーザードキュメント作成
   Future<void> _createUserDocument(User user, {String? displayName}) async {
+    _logger.i('_createUserDocument called for user ${user.uid}');
     try {
       final userDoc = _firestore.collection('users').doc(user.uid);
 
@@ -342,16 +355,17 @@ class AuthService {
             );
             return;
           }
-        }
 
-        // 既存ドキュメントが完全な場合はスキップ
-        _logger.i(
-          'User document already exists and is complete for ${user.uid}, skipping creation',
-        );
-        return;
+          // 既存ドキュメントが完全な場合はスキップ
+          _logger.i(
+            'User document already exists and is complete for ${user.uid}, skipping creation',
+          );
+          return;
+        }
       }
 
       // ドキュメントが存在しない場合は新規作成
+      _logger.i('Creating new user document for ${user.uid}');
       await userDoc.set({
         'uid': user.uid,
         'email': user.email,
@@ -363,6 +377,7 @@ class AuthService {
         'lastLoginAt': FieldValue.serverTimestamp(),
         'settings': {'notifications': true, 'emailAlerts': true},
       });
+      _logger.i('Successfully created new user document for ${user.uid}');
     } catch (e) {
       throw Exception('Failed to create user document: $e');
     }
@@ -370,6 +385,7 @@ class AuthService {
 
   /// 最終ログイン時刻の更新
   Future<void> _updateLastLogin(User user) async {
+    _logger.i('_updateLastLogin called for user ${user.uid}');
     try {
       final userDoc = _firestore.collection('users').doc(user.uid);
 
@@ -394,8 +410,16 @@ class AuthService {
 
       // ケース1: ドキュメントが存在しない場合
       if (!documentExists) {
+        _logger.w(
+          'User document does not exist for ${user.uid}. '
+          'This can happen after account deletion. '
+          'Creating new document via _createUserDocument().',
+        );
         // ドキュメントが存在しない場合は新規作成
         await _createUserDocument(user);
+        _logger.i(
+          'Successfully created user document via _updateLastLogin for ${user.uid}',
+        );
         return;
       }
 
