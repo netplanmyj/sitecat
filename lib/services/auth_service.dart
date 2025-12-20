@@ -326,6 +326,44 @@ class AuthService {
 
       final data = docSnapshot.data();
 
+      // 必須フィールドのリスト
+      final requiredFields = ['siteCount', 'email', 'createdAt', 'uid', 'plan'];
+
+      // 不完全なドキュメントを検出（isPremiumとsubscriptionしか持たない場合）
+      // 必須フィールドが1つも存在しない場合は不完全とみなす
+      bool isIncompleteDocument = false;
+      if (data != null) {
+        final hasAnyRequiredField = requiredFields.any(
+          (field) => data.containsKey(field),
+        );
+        if (!hasAnyRequiredField) {
+          // isPremiumまたはsubscriptionのみ存在する場合（購入リストアで作成されたドキュメント）
+          isIncompleteDocument = true;
+          _logger.w(
+            'Detected incomplete user document (likely created by purchase restore). '
+            'Will preserve isPremium and subscription, then add missing fields.',
+          );
+        }
+      }
+
+      if (isIncompleteDocument) {
+        // 不完全なドキュメントの場合は、既存の isPremium と subscription を保持しつつ
+        // 必須フィールドを追加（set with merge: true を使用）
+        await userDoc.set({
+          'uid': user.uid,
+          'email': user.email,
+          'displayName': user.displayName,
+          'photoURL': user.photoURL,
+          'plan': 'free', // デフォルトは無料プラン
+          'siteCount': 0, // サイト数カウンター（Functionsが更新）
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastLoginAt': FieldValue.serverTimestamp(),
+          'settings': {'notifications': true, 'emailAlerts': true},
+          // isPremium と subscription は保持される（merge: true のため）
+        }, SetOptions(merge: true));
+        return;
+      }
+
       // 必須フィールドの存在確認と初期化
       final missingFields = <String, dynamic>{};
 
