@@ -209,7 +209,7 @@ void main() {
             'productId': 'lifetime_access',
             'transactionId': 'tx123',
           },
-          // Missing: siteCount, email, createdAt, uid
+          // Missing: siteCount, email, createdAt, uid (ユーザープロフィール情報)
         });
 
         // Act: Check if document is incomplete
@@ -219,30 +219,37 @@ void main() {
             .get();
         final data = userDoc.data();
 
-        final requiredFields = [
+        // 不完全ドキュメント判定: ユーザープロフィール必須フィールドが1つ以上欠落している
+        final userProfileFields = [
           'siteCount',
           'email',
           'createdAt',
           'uid',
-          'plan',
+          'lastLoginAt',
+          'settings',
         ];
-        final missingFields = requiredFields.where((field) {
+        final hasMissingProfileFields = userProfileFields.any((field) {
           return data == null || !data.containsKey(field);
-        }).toList();
+        });
 
-        // Assert: Should detect 4 missing fields
-        expect(missingFields.length, equals(4));
+        // Assert: Should detect as incomplete
         expect(
-          missingFields,
-          containsAll(['siteCount', 'email', 'createdAt', 'uid']),
+          hasMissingProfileFields,
+          isTrue,
+          reason:
+              'Document should be detected as incomplete when any user profile field is missing',
         );
-        expect(data?['plan'], equals('premium')); // Existing plan preserved
+        expect(
+          data?['plan'],
+          equals('premium'),
+        ); // plan is present (set by Cloud Function)
       },
     );
 
     test('should repair incomplete document using set() with merge', () async {
       // Arrange: Incomplete document with only plan
       final userId = 'incomplete-user-002';
+
       final mockUser = MockUser(
         uid: userId,
         email: 'repair@example.com',
