@@ -1082,7 +1082,7 @@ StoreKit 2では、アプリ起動時に過去の購入情報が自動的に通�
    ↓
 7. Cloud Function saveLifetimePurchase が実行される
    - /users/{userId}/subscription/lifetime ドキュメントを作成
-   - /users/{userId} に isPremium: true のみを書き込む ← 不完全なドキュメント
+   - /users/{userId} に plan: 'premium' を書き込む ← 不完全なドキュメント（必須フィールドは未作成）
    ↓
 8. AuthService.signInWithGoogle/Apple が _updateLastLogin() を呼び出し
    ↓
@@ -1104,25 +1104,30 @@ bool isIncompleteDocument = false;
 if (data != null) {
   final hasAnyRequiredField = requiredFields.any((field) => data.containsKey(field));
   if (!hasAnyRequiredField) {
-    // isPremiumまたはsubscriptionのみ存在する場合（購入リストアで作成）
+    // planまたはsubscriptionのみ存在する場合（購入リストアで作成）
     isIncompleteDocument = true;
   }
 }
 
 if (isIncompleteDocument) {
-  // set() with merge: true で isPremium と subscription を保持しつつ
+  // set() with merge: true で plan と subscription を保持しつつ
   // 必須フィールドを追加して完全なドキュメントに修復
+  
+  // 既存のplanを確認（Cloud Functionが設定済みの場合を考慮）
+  final existingPlan = data?['plan'] as String?;
+  final resolvedPlan = existingPlan ?? 'free';
+  
   await userDoc.set({
     'uid': user.uid,
     'email': user.email,
     'displayName': user.displayName,
     'photoURL': user.photoURL,
-    'plan': 'free',
+    'plan': resolvedPlan, // 既存のplanを保持、なければfree
     'siteCount': 0,
     'createdAt': FieldValue.serverTimestamp(),
     'lastLoginAt': FieldValue.serverTimestamp(),
     'settings': {'notifications': true, 'emailAlerts': true},
-    // isPremium と subscription は保持される（merge: true のため）
+    // plan と subscription は保持される（merge: true のため）
   }, SetOptions(merge: true));
 }
 ```
@@ -1135,7 +1140,7 @@ if (isIncompleteDocument) {
 
 2. **Cloud Function saveLifetimePurchase は変更不要**
    - 購入情報を保存する正しい役割を果たしている
-   - isPremiumフィールドの設定も課金状態管理として正しい
+   - planフィールドの設定も課金状態管理として正しい
 
 3. **AuthService._updateLastLogin() で修復**
    - 不完全なドキュメントを検出して完全なドキュメントに修復
@@ -1145,14 +1150,14 @@ if (isIncompleteDocument) {
 
 **症状**: アカウント削除後の再サインインでFirestore permission denied
 
-**原因**: StoreKit自動リストアで作成された不完全なドキュメント（isPremium + subscriptionのみ）
+**原因**: StoreKit自動リストアで作成された不完全なドキュメント（plan + subscriptionのみ）
 
 **確認方法**:
 ```bash
 # Firestoreコンソールで /users/{userId} を確認
 # 以下のフィールドのみ存在する場合は不完全なドキュメント
 {
-  isPremium: true,
+  plan: 'premium',
   subscription: []
 }
 ```

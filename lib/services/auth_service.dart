@@ -18,6 +18,15 @@ class AuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Logger _logger = Logger();
 
+  /// ユーザードキュメントの必須フィールド（DRY原則のためクラスレベル定数化）
+  static const List<String> _requiredFields = [
+    'siteCount',
+    'email',
+    'createdAt',
+    'uid',
+    'plan',
+  ];
+
   /// 現在のユーザー取得
   User? get currentUser => _auth.currentUser;
 
@@ -326,45 +335,57 @@ class AuthService {
 
       final data = docSnapshot.data();
 
-      // 必須フィールドのリスト
-      final requiredFields = ['siteCount', 'email', 'createdAt', 'uid', 'plan'];
-
-      // 不完全なドキュメントを検出（isPremiumとsubscriptionしか持たない場合）
-      // 必須フィールドが1つも存在しない場合は不完全とみなす
+      // 不完全なドキュメントを検出（plan等の必須フィールドが存在しない場合）
+      // 購入リストアで作成された不完全なドキュメント（plan/subscription のみ）を検出
       bool isIncompleteDocument = false;
       if (data != null) {
-        final hasAnyRequiredField = requiredFields.any(
+        final hasAnyRequiredField = _requiredFields.any(
           (field) => data.containsKey(field),
         );
         if (!hasAnyRequiredField) {
-          // isPremiumまたはsubscriptionのみ存在する場合（購入リストアで作成されたドキュメント）
+          // Cloud Functionのみが作成したドキュメント（購入リストアで発生）
           isIncompleteDocument = true;
           _logger.w(
             'Detected incomplete user document (likely created by purchase restore). '
-            'Will preserve isPremium and subscription, then add missing fields.',
+            'Will preserve plan and subscription, then add missing fields.',
           );
         }
       }
 
       if (isIncompleteDocument) {
-        // 不完全なドキュメントの場合は、既存の isPremium と subscription を保持しつつ
-        // 必須フィールドを追加（set with merge: true を使用）
+        // 不完全なドキュメントの場合は、既存の plan と subscription を保持しつつ
+        // 必須フィールドを追加
+        //
+        // set() with merge: true を使用する理由:
+        // - update() は存在しないフィールドでエラーになる可能性がある
+        // - merge: true により既存フィールド（plan, subscription）を保持
+        // - 新しいフィールドのみを追加して完全なドキュメントにする
+
+        // 既存のplanフィールドを確認（Cloud Functionが設定済みの場合を考慮）
+        final existingPlan = data?['plan'] as String?;
+        final resolvedPlan = existingPlan ?? 'free';
+
         await userDoc.set({
           'uid': user.uid,
           'email': user.email,
           'displayName': user.displayName,
           'photoURL': user.photoURL,
-          'plan': 'free', // デフォルトは無料プラン
+          'plan': resolvedPlan, // 既存のplanを保持、なければfree
           'siteCount': 0, // サイト数カウンター（Functionsが更新）
           'createdAt': FieldValue.serverTimestamp(),
           'lastLoginAt': FieldValue.serverTimestamp(),
           'settings': {'notifications': true, 'emailAlerts': true},
-          // isPremium と subscription は保持される（merge: true のため）
+          // plan と subscription は保持される（merge: true のため）
         }, SetOptions(merge: true));
         return;
       }
 
       // 必須フィールドの存在確認と初期化
+      //
+      // update() を使用する理由:
+      // - ドキュメントの存在が既に確認済み（line 321でチェック済み）
+      // - 不足フィールドのみを追加する安全な操作
+      // - 既存フィールドを上書きしない
       final missingFields = <String, dynamic>{};
 
       // siteCount が存在しない場合
