@@ -18,15 +18,6 @@ class AuthService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Logger _logger = Logger();
 
-  /// ユーザードキュメントの必須フィールド（DRY原則のためクラスレベル定数化）
-  static const List<String> _requiredFields = [
-    'siteCount',
-    'email',
-    'createdAt',
-    'uid',
-    'plan',
-  ];
-
   /// 現在のユーザー取得
   User? get currentUser => _auth.currentUser;
 
@@ -60,9 +51,21 @@ class AuthService {
       );
 
       // 初回ログイン時のユーザードキュメント作成
-      if (userCredential.additionalUserInfo?.isNewUser ?? false) {
+      final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
+      _logger.d(
+        'Google sign-in completed for ${userCredential.user!.uid}. '
+        'isNewUser: $isNewUser',
+      );
+
+      if (isNewUser) {
+        _logger.d(
+          'Calling _createUserDocument for new user ${userCredential.user!.uid}',
+        );
         await _createUserDocument(userCredential.user!);
       } else {
+        _logger.d(
+          'Calling _updateLastLogin for existing user ${userCredential.user!.uid}',
+        );
         // 既存ユーザーのlastLoginAtを更新（siteCount移行も含む）
         await _updateLastLogin(userCredential.user!);
       }
@@ -217,7 +220,7 @@ class AuthService {
       );
       try {
         await callable.call();
-        _logger.i(
+        _logger.d(
           'Cloud Function onAuthUserDeleted completed successfully for user ${user.uid}',
         );
       } catch (cfError) {
@@ -300,9 +303,69 @@ class AuthService {
 
   /// 初回ログイン時のユーザードキュメント作成
   Future<void> _createUserDocument(User user, {String? displayName}) async {
+    _logger.d('_createUserDocument called for user ${user.uid}');
     try {
       final userDoc = _firestore.collection('users').doc(user.uid);
 
+      // 既に存在するドキュメントをチェック（StoreKit復元の場合、不完全ドキュメントが存在する可能性）
+      final existingDoc = await userDoc.get();
+
+      if (existingDoc.exists) {
+        final existingData = existingDoc.data();
+
+        // 既存ドキュメントが不完全かチェック
+        if (existingData != null) {
+          final userProfileFields = [
+            'siteCount',
+            'email',
+            'createdAt',
+            'uid',
+            'lastLoginAt',
+            'settings',
+          ];
+          final hasMissingProfileFields = userProfileFields.any(
+            (field) => !existingData.containsKey(field),
+          );
+
+          if (hasMissingProfileFields) {
+            // 不完全なドキュメントを修復（Cloud Functionで作成された不完全なドキュメント）
+            final existingPlan = existingData['plan'] as String?;
+            final resolvedPlan = existingPlan ?? 'free';
+
+            _logger.i(
+              'Repairing incomplete user document during _createUserDocument for ${user.uid}. '
+              'Existing plan: $existingPlan, will be preserved as: $resolvedPlan',
+            );
+
+            await userDoc.set({
+              'uid': user.uid,
+              'email': user.email,
+              'displayName': displayName ?? user.displayName,
+              'photoURL': user.photoURL,
+              'plan': resolvedPlan, // Cloud Functionが設定した planを保持
+              'siteCount': 0,
+              'createdAt': FieldValue.serverTimestamp(),
+              'lastLoginAt': FieldValue.serverTimestamp(),
+              'settings': {'notifications': true, 'emailAlerts': true},
+              // subscription は保持される（merge: true のため）
+            }, SetOptions(merge: true));
+
+            _logger.i(
+              'Successfully repaired incomplete user document in _createUserDocument for ${user.uid}',
+            );
+            return;
+          }
+
+          // 既存ドキュメントが完全な場合はスキップ
+          _logger.d(
+            'User document already exists and is complete for ${user.uid}, skipping creation',
+          );
+          return;
+        }
+      }
+
+      // ドキュメントが存在しない場合は新規作成
+      _logger.d('Creating new user document for ${user.uid}');
       await userDoc.set({
         'uid': user.uid,
         'email': user.email,
@@ -314,6 +377,7 @@ class AuthService {
         'lastLoginAt': FieldValue.serverTimestamp(),
         'settings': {'notifications': true, 'emailAlerts': true},
       });
+      _logger.i('Successfully created new user document for ${user.uid}');
     } catch (e) {
       throw Exception('Failed to create user document: $e');
     }
@@ -321,32 +385,66 @@ class AuthService {
 
   /// 最終ログイン時刻の更新
   Future<void> _updateLastLogin(User user) async {
+    _logger.d('_updateLastLogin called for user ${user.uid}');
     try {
       final userDoc = _firestore.collection('users').doc(user.uid);
 
-      // まずドキュメントを取得して siteCount の存在を確認
+      // ドキュメントを取得
       final docSnapshot = await userDoc.get();
-
-      if (!docSnapshot.exists) {
-        // ドキュメントが存在しない場合は新規作成
-        await _createUserDocument(user);
-        return;
-      }
 
       final data = docSnapshot.data();
 
-      // 不完全なドキュメントを検出（plan等の必須フィールドが存在しない場合）
+      // ドキュメント存在状況を判定
+      final documentExists = docSnapshot.exists;
+
+      // 不完全なドキュメントを検出
       // 購入リストアで作成された不完全なドキュメント（plan/subscription のみ）を検出
+      //
+      // 不完全ドキュメント = ユーザープロフィール必須フィールドが1つ以上欠落している
+      // （plan/subscriptionは存在しても、ユーザーの基本情報が揃っていない）
+      //
+      // ユーザープロフィール必須フィールド（_createUserDocument で必ず作成される）:
+      // - siteCount, email, createdAt, uid, lastLoginAt, settings
+      // - displayName, photoURL (null可能だが、Firestore に記録される)
       bool isIncompleteDocument = false;
-      if (data != null) {
-        final hasAnyRequiredField = _requiredFields.any(
-          (field) => data.containsKey(field),
+
+      // ケース1: ドキュメントが存在しない場合
+      if (!documentExists) {
+        _logger.w(
+          'User document does not exist for ${user.uid}. '
+          'This can happen after account deletion. '
+          'Creating new document via _createUserDocument().',
         );
-        if (!hasAnyRequiredField) {
+        // ドキュメントが存在しない場合は新規作成
+        await _createUserDocument(user);
+        _logger.d(
+          'Successfully created user document via _updateLastLogin for ${user.uid}',
+        );
+        return;
+      }
+
+      // ケース2: ドキュメントは存在するが、プロフィール情報が不完全な場合
+      if (data != null) {
+        final userProfileFields = [
+          'siteCount',
+          'email',
+          'createdAt',
+          'uid',
+          'lastLoginAt',
+          'settings',
+        ];
+        // 存在しないフィールドが1つでもあるか？ = 不完全
+        // any() で1つ以上の欠落フィールドを検出
+        final hasMissingProfileFields = userProfileFields.any(
+          (field) => !data.containsKey(field),
+        );
+        if (hasMissingProfileFields) {
           // Cloud Functionのみが作成したドキュメント（購入リストアで発生）
+          // plan/subscription は存在する可能性があるが、ユーザープロフィール情報が揃っていない
           isIncompleteDocument = true;
           _logger.w(
             'Detected incomplete user document (likely created by purchase restore). '
+            'User profile fields missing: ${userProfileFields.where((f) => !data.containsKey(f)).toList()}. '
             'Will preserve plan and subscription, then add missing fields.',
           );
         }
@@ -365,6 +463,11 @@ class AuthService {
         final existingPlan = data?['plan'] as String?;
         final resolvedPlan = existingPlan ?? 'free';
 
+        _logger.i(
+          'Repairing incomplete user document for ${user.uid}. '
+          'Existing plan: $existingPlan, resolved plan: $resolvedPlan',
+        );
+
         await userDoc.set({
           'uid': user.uid,
           'email': user.email,
@@ -377,6 +480,10 @@ class AuthService {
           'settings': {'notifications': true, 'emailAlerts': true},
           // plan と subscription は保持される（merge: true のため）
         }, SetOptions(merge: true));
+
+        _logger.i(
+          'Successfully repaired incomplete user document for ${user.uid}',
+        );
         return;
       }
 

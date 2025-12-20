@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/site_provider.dart';
 import '../providers/link_checker_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
 import '../widgets/site_form/site_form_body.dart';
@@ -56,6 +57,11 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Sync premium status whenever SubscriptionProvider updates
+    final subscriptionProvider = Provider.of<SubscriptionProvider>(context);
+    final siteProvider = Provider.of<SiteProvider>(context, listen: false);
+    siteProvider.setHasLifetimeAccess(subscriptionProvider.hasLifetimeAccess);
+
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.isEdit ? 'Edit Site' : 'Add Site'),
@@ -75,11 +81,16 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
       ),
       body: Consumer<SiteProvider>(
         builder: (context, siteProvider, child) {
+          // Determine site limit based on premium status
+          final siteLimit = siteProvider.canAddSite
+              ? AppConstants.premiumSiteLimit
+              : AppConstants.freePlanSiteLimit;
+
           // Check site limit for new sites
           if (!widget.isEdit && !siteProvider.canAddSite) {
             return SiteLimitCard(
               siteCount: siteProvider.siteCount,
-              siteLimit: AppConstants.freePlanSiteLimit,
+              siteLimit: siteLimit,
               onBackPressed: () => Navigator.of(context).pop(),
             );
           }

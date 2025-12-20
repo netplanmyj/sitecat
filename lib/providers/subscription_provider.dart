@@ -78,8 +78,9 @@ class SubscriptionProvider with ChangeNotifier {
       final success = await _subscriptionService.purchaseLifetimeAccess();
 
       if (success) {
-        // 購入後、状態を更新
-        await _checkLifetimeAccess();
+        // 購入処理開始後、StoreKit の非同期処理完了を待つ
+        // _onPurchaseUpdate() → saveLifetimePurchase → Firestore 保存が完了するまでポーリング
+        await _waitForPurchaseCompletion();
       } else {
         _error = '購入に失敗しました';
       }
@@ -92,6 +93,25 @@ class SubscriptionProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// 購入完了を待つ（最大10秒間ポーリング）
+  Future<void> _waitForPurchaseCompletion() async {
+    const maxAttempts = 10; // 10回試行
+    const delayBetweenAttempts = Duration(seconds: 1);
+
+    for (int i = 0; i < maxAttempts; i++) {
+      await Future.delayed(delayBetweenAttempts);
+      await _checkLifetimeAccess();
+
+      if (_hasLifetimeAccess) {
+        // 購入が確認できたら即座に終了
+        return;
+      }
+    }
+
+    // 10秒経っても購入が確認できない場合は警告
+    // （通常は数秒以内に完了するはず）
   }
 
   /// 購入履歴をリストア
