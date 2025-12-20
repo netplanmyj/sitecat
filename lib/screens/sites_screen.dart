@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/site_provider.dart';
+import '../providers/subscription_provider.dart';
 import '../models/site.dart';
 import '../constants/app_constants.dart';
 import '../widgets/dashboard/site_card.dart';
@@ -23,7 +24,15 @@ class _SitesScreenState extends State<SitesScreen> {
     super.initState();
     // Initialize site provider
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<SiteProvider>(context, listen: false).initialize();
+      final siteProvider = Provider.of<SiteProvider>(context, listen: false);
+      final subscriptionProvider = Provider.of<SubscriptionProvider>(
+        context,
+        listen: false,
+      );
+
+      // Sync premium status to site provider
+      siteProvider.setHasLifetimeAccess(subscriptionProvider.hasLifetimeAccess);
+      siteProvider.initialize();
     });
   }
 
@@ -35,6 +44,11 @@ class _SitesScreenState extends State<SitesScreen> {
 
   @override
   Widget build(BuildContext context) {
+    // Sync premium status whenever SubscriptionProvider updates
+    final subscriptionProvider = Provider.of<SubscriptionProvider>(context);
+    final siteProvider = Provider.of<SiteProvider>(context, listen: false);
+    siteProvider.setHasLifetimeAccess(subscriptionProvider.hasLifetimeAccess);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Sites'),
