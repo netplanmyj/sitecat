@@ -115,7 +115,7 @@ export const saveLifetimePurchase = onCall(
     await db
       .collection("users")
       .doc(userId)
-      .set({isPremium: true}, {merge: true});
+      .set({plan: "premium"}, {merge: true});
 
     const saved = await docRef.get();
     logger.info("Saved lifetime purchase", {userId, productId, platform});

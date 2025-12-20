@@ -1044,6 +1044,126 @@ class SubscriptionService {
 - 入力値のサニタイゼーション
 - Rate Limiting の実装
 
+### 5. アカウント削除とStoreKit自動リストアの処理
+
+#### StoreKit 2の自動リストア挙動
+
+StoreKit 2では、アプリ起動時に過去の購入情報が自動的に通知される可能性があります。
+
+**自動リストアが発生するタイミング:**
+1. **アプリ起動時に`purchaseStream`を監視開始したとき**
+   ```dart
+   // main.dart - アプリ起動時に必ず実行
+   subscriptionService = SubscriptionService();
+   await subscriptionService.initialize();  // ← purchaseStream監視開始
+   ```
+
+2. **明示的に`restorePurchases()`を呼んだとき**
+   ```dart
+   await _inAppPurchase.restorePurchases();  // 手動リストア
+   ```
+
+#### アカウント削除→再サインインの流れ（Issue #307の根本原因）
+
+```
+1. ユーザーがアカウント削除を実行
+   ↓
+2. Cloud Function onAuthUserDeleted が全データを削除
+   - subcollection削除: subscription, sites, monitoringResults, linkCheckResults
+   - ユーザードキュメント削除: /users/{userId}
+   ↓
+3. ユーザーが同じApple IDで再サインイン
+   ↓
+4. main.dart の subscriptionService.initialize() が自動実行
+   ↓
+5. StoreKit 2 が「このApple IDは過去に購入している」と通知 ← Apple API
+   ↓
+6. _onPurchaseUpdate() → _handleSuccessfulPurchase() が呼ばれる
+   ↓
+7. Cloud Function saveLifetimePurchase が実行される
+   - /users/{userId}/subscription/lifetime ドキュメントを作成
+   - /users/{userId} に plan: 'premium' を書き込む ← 不完全なドキュメント（必須フィールドは未作成）
+   ↓
+8. AuthService.signInWithGoogle/Apple が _updateLastLogin() を呼び出し
+   ↓
+9. _updateLastLogin() が不完全なドキュメントを検出・修復
+   - 必須フィールド（siteCount, email, createdAt, uid, plan）が1つも存在しない
+   → set() with merge: true で完全なドキュメントに修復
+```
+
+#### 不完全なドキュメント検出ロジック
+
+```dart
+// AuthService._updateLastLogin() - lib/services/auth_service.dart
+
+// 必須フィールドのリスト
+final requiredFields = ['siteCount', 'email', 'createdAt', 'uid', 'plan'];
+
+// 不完全なドキュメントを検出
+bool isIncompleteDocument = false;
+if (data != null) {
+  final hasAnyRequiredField = requiredFields.any((field) => data.containsKey(field));
+  if (!hasAnyRequiredField) {
+    // planまたはsubscriptionのみ存在する場合（購入リストアで作成）
+    isIncompleteDocument = true;
+  }
+}
+
+if (isIncompleteDocument) {
+  // set() with merge: true で plan と subscription を保持しつつ
+  // 必須フィールドを追加して完全なドキュメントに修復
+  
+  // 既存のplanを確認（Cloud Functionが設定済みの場合を考慮）
+  final existingPlan = data?['plan'] as String?;
+  final resolvedPlan = existingPlan ?? 'free';
+  
+  await userDoc.set({
+    'uid': user.uid,
+    'email': user.email,
+    'displayName': user.displayName,
+    'photoURL': user.photoURL,
+    'plan': resolvedPlan, // 既存のplanを保持、なければfree
+    'siteCount': 0,
+    'createdAt': FieldValue.serverTimestamp(),
+    'lastLoginAt': FieldValue.serverTimestamp(),
+    'settings': {'notifications': true, 'emailAlerts': true},
+    // plan と subscription は保持される（merge: true のため）
+  }, SetOptions(merge: true));
+}
+```
+
+#### 重要な設計判断
+
+1. **StoreKit 2の自動リストアは防げない**
+   - Apple側のAPI仕様のため、購入履歴は必ず通知される
+   - この挙動を前提とした設計が必要
+
+2. **Cloud Function saveLifetimePurchase は変更不要**
+   - 購入情報を保存する正しい役割を果たしている
+   - planフィールドの設定も課金状態管理として正しい
+
+3. **AuthService._updateLastLogin() で修復**
+   - 不完全なドキュメントを検出して完全なドキュメントに修復
+   - ユーザー体験を損なわず、データ整合性を保証
+
+#### トラブルシューティング
+
+**症状**: アカウント削除後の再サインインでFirestore permission denied
+
+**原因**: StoreKit自動リストアで作成された不完全なドキュメント（plan + subscriptionのみ）
+
+**確認方法**:
+```bash
+# Firestoreコンソールで /users/{userId} を確認
+# 以下のフィールドのみ存在する場合は不完全なドキュメント
+{
+  plan: 'premium',
+  subscription: []
+}
+```
+
+**解決**: AuthService._updateLastLogin() の不完全ドキュメント検出ロジックが自動修復
+
 ## テスト戦略
 
 ### Unit Tests
