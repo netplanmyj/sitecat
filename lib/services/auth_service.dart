@@ -52,18 +52,18 @@ class AuthService {
 
       // 初回ログイン時のユーザードキュメント作成
       final isNewUser = userCredential.additionalUserInfo?.isNewUser ?? false;
-      _logger.i(
+      _logger.d(
         'Google sign-in completed for ${userCredential.user!.uid}. '
         'isNewUser: $isNewUser',
       );
 
       if (isNewUser) {
-        _logger.i(
+        _logger.d(
           'Calling _createUserDocument for new user ${userCredential.user!.uid}',
         );
         await _createUserDocument(userCredential.user!);
       } else {
-        _logger.i(
+        _logger.d(
           'Calling _updateLastLogin for existing user ${userCredential.user!.uid}',
         );
         // 既存ユーザーのlastLoginAtを更新（siteCount移行も含む）
@@ -220,7 +220,7 @@ class AuthService {
       );
       try {
         await callable.call();
-        _logger.i(
+        _logger.d(
           'Cloud Function onAuthUserDeleted completed successfully for user ${user.uid}',
         );
       } catch (cfError) {
@@ -303,7 +303,7 @@ class AuthService {
 
   /// 初回ログイン時のユーザードキュメント作成
   Future<void> _createUserDocument(User user, {String? displayName}) async {
-    _logger.i('_createUserDocument called for user ${user.uid}');
+    _logger.d('_createUserDocument called for user ${user.uid}');
     try {
       final userDoc = _firestore.collection('users').doc(user.uid);
 
@@ -357,7 +357,7 @@ class AuthService {
           }
 
           // 既存ドキュメントが完全な場合はスキップ
-          _logger.i(
+          _logger.d(
             'User document already exists and is complete for ${user.uid}, skipping creation',
           );
           return;
@@ -365,7 +365,7 @@ class AuthService {
       }
 
       // ドキュメントが存在しない場合は新規作成
-      _logger.i('Creating new user document for ${user.uid}');
+      _logger.d('Creating new user document for ${user.uid}');
       await userDoc.set({
         'uid': user.uid,
         'email': user.email,
@@ -385,7 +385,7 @@ class AuthService {
 
   /// 最終ログイン時刻の更新
   Future<void> _updateLastLogin(User user) async {
-    _logger.i('_updateLastLogin called for user ${user.uid}');
+    _logger.d('_updateLastLogin called for user ${user.uid}');
     try {
       final userDoc = _firestore.collection('users').doc(user.uid);
 
@@ -417,7 +417,7 @@ class AuthService {
         );
         // ドキュメントが存在しない場合は新規作成
         await _createUserDocument(user);
-        _logger.i(
+        _logger.d(
           'Successfully created user document via _updateLastLogin for ${user.uid}',
         );
         return;
