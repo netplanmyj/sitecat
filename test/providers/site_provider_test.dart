@@ -18,6 +18,7 @@ void main() {
 
   Site buildSite({
     String id = 'site-1',
+    String userId = 'user-1', // Default value for userId
     String url = 'https://example.com',
     String name = 'Example',
     List<String> excludedPaths = const [],
@@ -26,7 +27,7 @@ void main() {
     final now = DateTime.now();
     return Site(
       id: id,
-      userId: 'user-1',
+      userId: userId, // Ensure userId is passed
       url: url,
       name: name,
       createdAt: now,
@@ -34,6 +35,21 @@ void main() {
       excludedPaths: excludedPaths,
       lastScannedPageIndex: lastScannedPageIndex,
     );
+  }
+
+  Future<void> seedSitesFromStream(int count) async {
+    sitesController.add(
+      List.generate(
+        count,
+        (index) => buildSite(
+          id: 'seed-$index',
+          userId: 'user-1',
+          url: 'https://seed$index.com',
+          name: 'Seed $index',
+        ),
+      ),
+    );
+    await Future.delayed(Duration.zero);
   }
 
   setUp(() {
@@ -81,9 +97,9 @@ void main() {
 
     test('returns false when site limit reached (free)', () async {
       sitesController.add([
-        buildSite(id: '1'),
-        buildSite(id: '2'),
-        buildSite(id: '3'),
+        buildSite(id: '1', userId: 'user-1'),
+        buildSite(id: '2', userId: 'user-1'),
+        buildSite(id: '3', userId: 'user-1'),
       ]);
       await Future.delayed(Duration.zero);
 
@@ -145,6 +161,7 @@ void main() {
       await provider.initialize();
       final original = buildSite(
         id: 'site-1',
+        userId: 'user-1',
         excludedPaths: ['old'],
         lastScannedPageIndex: 5,
       );
@@ -182,6 +199,8 @@ void main() {
 
     test('resets lastScannedPageIndex when excludedPaths changed', () async {
       final updatedSite = buildSite(
+        id: 'site-1',
+        userId: 'user-1',
         excludedPaths: ['old', 'new'],
         lastScannedPageIndex: 10,
       );
@@ -207,6 +226,8 @@ void main() {
 
     test('keeps lastScannedPageIndex when excludedPaths unchanged', () async {
       final updatedSite = buildSite(
+        id: 'site-1',
+        userId: 'user-1',
         excludedPaths: ['old'],
         lastScannedPageIndex: 10,
       );
@@ -253,8 +274,18 @@ void main() {
     setUp(() async {
       await provider.initialize();
       sitesController.add([
-        buildSite(id: '1', name: 'Alpha', url: 'https://alpha.com'),
-        buildSite(id: '2', name: 'Beta', url: 'https://beta.com'),
+        buildSite(
+          id: '1',
+          userId: 'user-1',
+          name: 'Alpha',
+          url: 'https://alpha.com',
+        ),
+        buildSite(
+          id: '2',
+          userId: 'user-1',
+          name: 'Beta',
+          url: 'https://beta.com',
+        ),
       ]);
       await Future.delayed(Duration.zero);
     });
@@ -280,6 +311,29 @@ void main() {
       expect(stats['total'], 2);
       expect(stats['monitoring'], 2);
       expect(stats['paused'], 0);
+    });
+  });
+
+  group('demo mode', () {
+    test('initialize() sets demo mode correctly', () async {
+      await provider.initialize(isDemoMode: true);
+      expect(provider.isLoading, false);
+      expect(provider.sites, isNotEmpty); // Demo sites loaded
+    });
+  });
+
+  group('site limits', () {
+    test('createSite() enforces site limit for free users', () async {
+      await provider.initialize();
+      provider.setHasLifetimeAccess(false); // Free user
+      await seedSitesFromStream(AppConstants.freePlanSiteLimit);
+
+      final result = await provider.createSite(
+        url: 'https://exceed-limit.com',
+        name: 'Exceed Limit',
+      );
+      expect(result, false);
+      expect(provider.error, AppConstants.siteLimitReachedMessage);
     });
   });
 }
