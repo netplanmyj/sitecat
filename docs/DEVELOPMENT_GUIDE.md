@@ -91,9 +91,6 @@ gh pr list
 # PR詳細表示
 gh pr view <PR番号>
 
-# Copilot reviewコメント確認
-gh api repos/netplanmyj/sitecat/pulls/<PR番号>/comments --paginate
-
 # PRマージ
 gh pr merge <PR番号> --squash
 ```
@@ -112,6 +109,22 @@ gh issue view <Issue番号>
 # Issueクローズ
 gh issue close <Issue番号>
 ```
+
+**Copilot reviewコメント確認（PR単位）:**
+```bash
+# 全コメント（会話）を見る
+gh pr view 316 --comments
+
+# レビューコメント（差分行単位）
+gh api repos/netplanmyj/sitecat/pulls/316/comments --paginate | jq '.[] | {user: .user.login, path, line, body}'
+
+# 会話コメントのみ
+gh api repos/netplanmyj/sitecat/issues/316/comments --paginate | jq '.[] | {user: .user.login, body}'
+```
+
+注記:
+- Copilotのコメントは user.login が github-advanced-security[bot] や github-copilot 系になることがあります。
+- 出力を貼っていただければ要点整理します。
 
 ### 1.3 Site Scan カウントダウン仕様
 
@@ -1212,5 +1225,3 @@ void main() {
 - **[PRICING_STRATEGY.md](./PRICING_STRATEGY.md)**: 有料化戦略の詳細、実装ロードマップ
 
 ---
-
-**ドキュメントバージョン**: v2.1

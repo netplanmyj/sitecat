@@ -4,6 +4,9 @@
 > **目的**: コード品質向上とテストカバレッジ拡大  
 > **対象**: TestFlight → App Store
 
+> 注記: バージョン番号の更新（pubspec.yaml）を実行しました。
+> 現在のバージョンは v1.0.9+78 です（審査提出用）。
+
 ---
 
 ## 概要
@@ -217,43 +220,24 @@ if (provider.error != null) {
 **期間**: 2-3日  
 **複雑度**: ⭐⭐⭐（中）
 
-#### Task 3.1: Build method アンチパターン修正 - Issue #313 **SHOULD**
+#### Task 3.1: Build method アンチパターン修正 - Issue #313 **COMPLETED** ✅
 **優先度**: P2  
 **工数**: 2日  
-**判断**: **SHOULD** - メンテナンス性が大幅向上
+**ステータス**: ✅ **完了** - Provider同期を `initState()` に移動
 
-**理由:**
-- 毎フレーム build() 内で同期処理が実行される問題
-- initState() 移動で簡単に改善可能（複雑度低）
-- メンテナンス性: ⭐⭐⭐⭐（非常に高）
+**実装完了内容:**
+- ✅ `sites_screen.dart`: Provider同期を `build()` → `initState()` に移動
+- ✅ `site_form_screen.dart`: Provider同期を `build()` → `initState()` に移動
+- ✅ `purchase_screen.dart`: Provider同期を `build()` → `initState()` に移動（race condition 修正含む）
+- ✅ `site_provider.dart`: `initializeFromSubscription()` メソッド追加
 
-**実装内容:**
-```dart
-// lib/screens/sites_screen.dart
-@override
-void initState() {
-  super.initState();
-  // 初期化時に一度だけ実行
-  Provider.of<SubscriptionProvider>(context, listen: false)
-    .initializeSyncState();
-}
+**削除予定:**
+- 🔲 `purchase_provider.dart`: 不要なファイルを削除（次のコミットで対応）
 
-@override
-Widget build(BuildContext context) {
-  // build は単純に表示に専念
-  // アーキテクチャ的に正確
-}
-```
-
-**修正対象:**
-- `lib/screens/sites_screen.dart`
-- `lib/screens/site_form_screen.dart`
-- `lib/screens/purchase_screen.dart`
-
-**成果物:**
-- 3 つのファイル修正
-- パフォーマンス改善
-- アーキテクチャ改善
+**次のステップ:**
+1. `purchase_provider.dart` 削除
+2. 全409テスト実行・確認
+3. 実機動作確認
 
 ---
 

@@ -22,17 +22,19 @@ class _SitesScreenState extends State<SitesScreen> {
   @override
   void initState() {
     super.initState();
-    // Initialize site provider
+
+    // Move provider synchronization to initState
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final siteProvider = Provider.of<SiteProvider>(context, listen: false);
+      if (!mounted) return;
+
       final subscriptionProvider = Provider.of<SubscriptionProvider>(
         context,
         listen: false,
       );
-
-      // Sync premium status to site provider
-      siteProvider.setHasLifetimeAccess(subscriptionProvider.hasLifetimeAccess);
-      siteProvider.initialize();
+      Provider.of<SiteProvider>(
+        context,
+        listen: false,
+      ).initializeFromSubscription(subscriptionProvider);
     });
   }
 
@@ -44,11 +46,6 @@ class _SitesScreenState extends State<SitesScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Sync premium status whenever SubscriptionProvider updates
-    final subscriptionProvider = Provider.of<SubscriptionProvider>(context);
-    final siteProvider = Provider.of<SiteProvider>(context, listen: false);
-    siteProvider.setHasLifetimeAccess(subscriptionProvider.hasLifetimeAccess);
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('My Sites'),
