@@ -5,6 +5,7 @@ import '../services/site_service.dart';
 import '../services/demo_service.dart';
 import '../constants/app_constants.dart';
 import '../utils/validation.dart';
+import 'subscription_provider.dart';
 
 class SiteProvider extends ChangeNotifier {
   SiteProvider({SiteService? siteService})
@@ -276,5 +277,12 @@ class SiteProvider extends ChangeNotifier {
     final paused = total - monitoring;
 
     return {'total': total, 'monitoring': monitoring, 'paused': paused};
+  }
+
+  // Add this method to initialize state from SubscriptionProvider
+  void initializeFromSubscription(SubscriptionProvider subscriptionProvider) {
+    // Sync premium status from SubscriptionProvider
+    final isPremium = subscriptionProvider.hasLifetimeAccess;
+    setHasLifetimeAccess(isPremium);
   }
 }

@@ -3,7 +3,14 @@
 ## Project Overview
 SiteCat is an iOS-first Flutter app for website monitoring and broken link detection. It uses Firebase for backend (Auth, Firestore, Functions) and implements a freemium IAP model (¥1,200 lifetime).
 
-**Current Status**: v1.0.8 (Build 76) - App Store live in 175 countries, 409 tests passing, 7 providers, 8 services
+**Current Status**: v1.0.9 (Build 77) - App Store live in 175 countries, 409 tests passing, 7 providers, 8 services
+
+**Key Facts**:
+- **Language**: Flutter/Dart (3.35.7+ stable), iOS-only deployment
+- **Backend**: Firebase (dual environment: sitecat-dev / sitecat-prod)
+- **State Management**: Provider pattern (ChangeNotifier)
+- **Testing**: 409 tests with fake_cloud_firestore + firebase_auth_mocks
+- **CI/CD**: GitHub Actions (analyze/format/test) + Xcode Cloud (releases)
 
 ## Architecture Overview: Provider Pattern + Modular Services
 
@@ -104,9 +111,27 @@ flutter analyze && dart format --set-exit-if-changed . && flutter test
 ```
 
 **Why These Matter**:
-- `flutter analyze`: Detects lint errors, type issues, dead code (configured in `analysis_options.yaml`)
+- `flutter analyze`: Detects lint errors, type issues, dead code (configured in `analysis_options.yaml` - TODOs ignored)
 - `dart format`: Enforces consistent code style across team
 - `flutter test`: Prevents regressions (currently 409 tests passing)
+- **CI Requirement**: All three MUST pass or PR will be blocked from merging
+
+**Common Fix Flow**:
+```bash
+# If analyze fails
+flutter analyze  # Read errors
+# Fix issues in code
+flutter analyze  # Verify
+
+# If format fails
+dart format .    # Auto-format all files
+git add -A && git commit -m "chore: format code"
+
+# If tests fail
+flutter test     # See which tests failed
+# Fix the code or update tests
+flutter test     # Verify
+```
 
 ### CI/CD Pipeline
 - **GitHub Actions** (`ci.yml`): Runs on every PR to `main` - auto-runs analyze, format, test. **PR merge BLOCKED if any step fails**.
@@ -128,6 +153,21 @@ flutter analyze && dart format --set-exit-if-changed . && flutter test
 - **File Pattern**: `test/<mirror_lib_structure>/*_test.dart`
 - **Mockito**: For generating mocks - run `dart run build_runner build` after changes
 - **Current Coverage**: 409 tests passing across all layers
+
+**Test Execution**:
+```bash
+# Run all tests
+flutter test
+
+# Run specific test file
+flutter test test/services/site_service_test.dart
+
+# Run with coverage
+flutter test --coverage
+
+# Generate mocks (after adding @GenerateMocks annotation)
+dart run build_runner build
+```
 
 ## Critical Implementation Patterns
 
@@ -208,6 +248,20 @@ void setHistoryLimit(bool isPremium) {
 }
 ```
 
+**Key Constants Location**
+All magic numbers/strings live in `lib/constants/app_constants.dart`:
+```dart
+static const int freePlanSiteLimit = 3;
+static const int premiumSiteLimit = 30;
+static const int freeHistoryLimit = 10;
+static const int premiumHistoryLimit = 50;
+```
+Never hardcode these values - always reference the constant.
+
+**Note**: Cooldown intervals are defined in providers:
+- `MonitoringProvider.minimumCheckInterval`: 10 seconds
+- `LinkCheckerProvider.defaultCooldown`: 10 seconds
+
 ### 5. Link Checker Module (Complex, Modular System)
 **Location**: `lib/services/link_checker/` (8 files)
 
@@ -256,6 +310,53 @@ Future<LinkCheckResult> checkSiteLinks({
 - **Files 200-499 lines**: 🟢 Extract methods if needed
 - **Delete unused code immediately** - no "later" deletions
 - Document metrics in `docs/REFACTORING_METRICS.md`
+
+### Firebase Environment Pattern (CRITICAL)
+**Development vs Production Switching**:
+```dart
+// lib/firebase_options.dart - Auto-selects environment
+class DefaultFirebaseOptions {
+  static FirebaseOptions get currentPlatform {
+    if (kReleaseMode) {
+      return prod.DefaultFirebaseOptions.currentPlatform;  // Production
+    }
+    return dev.DefaultFirebaseOptions.currentPlatform;     // Development
+  }
+}
+
+// Usage in main.dart
+await Firebase.initializeApp(
+  options: DefaultFirebaseOptions.currentPlatform,
+);
+```
+
+**Testing Different Environments**:
+```bash
+# Debug build (uses sitecat-dev)
+flutter run
+
+# Profile build (uses sitecat-dev, with performance profiling)
+flutter run --profile
+
+# Release build (uses sitecat-prod)
+flutter run --release
+```
+
+**CI/CD Firebase Options**:
+- CI uses `firebase_options.dart.example` (copied to `firebase_options.dart` during build)
+- Never commit real Firebase credentials to git
+- Dev/Prod credentials live in separate files: `firebase_options_dev.dart`, `firebase_options_prod.dart`
+
+**Backend Deployment**:
+```bash
+# Deploy to development
+firebase deploy --only functions --project sitecat-dev
+firebase deploy --only firestore:rules --project sitecat-dev
+
+# Deploy to production
+firebase deploy --only functions --project sitecat-prod
+firebase deploy --only firestore:rules --project sitecat-prod
+```
 
 ### Naming Conventions
 - Variables/functions: camelCase (English)
@@ -639,7 +740,7 @@ class Site with FirestoreSerializable {
 - Changes to serialization strategy require updating many files
 
 ### Pattern 4: State Management Separation (Cache + Progress Providers)
-**Scenario**: Provider UI state mixed with caching and progress tracking (already in SiteCat!)
+**Scenario**: Provider UI state mixed with caching and progress tracking
 
 **Pattern implementation**:
 ```dart
@@ -1001,10 +1102,3 @@ testWidgets('SiteFormScreen validates required fields', (tester) async {
   // ... test form validation
 });
 ```
-
-**Benefits**:
-- **保守性**: 各ウィジェットは責務が明確
-- **テスト性**: 小さいウィジェットは単体テスト容易
-- **再利用性**: ActionButtons, SiteLimitCard は別の画面で再利用
-- **パフォーマンス**: 部分的な再ビルドが効率的
-- **可読性**: Screen の build() メソッドが簡潔

@@ -35,6 +35,16 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
   void initState() {
     super.initState();
 
+    // Move provider synchronization to initState
+    final subscriptionProvider = Provider.of<SubscriptionProvider>(
+      context,
+      listen: false,
+    );
+    Provider.of<SiteProvider>(
+      context,
+      listen: false,
+    ).initializeFromSubscription(subscriptionProvider);
+
     if (widget.isEdit) {
       // Populate form with existing site data
       _nameController.text = widget.site!.name;
@@ -57,11 +67,6 @@ class _SiteFormScreenState extends State<SiteFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Sync premium status whenever SubscriptionProvider updates
-    final subscriptionProvider = Provider.of<SubscriptionProvider>(context);
-    final siteProvider = Provider.of<SiteProvider>(context, listen: false);
-    siteProvider.setHasLifetimeAccess(subscriptionProvider.hasLifetimeAccess);
-
     return Scaffold(
       appBar: AppBar(
         title: Text(widget.isEdit ? 'Edit Site' : 'Add Site'),

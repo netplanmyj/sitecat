@@ -7,6 +7,7 @@ import 'providers/site_provider.dart';
 import 'providers/monitoring_provider.dart';
 import 'providers/link_checker_provider.dart';
 import 'providers/subscription_provider.dart';
+// Remove PurchaseProvider import
 import 'services/subscription_service.dart';
 import 'screens/dashboard_screen.dart';
 import 'screens/sites_screen.dart';
@@ -58,6 +59,7 @@ class SiteCatApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (context) => SubscriptionProvider(subscriptionService),
         ),
+        // Remove PurchaseProvider - SubscriptionProvider handles all purchase logic
       ],
       child: MaterialApp(
         title: 'SiteCat',

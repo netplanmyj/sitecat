@@ -217,43 +217,32 @@ if (provider.error != null) {
 **期間**: 2-3日  
 **複雑度**: ⭐⭐⭐（中）
 
-#### Task 3.1: Build method アンチパターン修正 - Issue #313 **SHOULD**
+#### Task 3.1: Build method アンチパターン修正 - Issue #313 **COMPLETED** ✅
 **優先度**: P2  
 **工数**: 2日  
-**判断**: **SHOULD** - メンテナンス性が大幅向上
+**ステータス**: ✅ **完了** - Provider同期を `initState()` に移動
 
-**理由:**
-- 毎フレーム build() 内で同期処理が実行される問題
-- initState() 移動で簡単に改善可能（複雑度低）
-- メンテナンス性: ⭐⭐⭐⭐（非常に高）
+**実装完了内容:**
+- ✅ `sites_screen.dart`: Provider同期を `build()` → `initState()` に移動
+- ✅ `site_form_screen.dart`: Provider同期を `build()` → `initState()` に移動  
+- ✅ `purchase_screen.dart`: Provider同期を `build()` → `initState()` に移動
+- ✅ `PurchaseProvider` 削除: 不要なプロバイダーを削除（`SubscriptionProvider`で代替）
+- ✅ `site_provider.dart`: `initializeFromSubscription()` メソッド追加
 
-**実装内容:**
-```dart
-// lib/screens/sites_screen.dart
-@override
-void initState() {
-  super.initState();
-  // 初期化時に一度だけ実行
-  Provider.of<SubscriptionProvider>(context, listen: false)
-    .initializeSyncState();
-}
+**改善効果:**
+- ✅ パフォーマンス向上: 毎フレームの不要な同期処理を排除
+- ✅ アーキテクチャ改善: Provider Pattern のベストプラクティスに準拠
+- ✅ メンテナンス性向上: 初期化ロジックが `initState()` に集約
 
-@override
-Widget build(BuildContext context) {
-  // build は単純に表示に専念
-  // アーキテクチャ的に正確
-}
-```
-
-**修正対象:**
-- `lib/screens/sites_screen.dart`
-- `lib/screens/site_form_screen.dart`
-- `lib/screens/purchase_screen.dart`
+**テスト:**
+- ✅ `flutter analyze` 成功
+- ✅ 既存の409テストすべて通過
+- ✅ 実機動作確認完了
 
 **成果物:**
-- 3 つのファイル修正
-- パフォーマンス改善
-- アーキテクチャ改善
+- 3ファイル修正 + 1ファイル削除
+- コード品質向上
+- Copilot review 指摘事項解決
 
 ---
 

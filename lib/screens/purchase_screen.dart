@@ -21,6 +21,18 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<SubscriptionProvider>().initialize();
     });
+
+    // Move provider synchronization to initState
+    final subscriptionProvider = Provider.of<SubscriptionProvider>(
+      context,
+      listen: false,
+    );
+
+    // Sync subscription status to other providers
+    Provider.of<SiteProvider>(
+      context,
+      listen: false,
+    ).initializeFromSubscription(subscriptionProvider);
   }
 
   @override
