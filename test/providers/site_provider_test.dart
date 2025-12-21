@@ -18,6 +18,7 @@ void main() {
 
   Site buildSite({
     String id = 'site-1',
+    String userId = 'user-1', // Default value for userId
     String url = 'https://example.com',
     String name = 'Example',
     List<String> excludedPaths = const [],
@@ -26,13 +27,41 @@ void main() {
     final now = DateTime.now();
     return Site(
       id: id,
-      userId: 'user-1',
+      userId: userId, // Ensure userId is passed
       url: url,
       name: name,
       createdAt: now,
       updatedAt: now,
       excludedPaths: excludedPaths,
       lastScannedPageIndex: lastScannedPageIndex,
+    );
+  }
+
+  void stubSiteCreationSuccess() {
+    when(mockSiteService.validateUrl(any)).thenAnswer((_) async => true);
+    when(mockSiteService.urlExists(any)).thenAnswer((_) async => false);
+    when(mockSiteService.createSite(any)).thenAnswer((_) async => 'new-id');
+  }
+
+  void stubSiteUpdateSuccess() {
+    when(mockSiteService.validateUrl(any)).thenAnswer((_) async => true);
+    when(
+      mockSiteService.urlExists(any, excludeSiteId: anyNamed('excludeSiteId')),
+    ).thenAnswer((_) async => false);
+    when(mockSiteService.updateSite(any)).thenAnswer((_) async => true);
+  }
+
+  void seedSites(int count) {
+    provider.sites.addAll(
+      List.generate(
+        count,
+        (index) => buildSite(
+          id: 'seed-$index',
+          userId: 'user-1',
+          url: 'https://seed$index.com',
+          name: 'Seed $index',
+        ),
+      ),
     );
   }
 
@@ -81,9 +110,9 @@ void main() {
 
     test('returns false when site limit reached (free)', () async {
       sitesController.add([
-        buildSite(id: '1'),
-        buildSite(id: '2'),
-        buildSite(id: '3'),
+        buildSite(id: '1', userId: 'user-1'),
+        buildSite(id: '2', userId: 'user-1'),
+        buildSite(id: '3', userId: 'user-1'),
       ]);
       await Future.delayed(Duration.zero);
 
@@ -145,6 +174,7 @@ void main() {
       await provider.initialize();
       final original = buildSite(
         id: 'site-1',
+        userId: 'user-1',
         excludedPaths: ['old'],
         lastScannedPageIndex: 5,
       );
@@ -182,6 +212,8 @@ void main() {
 
     test('resets lastScannedPageIndex when excludedPaths changed', () async {
       final updatedSite = buildSite(
+        id: 'site-1',
+        userId: 'user-1',
         excludedPaths: ['old', 'new'],
         lastScannedPageIndex: 10,
       );
@@ -207,6 +239,8 @@ void main() {
 
     test('keeps lastScannedPageIndex when excludedPaths unchanged', () async {
       final updatedSite = buildSite(
+        id: 'site-1',
+        userId: 'user-1',
         excludedPaths: ['old'],
         lastScannedPageIndex: 10,
       );
@@ -253,8 +287,18 @@ void main() {
     setUp(() async {
       await provider.initialize();
       sitesController.add([
-        buildSite(id: '1', name: 'Alpha', url: 'https://alpha.com'),
-        buildSite(id: '2', name: 'Beta', url: 'https://beta.com'),
+        buildSite(
+          id: '1',
+          userId: 'user-1',
+          name: 'Alpha',
+          url: 'https://alpha.com',
+        ),
+        buildSite(
+          id: '2',
+          userId: 'user-1',
+          name: 'Beta',
+          url: 'https://beta.com',
+        ),
       ]);
       await Future.delayed(Duration.zero);
     });
@@ -280,6 +324,141 @@ void main() {
       expect(stats['total'], 2);
       expect(stats['monitoring'], 2);
       expect(stats['paused'], 0);
+    });
+  });
+
+  group('SiteProvider Tests', () {
+    test('initialize() sets demo mode correctly', () async {
+      await provider.initialize(isDemoMode: true);
+      expect(provider.isLoading, false);
+      expect(provider.sites, isNotEmpty); // Demo sites loaded
+    });
+
+    test('createSite() enforces site limit for free users', () async {
+      when(mockSiteService.getUserSites()).thenAnswer((_) => Stream.value([]));
+      stubSiteCreationSuccess();
+      provider.setHasLifetimeAccess(false); // Free user
+      seedSites(AppConstants.freePlanSiteLimit);
+
+      final result = await provider.createSite(
+        url: 'https://exceed-limit.com',
+        name: 'Exceed Limit',
+      );
+      expect(result, false);
+      expect(provider.error, AppConstants.siteLimitReachedMessage);
+    });
+
+    test('createSite() allows up to premium limit for premium users', () async {
+      when(mockSiteService.getUserSites()).thenAnswer((_) => Stream.value([]));
+      stubSiteCreationSuccess();
+      provider.setHasLifetimeAccess(true); // Premium user
+      seedSites(AppConstants.premiumSiteLimit);
+
+      final result = await provider.createSite(
+        url: 'https://exceed-limit.com',
+        name: 'Exceed Limit',
+      );
+      expect(result, false);
+      expect(provider.error, AppConstants.premiumSiteLimitReachedMessage);
+    });
+
+    test('updateSite() validates URL and updates site', () async {
+      final site = Site(
+        id: '1',
+        url: 'https://example.com',
+        name: 'Example',
+        userId: 'user-1',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+      );
+
+      provider.initialize();
+      provider.sites.add(site);
+
+      stubSiteUpdateSuccess();
+
+      final updatedSite = site.copyWith(name: 'Updated Example');
+      final result = await provider.updateSite(updatedSite);
+
+      expect(result, true);
+      verify(mockSiteService.updateSite(updatedSite)).called(1);
+    });
+
+    test('deleteSite() removes site successfully', () async {
+      final siteId = '1';
+      when(mockSiteService.deleteSite(siteId)).thenAnswer((_) async => true);
+
+      final result = await provider.deleteSite(siteId);
+
+      expect(result, true);
+      verify(mockSiteService.deleteSite(siteId)).called(1);
+    });
+
+    test('toggleMonitoring() toggles monitoring state', () async {
+      final siteId = '1';
+      when(
+        mockSiteService.toggleMonitoring(siteId, true),
+      ).thenAnswer((_) async => true);
+
+      final result = await provider.toggleMonitoring(siteId, true);
+
+      expect(result, true);
+      verify(mockSiteService.toggleMonitoring(siteId, true)).called(1);
+    });
+
+    test('searchSites() filters sites by query', () {
+      provider.initialize();
+      provider.sites.addAll([
+        Site(
+          id: '1',
+          url: 'https://example.com',
+          name: 'Example',
+          userId: 'user-1',
+          createdAt: DateTime.parse('2025-12-20T12:00:00Z'),
+          updatedAt: DateTime.parse('2025-12-20T12:00:00Z'),
+        ),
+        Site(
+          id: '2',
+          url: 'https://test.com',
+          name: 'Test',
+          userId: 'user-1',
+          createdAt: DateTime.parse('2025-12-20T12:00:00Z'),
+          updatedAt: DateTime.parse('2025-12-20T12:00:00Z'),
+        ),
+      ]);
+
+      final results = provider.searchSites('example');
+      expect(results.length, 1);
+      expect(results.first.name, 'Example');
+    });
+
+    test('getSiteStatistics() returns correct counts', () {
+      provider.initialize();
+      provider.sites.addAll([
+        Site(
+          id: '1',
+          url: 'https://example.com',
+          name: 'Example',
+          monitoringEnabled: true,
+          userId: 'user-1',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+        Site(
+          id: '2',
+          url: 'https://test.com',
+          name: 'Test',
+          monitoringEnabled: false,
+          userId: 'user-1',
+          createdAt: DateTime.now(),
+          updatedAt: DateTime.now(),
+        ),
+      ]);
+
+      final stats = provider.getSiteStatistics();
+      expect(stats['total'], 2);
+      expect(stats['monitoring'], 1);
+      expect(stats['paused'], 1);
     });
   });
 }
