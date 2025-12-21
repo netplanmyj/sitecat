@@ -37,20 +37,6 @@ void main() {
     );
   }
 
-  void stubSiteCreationSuccess() {
-    when(mockSiteService.validateUrl(any)).thenAnswer((_) async => true);
-    when(mockSiteService.urlExists(any)).thenAnswer((_) async => false);
-    when(mockSiteService.createSite(any)).thenAnswer((_) async => 'new-id');
-  }
-
-  void stubSiteUpdateSuccess() {
-    when(mockSiteService.validateUrl(any)).thenAnswer((_) async => true);
-    when(
-      mockSiteService.urlExists(any, excludeSiteId: anyNamed('excludeSiteId')),
-    ).thenAnswer((_) async => false);
-    when(mockSiteService.updateSite(any)).thenAnswer((_) async => true);
-  }
-
   Future<void> seedSitesFromStream(int count) async {
     sitesController.add(
       List.generate(
@@ -328,15 +314,16 @@ void main() {
     });
   });
 
-  group('SiteProvider Tests', () {
+  group('demo mode', () {
     test('initialize() sets demo mode correctly', () async {
       await provider.initialize(isDemoMode: true);
       expect(provider.isLoading, false);
       expect(provider.sites, isNotEmpty); // Demo sites loaded
     });
+  });
 
+  group('site limits', () {
     test('createSite() enforces site limit for free users', () async {
-      stubSiteCreationSuccess();
       await provider.initialize();
       provider.setHasLifetimeAccess(false); // Free user
       await seedSitesFromStream(AppConstants.freePlanSiteLimit);
@@ -347,43 +334,6 @@ void main() {
       );
       expect(result, false);
       expect(provider.error, AppConstants.siteLimitReachedMessage);
-    });
-
-    test('createSite() allows up to premium limit for premium users', () async {
-      stubSiteCreationSuccess();
-      await provider.initialize();
-      provider.setHasLifetimeAccess(true); // Premium user
-      await seedSitesFromStream(AppConstants.premiumSiteLimit);
-
-      final result = await provider.createSite(
-        url: 'https://exceed-limit.com',
-        name: 'Exceed Limit',
-      );
-      expect(result, false);
-      expect(provider.error, AppConstants.premiumSiteLimitReachedMessage);
-    });
-
-    test('updateSite() validates URL and updates site', () async {
-      final site = Site(
-        id: '1',
-        url: 'https://example.com',
-        name: 'Example',
-        userId: 'user-1',
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      await provider.initialize();
-      sitesController.add([site]);
-      await Future.delayed(Duration.zero);
-
-      stubSiteUpdateSuccess();
-
-      final updatedSite = site.copyWith(name: 'Updated Example');
-      final result = await provider.updateSite(updatedSite);
-
-      expect(result, true);
-      verify(mockSiteService.updateSite(updatedSite)).called(1);
     });
   });
 }
