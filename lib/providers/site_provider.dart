@@ -284,5 +284,10 @@ class SiteProvider extends ChangeNotifier {
     // Sync premium status from SubscriptionProvider
     final isPremium = subscriptionProvider.hasLifetimeAccess;
     setHasLifetimeAccess(isPremium);
+
+    // Start Firestore stream if not started yet (avoid double subscription)
+    if (!_isDemoMode && _sitesSubscription == null) {
+      _listenToSites();
+    }
   }
 }
