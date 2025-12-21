@@ -17,22 +17,19 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
   @override
   void initState() {
     super.initState();
-    // 画面表示時に商品情報を読み込み
+
+    // すべての初期化を addPostFrameCallback 内で実行（race condition 回避）
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SubscriptionProvider>().initialize();
+      if (!mounted) return;
+
+      final subscriptionProvider = context.read<SubscriptionProvider>();
+      subscriptionProvider.initialize();
+
+      // Sync subscription status to other providers
+      context.read<SiteProvider>().initializeFromSubscription(
+        subscriptionProvider,
+      );
     });
-
-    // Move provider synchronization to initState
-    final subscriptionProvider = Provider.of<SubscriptionProvider>(
-      context,
-      listen: false,
-    );
-
-    // Sync subscription status to other providers
-    Provider.of<SiteProvider>(
-      context,
-      listen: false,
-    ).initializeFromSubscription(subscriptionProvider);
   }
 
   @override
