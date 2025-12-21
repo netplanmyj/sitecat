@@ -114,10 +114,14 @@ service cloud.firestore {
       
       // サブスクリプション情報サブコレクション - ユーザー配下に存在
       match /subscription/{subscriptionId} {
-        // 自分のユーザーID配下のサブスクリプション情報のみアクセス可能
+        // 読み取り: 本人のみ
         allow read: if request.auth != null && request.auth.uid == userId;
-        // 書き込み・削除は Cloud Functions 側でのみ実施（直接書き込みは禁止）
-        allow create, update, delete: if false;
+        
+        // 作成: Cloud Function のみ（admin token チェック）
+        allow create: if request.auth.token.admin == true;
+        
+        // 更新・削除: 禁止（購入情報は不変）
+        allow update, delete: if false;
       }
       
       // モニタリング結果サブコレクション - ユーザー配下に存在
