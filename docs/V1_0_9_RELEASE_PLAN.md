@@ -60,7 +60,7 @@ match /users/{userId}/subscription/{purchaseId} {
 
 **成果物:**
 - ✅ Firestore Security Rules 強化
-  - subscription の書き込みを Cloud Function のみに制限
+  - subscription ドキュメントへのクライアント直書きを禁止（Security Rules で拒否）。実際の書き込みは Cloud Functions（Firebase Admin SDK）などバックエンド実装に委譲し、Admin SDK は Security Rules をバイパスするためルール変更ではセキュリティ姿勢は変化しない
   - 読み取りは本人のみに制限
   - 購入情報の更新・削除を禁止
 - ✅ dev/prod 両環境にデプロイ

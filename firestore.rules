@@ -117,41 +117,11 @@ service cloud.firestore {
         // 読み取り: 本人のみ
         allow read: if request.auth != null && request.auth.uid == userId;
         
-        // 作成: Cloud Function のみ（admin token チェック）
-        allow create: if request.auth.token.admin == true;
+        // 作成: Cloud Function（Admin SDK）からのみ。クライアントからの作成は禁止（Admin SDK は Rules をバイパス）
+        allow create: if false;
         
         // 更新・削除: 禁止（購入情報は不変）
         allow update, delete: if false;
-      }
-      
-      // モニタリング結果サブコレクション - ユーザー配下に存在
-      match /monitoringResults/{resultId} {
-        // 自分のユーザーID配下のモニタリング結果のみアクセス可能（クライアント読み書き許可）
-        allow read: if request.auth != null && request.auth.uid == userId;
-        // クライアントからの書き込みを許可（自分のユーザーID配下のみ）
-        allow create, update: if request.auth != null && request.auth.uid == userId;
-        // 削除は Cloud Functions 側でのみ実施（アカウント削除時）
-        allow delete: if false;
-      }
-      
-      // リンク検査結果サブコレクション - ユーザー配下に存在
-      match /linkCheckResults/{checkId} {
-        // 自分のユーザーID配下のリンク検査結果のみアクセス可能（クライアント読み書き許可）
-        allow read: if request.auth != null && request.auth.uid == userId;
-        // クライアントからの書き込みを許可（自分のユーザーID配下のみ）
-        allow create, update: if request.auth != null && request.auth.uid == userId;
-        // 削除は Cloud Functions 側でのみ実施（アカウント削除時）
-        allow delete: if false;
-        
-        // リンク切れサブコレクション
-        match /brokenLinks/{linkId} {
-          // 自分のユーザーID配下のリンク切れ情報のみアクセス可能（クライアント読み書き許可）
-          allow read: if request.auth != null && request.auth.uid == userId;
-          // クライアントからの書き込みを許可
-          allow create, update: if request.auth != null && request.auth.uid == userId;
-          // 削除は Cloud Functions 側でのみ実施（アカウント削除時）
-          allow delete: if false;
-        }
       }
     }
   }
