@@ -1,18 +1,24 @@
 {
+  "compilerOptions": {
+    "lib": [
+      "es2020"
+    ],
+    "module": "commonjs",
+    "target": "es2020",
+    "moduleResolution": "node",
+    "outDir": "lib",
+    "rootDir": "src",
+    "strict": true,
+    "sourceMap": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "types": [
+      "node"
+    ]
+  },
   "compileOnSave": true,
   "include": [
     "src"
-  ],
-  "compilerOptions": {
-    "module": "NodeNext",
-    "noImplicitReturns": true,
-    "outDir": "lib",
-    "sourceMap": true,
-    "strict": true,
-    "target": "es2017",
-    "skipLibCheck": true,
-    "esModuleInterop": true,
-    "moduleResolution": "nodenext",
-    "noUnusedLocals": true
-  }
+  ]
 }

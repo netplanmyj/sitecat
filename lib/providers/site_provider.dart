@@ -1,6 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../models/site.dart';
+import 'package:logger/logger.dart';
+import 'package:sitecat/models/site.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_core/firebase_core.dart'; // + for Firebase.app()
+import 'package:firebase_auth/firebase_auth.dart';
 import '../services/site_service.dart';
 import '../services/demo_service.dart';
 import '../constants/app_constants.dart';
@@ -12,6 +16,7 @@ class SiteProvider extends ChangeNotifier {
     : _siteService = siteService ?? SiteService();
 
   final SiteService _siteService;
+  final Logger _logger = Logger();
 
   // State variables
   List<Site> _sites = [];
@@ -84,59 +89,109 @@ class SiteProvider extends ChangeNotifier {
     );
   }
 
-  // Create a new site
+  /// Create a new site with transactional limit enforcement (Issue #299)
   Future<bool> createSite({
     required String url,
     required String name,
     String? sitemapUrl,
-    bool monitoringEnabled = true,
-    int checkInterval = 60,
-    List<String>? excludedPaths,
+    List<String> excludedPaths = const [],
+    int? checkInterval,
   }) async {
-    try {
-      _clearError();
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
 
-      // Check site limit
-      if (!canAddSite) {
-        final message = _hasLifetimeAccess
-            ? AppConstants.premiumSiteLimitReachedMessage
+    try {
+      // Client-side pre-check for UI responsiveness
+      final currentLimit = _hasLifetimeAccess
+          ? AppConstants.premiumSiteLimit
+          : AppConstants.freePlanSiteLimit;
+
+      if (sites.length >= currentLimit) {
+        _error = _hasLifetimeAccess
+            ? 'サイト登録数が上限（30個）に達しています。'
             : AppConstants.siteLimitReachedMessage;
-        _setError(message);
         return false;
       }
 
       // Validate URL format
       if (!await _siteService.validateUrl(url)) {
-        _setError('Invalid URL format');
+        _error = 'Invalid URL format';
         return false;
       }
 
-      // Check if URL already exists
+      // Check duplicate URL
       if (await _siteService.urlExists(url)) {
-        _setError('A site with this URL already exists');
+        _error = 'A site with this URL already exists';
         return false;
       }
 
-      // Create new site
-      final now = DateTime.now();
-      final site = Site(
-        id: '', // Will be set by Firestore
-        userId: '', // Will be set by SiteService
-        url: url,
-        name: name,
-        sitemapUrl: sitemapUrl,
-        monitoringEnabled: monitoringEnabled,
-        checkInterval: checkInterval,
-        createdAt: now,
-        updatedAt: now,
-        excludedPaths: excludedPaths ?? [],
-      );
+      try {
+        final app = Firebase.app('sitecat-current');
+        final auth = FirebaseAuth.instanceFor(app: app);
+        final user = auth.currentUser;
+        if (user == null) {
+          _error = '認証が必要です';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
 
-      await _siteService.createSite(site);
-      return true;
+        final functions = FirebaseFunctions.instanceFor(
+          app: app,
+          region: 'us-central1',
+        );
+        final callable = functions.httpsCallable('createSiteTransaction');
+        final result = await callable.call<Map<String, dynamic>>({
+          'url': url,
+          'name': name,
+          'sitemapUrl': sitemapUrl,
+          'excludedPaths': excludedPaths,
+          'checkInterval': checkInterval,
+        });
+
+        if (result.data['ok'] == true) {
+          _logger.d(
+            'Site created via callable on project: ${app.options.projectId}',
+          );
+          return true;
+        }
+        _error = 'サイトの作成に失敗しました';
+        return false;
+      } on FirebaseFunctionsException catch (e) {
+        _logger.e('Callable error: ${e.code} - ${e.message}', error: e);
+
+        if (e.code == 'failed-precondition' &&
+            e.message == 'site-limit-reached') {
+          final details = e.details as Map<String, dynamic>?;
+          final limit = details?['limit'] as int?;
+          _error = (limit == AppConstants.premiumSiteLimit)
+              ? 'サイト登録数が上限（30個）に達しています。'
+              : AppConstants.siteLimitReachedMessage;
+          return false;
+        }
+
+        if (e.code == 'unauthenticated') {
+          _error = '認証が必要です';
+          return false;
+        }
+
+        _error = 'サイトの作成に失敗しました: ${e.message}';
+        return false;
+      } catch (e) {
+        _error = 'サイトの作成に失敗しました';
+        _logger.e('Failed to create site via callable', error: e);
+        return false;
+      } finally {
+        _isLoading = false;
+        notifyListeners();
+      }
     } catch (e) {
-      _setError('Failed to create site: $e');
+      _error = 'サイトの作成に失敗しました';
       return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 

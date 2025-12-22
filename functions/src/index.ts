@@ -271,3 +271,96 @@ export const onAuthUserDeleted = onCall(
     }
   }
 );
+/**
+ * Callable: Create a site with atomic limit enforcement.
+ * - Firestore transaction prevents over-limit writes.
+ * - On limit, throws HttpsError('failed-precondition',
+ *   'site-limit-reached', {limit, currentCount}).
+ * - Logs denial events.
+ */
+export const createSiteTransaction = onCall(
+  {maxInstances: 10},
+  async (request) => {
+    const userId = request.auth?.uid;
+    if (!userId) {
+      throw new HttpsError("unauthenticated", "Authentication required");
+    }
+
+    const data = request.data ?? {};
+    const url = (data.url as string | undefined)?.trim();
+    if (!url) {
+      throw new HttpsError("invalid-argument", "url is required");
+    }
+    const name =
+      (data.name as string | undefined)?.trim() ||
+      url;
+    const sitemapUrl =
+      (data.sitemapUrl as string | undefined)?.trim() ||
+      null;
+    const excludedPaths = Array.isArray(data.excludedPaths) ?
+      (data.excludedPaths as string[]) :
+      [];
+    const checkInterval =
+      typeof data.checkInterval === "number" ?
+        data.checkInterval :
+        null;
+
+    const limit = await getSiteLimit(userId);
+    const userRef = db.collection("users").doc(userId);
+    const sitesCol = userRef.collection("sites");
+
+    try {
+      const result = await db.runTransaction(async (tx) => {
+        const snapshot = await tx.get(sitesCol.limit(limit + 1));
+        const currentCount = snapshot.size;
+        if (currentCount >= limit) {
+          throw new HttpsError("failed-precondition", "site-limit-reached", {
+            limit,
+            currentCount,
+          });
+        }
+
+        const newSiteRef = sitesCol.doc();
+        const now = FieldValue.serverTimestamp();
+        tx.set(userRef, {siteCount: currentCount + 1}, {merge: true});
+        tx.set(newSiteRef, {
+          url,
+          name,
+          sitemapUrl,
+          excludedPaths,
+          checkInterval,
+          monitoringEnabled: true,
+          createdAt: now,
+          updatedAt: now,
+          lastChecked: null,
+          lastScannedPageIndex: 0,
+        });
+
+        return {id: newSiteRef.id, limit, currentCount: currentCount + 1};
+      });
+
+      logger.info("Site created transactionally", {
+        userId,
+        siteId: result.id,
+        siteCount: result.currentCount,
+        limit: result.limit,
+      });
+      return {ok: true, siteId: result.id};
+    } catch (error: unknown) {
+      if (
+        error instanceof HttpsError &&
+        error.code === "failed-precondition" &&
+        error.message === "site-limit-reached"
+      ) {
+        logger.warn("Site creation denied: over limit", {
+          userId,
+          limit,
+          details: error.details,
+        });
+        throw error;
+      }
+      logger.error("Failed to create site transactionally", {userId, error});
+      throw new HttpsError("internal", "Failed to create site");
+    }
+  }
+);

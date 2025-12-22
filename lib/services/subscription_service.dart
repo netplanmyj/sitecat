@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:logger/logger.dart';
 
@@ -11,9 +12,10 @@ import 'package:logger/logger.dart';
 /// 買い切り版（¥1,200）の購入・リストア・状態管理を担当
 class SubscriptionService {
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFunctions _functions = FirebaseFunctions.instance;
+  static const String _firebaseAppName = 'sitecat-current';
+  late final FirebaseFirestore _firestore;
+  late final FirebaseAuth _auth;
+  late final FirebaseFunctions _functions;
   final Logger _logger = Logger();
 
   /// 買い切り版の商品ID
@@ -24,6 +26,12 @@ class SubscriptionService {
 
   /// 初期化
   Future<void> initialize() async {
+    // Bind Firebase services to the named app to respect dev/prod environment
+    final app = Firebase.app(_firebaseAppName);
+    _firestore = FirebaseFirestore.instanceFor(app: app);
+    _auth = FirebaseAuth.instanceFor(app: app);
+    _functions = FirebaseFunctions.instanceFor(app: app, region: 'us-central1');
+
     // In-App Purchaseが利用可能かチェック
     final available = await _inAppPurchase.isAvailable();
     if (!available) {
