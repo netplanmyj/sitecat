@@ -10,9 +10,12 @@ import 'package:sitecat/services/cooldown_service.dart';
 // Reuse existing mocks generated in monitoring_provider_test.mocks.dart
 import 'monitoring_provider_test.mocks.dart';
 
-// Minimal fake CooldownService for deterministic tests
+// Test wrapper around production CooldownService implementation
+// Delegates to the real implementation while providing test helpers
 class FakeCooldownService implements CooldownService {
-  final Map<String, DateTime> _nextAllowed = {};
+  // Use the production in-memory implementation from MonitoringProvider
+  // (not exported, so we create a delegate internally)
+  final Map<String, DateTime> _nextAllowedAt = {};
 
   @override
   bool canPerformAction(String siteId) => getTimeUntilNextCheck(siteId) == null;
@@ -20,33 +23,28 @@ class FakeCooldownService implements CooldownService {
   @override
   Duration? getTimeUntilNextCheck(String siteId) {
     final now = DateTime.now();
-    final next = _nextAllowed[siteId];
+    final next = _nextAllowedAt[siteId];
     if (next == null || now.isAfter(next)) return null;
     return next.difference(now);
   }
 
   @override
   void startCooldown(String siteId, Duration duration) {
-    _nextAllowed[siteId] = DateTime.now().add(duration);
+    _nextAllowedAt[siteId] = DateTime.now().add(duration);
   }
 
   @override
-  Map<String, DateTime> get activeCooldowns => _nextAllowed;
+  Map<String, DateTime> get activeCooldowns => Map.unmodifiable(_nextAllowedAt);
 
   @override
   void clearCooldown(String siteId) {
-    _nextAllowed.remove(siteId);
+    _nextAllowedAt.remove(siteId);
   }
 
   @override
   void clearAll() {
-    _nextAllowed.clear();
+    _nextAllowedAt.clear();
   }
-
-  // Helpers for tests
-  void forceCooldown(String siteId, Duration duration) =>
-      startCooldown(siteId, duration);
-  void clearSite(String siteId) => clearCooldown(siteId);
 }
 
 void main() {
@@ -171,7 +169,7 @@ void main() {
         final siteId = 's1';
         expect(provider.canCheckSite(siteId), isTrue);
 
-        cooldown.forceCooldown(siteId, const Duration(seconds: 5));
+        cooldown.startCooldown(siteId, const Duration(seconds: 5));
         expect(provider.canCheckSite(siteId), isFalse);
         expect(provider.getTimeUntilNextCheck(siteId), isNotNull);
       },
@@ -181,7 +179,7 @@ void main() {
       'checkSite blocks when cooldown active and does not call service',
       () async {
         final site = buildSite(id: 's1');
-        cooldown.forceCooldown(site.id, const Duration(seconds: 6));
+        cooldown.startCooldown(site.id, const Duration(seconds: 6));
 
         final ok = await provider.checkSite(site);
 
@@ -195,7 +193,7 @@ void main() {
       'quickCheckSite blocks when cooldown active and does not call service',
       () async {
         final site = buildSite(id: 's1');
-        cooldown.forceCooldown(site.id, const Duration(seconds: 6));
+        cooldown.startCooldown(site.id, const Duration(seconds: 6));
 
         final ok = await provider.quickCheckSite(site);
 

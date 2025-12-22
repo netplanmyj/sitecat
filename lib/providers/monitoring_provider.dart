@@ -284,8 +284,7 @@ class MonitoringProvider extends ChangeNotifier {
   }
 }
 
-/// In-memory fallback implementation for CooldownService to ensure concrete behavior by default.
-/// This avoids relying on an abstract CooldownService at runtime.
+/// Used as a default when no CooldownService is injected into MonitoringProvider.
 class _InMemoryCooldownService implements CooldownService {
   final Map<String, DateTime> _nextAllowedAt = {};
 
@@ -296,6 +295,13 @@ class _InMemoryCooldownService implements CooldownService {
   Duration? getTimeUntilNextCheck(String siteId) {
     final now = DateTime.now();
     final next = _nextAllowedAt[siteId];
+
+    // Cleanup: Remove expired entries to prevent memory leaks
+    if (next != null && now.isAfter(next)) {
+      _nextAllowedAt.remove(siteId);
+      return null;
+    }
+
     if (next == null || now.isAfter(next)) return null;
     return next.difference(now);
   }
@@ -306,7 +312,7 @@ class _InMemoryCooldownService implements CooldownService {
   }
 
   @override
-  Map<String, DateTime> get activeCooldowns => _nextAllowedAt;
+  Map<String, DateTime> get activeCooldowns => Map.unmodifiable(_nextAllowedAt);
 
   @override
   void clearCooldown(String siteId) {
