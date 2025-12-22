@@ -10,7 +10,7 @@ class MonitoringProvider extends ChangeNotifier {
     MonitoringService? monitoringService,
     CooldownService? cooldownService,
   }) : _monitoringService = monitoringService ?? MonitoringService(),
-       _cooldownService = cooldownService ?? CooldownService();
+       _cooldownService = cooldownService ?? _InMemoryCooldownService();
 
   final MonitoringService _monitoringService;
   final CooldownService _cooldownService;
@@ -281,5 +281,40 @@ class MonitoringProvider extends ChangeNotifier {
   /// Clear sitemap status cache for a site
   void clearSitemapStatusCache(String siteId) {
     _sitemapStatusCache.remove(siteId);
+  }
+}
+
+/// In-memory fallback implementation for CooldownService to ensure concrete behavior by default.
+/// This avoids relying on an abstract CooldownService at runtime.
+class _InMemoryCooldownService implements CooldownService {
+  final Map<String, DateTime> _nextAllowedAt = {};
+
+  @override
+  bool canPerformAction(String siteId) => getTimeUntilNextCheck(siteId) == null;
+
+  @override
+  Duration? getTimeUntilNextCheck(String siteId) {
+    final now = DateTime.now();
+    final next = _nextAllowedAt[siteId];
+    if (next == null || now.isAfter(next)) return null;
+    return next.difference(now);
+  }
+
+  @override
+  void startCooldown(String siteId, Duration duration) {
+    _nextAllowedAt[siteId] = DateTime.now().add(duration);
+  }
+
+  @override
+  Map<String, DateTime> get activeCooldowns => _nextAllowedAt;
+
+  @override
+  void clearCooldown(String siteId) {
+    _nextAllowedAt.remove(siteId);
+  }
+
+  @override
+  void clearAll() {
+    _nextAllowedAt.clear();
   }
 }
