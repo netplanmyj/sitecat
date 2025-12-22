@@ -10,7 +10,7 @@ class MonitoringProvider extends ChangeNotifier {
     MonitoringService? monitoringService,
     CooldownService? cooldownService,
   }) : _monitoringService = monitoringService ?? MonitoringService(),
-       _cooldownService = cooldownService ?? _InMemoryCooldownService();
+       _cooldownService = cooldownService ?? DefaultCooldownService();
 
   final MonitoringService _monitoringService;
   final CooldownService _cooldownService;
@@ -281,49 +281,5 @@ class MonitoringProvider extends ChangeNotifier {
   /// Clear sitemap status cache for a site
   void clearSitemapStatusCache(String siteId) {
     _sitemapStatusCache.remove(siteId);
-  }
-}
-
-/// Used as a default when no CooldownService is injected into MonitoringProvider.
-class _InMemoryCooldownService implements CooldownService {
-  final Map<String, DateTime> _nextAllowedAt = {};
-
-  @override
-  bool canPerformAction(String siteId) => getTimeUntilNextCheck(siteId) == null;
-
-  @override
-  Duration? getTimeUntilNextCheck(String siteId) {
-    final now = DateTime.now();
-
-    // Cleanup: Remove ALL expired entries to prevent memory leaks
-    _cleanupExpiredEntries();
-
-    final next = _nextAllowedAt[siteId];
-    if (next == null || now.isAfter(next)) return null;
-    return next.difference(now);
-  }
-
-  /// Remove all expired cooldown entries (lazy cleanup)
-  void _cleanupExpiredEntries() {
-    final now = DateTime.now();
-    _nextAllowedAt.removeWhere((_, expiry) => now.isAfter(expiry));
-  }
-
-  @override
-  void startCooldown(String siteId, Duration duration) {
-    _nextAllowedAt[siteId] = DateTime.now().add(duration);
-  }
-
-  @override
-  Map<String, DateTime> get activeCooldowns => Map.unmodifiable(_nextAllowedAt);
-
-  @override
-  void clearCooldown(String siteId) {
-    _nextAllowedAt.remove(siteId);
-  }
-
-  @override
-  void clearAll() {
-    _nextAllowedAt.clear();
   }
 }
