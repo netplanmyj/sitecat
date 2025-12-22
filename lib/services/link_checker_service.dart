@@ -54,13 +54,17 @@ class LinkCheckerService implements LinkCheckerClient {
   // Helper classes
   late final LinkCheckerHttpClient _httpHelper;
   late final SitemapParser _sitemapParser;
-  // Mutable to allow recreation when page limit changes via setPageLimit()
   late ScanOrchestrator _orchestrator;
   late final LinkExtractor _extractor;
-  // Mutable to allow recreation when history limit changes via setHistoryLimit()
   late ResultBuilder _resultBuilder;
   LinkCheckResultRepository? _repository;
   String? _repositoryUserId;
+
+  // History limit for cleanup (can be set based on premium status)
+  int _historyLimit = AppConstants.freePlanHistoryLimit;
+
+  // Page limit for scanning (can be set based on premium status)
+  int _pageLimit = AppConstants.freePlanPageLimit;
 
   LinkCheckerService() {
     _httpHelper = LinkCheckerHttpClient(_httpClient);
@@ -95,12 +99,6 @@ class LinkCheckerService implements LinkCheckerClient {
     }
     return _repository!;
   }
-
-  // History limit for cleanup (can be set based on premium status)
-  int _historyLimit = AppConstants.freePlanHistoryLimit;
-
-  // Page limit for scanning (can be set based on premium status)
-  int _pageLimit = AppConstants.freePlanPageLimit;
 
   // Helper to check premium status without coupling to page limit semantics
   bool get _isPremiumUser => _pageLimit != AppConstants.freePlanPageLimit;
@@ -168,41 +166,114 @@ class LinkCheckerService implements LinkCheckerClient {
   Future<LinkCheckResult> checkSiteLinks(
     Site site, {
     bool checkExternalLinks = true,
-    bool continueFromLastScan = false, // Continue from last scanned index
-    int?
-    precalculatedPageCount, // Pre-calculated page count to avoid re-loading sitemap
-    List<Uri>?
-    cachedSitemapUrls, // Issue #291: Cached sitemap URLs to skip reload
+    bool continueFromLastScan = false,
+    int? precalculatedPageCount,
+    List<Uri>? cachedSitemapUrls,
     void Function(int checked, int total)? onProgress,
     void Function(int checked, int total)? onExternalLinksProgress,
     void Function(int? statusCode)? onSitemapStatusUpdate,
     bool Function()? shouldCancel,
   }) async {
+    final startTime = DateTime.now();
+
+    // STEP 0: Initialize and validate
+    final (originalBaseUrl, baseUrl, siteForScanning) =
+        await _initializeAndValidate(site, continueFromLastScan);
+
+    // STEP 1: Quick check base URL
+    final (baseUrlStatusCode, baseUrlResponseTime, baseUrlIsUp) =
+        await _performQuickCheck(baseUrl, site.url);
+
+    // STEP 1-1c: Load sitemap and prepare data
+    final (
+      sitemapData,
+      startIndex,
+      previousData,
+      pagesToScan,
+    ) = await _loadSitemapAndPrepareData(
+      siteForScanning,
+      baseUrl,
+      originalBaseUrl,
+      continueFromLastScan,
+      precalculatedPageCount,
+      cachedSitemapUrls,
+      onSitemapStatusUpdate,
+    );
+
+    // STEP 2-4: Scan pages and validate links
+    final (
+      allInternalLinks,
+      allExternalLinks,
+      allLinkSourceMap,
+      allBrokenLinks,
+      pagesCompleted,
+      pagesScanned,
+    ) = await _scanPagesAndValidateLinks(
+      pagesToScan,
+      site.id,
+      originalBaseUrl,
+      checkExternalLinks,
+      continueFromLastScan,
+      onProgress,
+      onExternalLinksProgress,
+      shouldCancel,
+      startIndex,
+      (sitemapData as dynamic).totalPages,
+    );
+
+    // STEP 5-6: Build and save result
+    final scanRangeCompleted = (sitemapData as dynamic).scanCompleted ?? true;
+    return await _buildAndSaveResult(
+      site,
+      sitemapData,
+      startIndex,
+      pagesCompleted,
+      pagesToScan.length,
+      scanRangeCompleted,
+      allInternalLinks,
+      allExternalLinks,
+      allBrokenLinks,
+      previousData,
+      continueFromLastScan,
+      startTime,
+      baseUrlStatusCode,
+      baseUrlResponseTime,
+      baseUrlIsUp,
+    );
+  }
+
+  /// Initialize and validate scan preconditions
+  /// Returns: (originalBaseUrl, baseUrl, siteForScanning)
+  Future<(Uri, Uri, Site)> _initializeAndValidate(
+    Site site,
+    bool continueFromLastScan,
+  ) async {
     if (_currentUserId == null) {
       throw Exception('User must be authenticated to check links');
     }
 
-    final startTime = DateTime.now();
     final originalBaseUrl = Uri.parse(site.url);
     final baseUrl = Uri.parse(UrlHelper.convertLocalhostForPlatform(site.url));
 
-    // Ensure orchestrator has the correct page limit by recreating it
-    // This handles cases where premium status changed since initialization
     _orchestrator = ScanOrchestrator(
       httpClient: _httpHelper,
       sitemapParser: _sitemapParser,
       pageLimit: _pageLimit,
     );
 
-    // Excluded paths are a Premium feature; enforce explicitly via premium flag
     final siteForScanning = _isPremiumUser
         ? site
         : site.copyWith(excludedPaths: []);
 
-    // ========================================================================
-    // STEP 0: Quick Check equivalent (Issue #291: Unify Quick Scan and Site Scan)
-    // ========================================================================
-    // Perform GET request to base URL to get status code and response time
+    return (originalBaseUrl, baseUrl, siteForScanning);
+  }
+
+  /// Perform quick check on base URL (STEP 0)
+  /// Returns: (statusCode, responseTime, isUp)
+  Future<(int?, int?, bool?)> _performQuickCheck(
+    Uri baseUrl,
+    String siteUrl,
+  ) async {
     int? baseUrlStatusCode;
     int? baseUrlResponseTime;
     bool? baseUrlIsUp;
@@ -224,19 +295,29 @@ class LinkCheckerService implements LinkCheckerClient {
       baseUrlIsUp = baseUrlStatusCode >= 200 && baseUrlStatusCode < 400;
 
       _logger.d(
-        'Quick check for ${site.url}: status=$baseUrlStatusCode, time=${baseUrlResponseTime}ms',
+        'Quick check for $siteUrl: status=$baseUrlStatusCode, time=${baseUrlResponseTime}ms',
       );
     } catch (e) {
       baseUrlStatusCode = 0;
       baseUrlResponseTime = null;
       baseUrlIsUp = false;
-      _logger.e('Quick check failed for ${site.url}: $e');
+      _logger.e('Quick check failed for $siteUrl: $e');
     }
 
-    // ========================================================================
-    // STEP 1: Load sitemap URLs and check accessibility
-    // ========================================================================
-    // Issue #291: Use cached URLs if available to avoid 10-20s sitemap reload delay
+    return (baseUrlStatusCode, baseUrlResponseTime, baseUrlIsUp);
+  }
+
+  /// Load sitemap and prepare scan data (STEP 1-1c)
+  /// Returns: (sitemapData, startIndex, previousData, pagesToScan)
+  Future<(dynamic, int, dynamic, List<Uri>)> _loadSitemapAndPrepareData(
+    Site siteForScanning,
+    Uri baseUrl,
+    Uri originalBaseUrl,
+    bool continueFromLastScan,
+    int? precalculatedPageCount,
+    List<Uri>? cachedSitemapUrls,
+    void Function(int? statusCode)? onSitemapStatusUpdate,
+  ) async {
     final sitemapData = await _orchestrator.loadSitemapUrls(
       site: siteForScanning,
       baseUrl: baseUrl,
@@ -245,43 +326,49 @@ class LinkCheckerService implements LinkCheckerClient {
       precalculatedPageCount: precalculatedPageCount,
       cachedUrls: cachedSitemapUrls,
     );
-    final allInternalPages = sitemapData.urls;
-    final totalPagesInSitemap = sitemapData.totalPages;
-    final sitemapStatusCode = sitemapData.statusCode;
 
-    // ========================================================================
-    // STEP 1b: Load previous scan data (if continuing from last scan)
-    // ========================================================================
-    final startIndex = continueFromLastScan ? site.lastScannedPageIndex : 0;
+    final startIndex = continueFromLastScan
+        ? siteForScanning.lastScannedPageIndex
+        : 0;
     final previousData = await _orchestrator.loadPreviousScanData(
       continueFromLastScan: continueFromLastScan,
       startIndex: startIndex,
       getLatestResult: getLatestCheckResult,
       getBrokenLinks: getBrokenLinks,
-      siteId: site.id,
+      siteId: siteForScanning.id,
     );
-    final previousResult = previousData.result;
-    final previousBrokenLinks = previousData.brokenLinks;
 
-    // ========================================================================
-    // STEP 1c: Calculate scan range for this batch
-    // ========================================================================
     final scanRange = _orchestrator.calculateScanRange(
-      allPages: allInternalPages,
+      allPages: sitemapData.urls,
       startIndex: startIndex,
     );
-    final pagesToScan = scanRange.pagesToScan;
 
-    // ========================================================================
-    // STEP 2 & 3-4: Per-page cycle (extract links, validate per page)
-    // ========================================================================
+    return (sitemapData, startIndex, previousData, scanRange.pagesToScan);
+  }
+
+  /// Scan pages and validate links (STEP 2-4)
+  /// Returns: (allInternalLinks, allExternalLinks, allLinkSourceMap, allBrokenLinks, pagesCompleted, pagesScanned)
+  Future<
+    (Set<Uri>, Set<Uri>, Map<String, List<String>>, List<BrokenLink>, int, int)
+  >
+  _scanPagesAndValidateLinks(
+    List<Uri> pagesToScan,
+    String siteId,
+    Uri originalBaseUrl,
+    bool checkExternalLinks,
+    bool continueFromLastScan,
+    void Function(int checked, int total)? onProgress,
+    void Function(int checked, int total)? onExternalLinksProgress,
+    bool Function()? shouldCancel,
+    int startIndex,
+    int totalPagesInSitemap,
+  ) async {
     final validator = LinkValidator(
       httpClient: _httpHelper,
       userId: _currentUserId!,
-      siteUrl: site.url,
+      siteUrl: originalBaseUrl.toString(),
     );
 
-    // Clear cache only when starting a new scan (not when continuing)
     if (!continueFromLastScan) {
       validator.clearCache();
     }
@@ -295,13 +382,10 @@ class LinkCheckerService implements LinkCheckerClient {
     int pagesScanned = 0;
 
     for (final page in pagesToScan) {
-      // Add minimal delay between page fetches (100ms after first page)
-      // to avoid overwhelming the server while maintaining performance
       if (pagesScanned > 0) {
         await Future.delayed(const Duration(milliseconds: 100));
       }
 
-      // Step 2a: Fetch page and extract links from this page
       final pageExtractionResult = await _extractor.scanAndExtractLinksForPage(
         page: page,
         originalBaseUrl: originalBaseUrl,
@@ -311,15 +395,12 @@ class LinkCheckerService implements LinkCheckerClient {
       pagesScanned++;
 
       if (!pageExtractionResult.wasSuccessful) {
-        // Page fetch failed, but continue to next page
         continue;
       }
 
-      // Accumulate links from all pages
       allInternalLinks.addAll(pageExtractionResult.internalLinks);
       allExternalLinks.addAll(pageExtractionResult.externalLinks);
 
-      // Merge link source map
       for (final entry in pageExtractionResult.linkSourceMap.entries) {
         if (!allLinkSourceMap.containsKey(entry.key)) {
           allLinkSourceMap[entry.key] = entry.value;
@@ -332,9 +413,8 @@ class LinkCheckerService implements LinkCheckerClient {
         }
       }
 
-      // Step 3-4: Validate links from this page immediately
       final pageBrokenLinks = await validator.checkLinksFromPage(
-        siteId: site.id,
+        siteId: siteId,
         internalLinks: pageExtractionResult.internalLinks,
         externalLinks: pageExtractionResult.externalLinks,
         linkSourceMap: pageExtractionResult.linkSourceMap,
@@ -345,53 +425,66 @@ class LinkCheckerService implements LinkCheckerClient {
 
       allBrokenLinks.addAll(pageBrokenLinks);
 
-      // Check for cancellation BEFORE emitting progress
-      // This prevents the unexpected +1 increment when Stop/Continue is pressed
-      // (#260, #262)
       if (shouldCancel?.call() ?? false) {
         break;
       }
 
-      // Increment pagesCompleted and emit progress only if not cancelled
       pagesCompleted++;
       final cumulativePagesScanned = startIndex + pagesCompleted;
       onProgress?.call(cumulativePagesScanned, totalPagesInSitemap);
     }
 
-    // Use actual scanned pages to set endIndex so we don't skip pages when
-    // a scan stops early (e.g., user pressed stop mid-batch).
+    return (
+      allInternalLinks,
+      allExternalLinks,
+      allLinkSourceMap,
+      allBrokenLinks,
+      pagesCompleted,
+      pagesScanned,
+    );
+  }
+
+  /// Build and save final result (STEP 5-6)
+  Future<LinkCheckResult> _buildAndSaveResult(
+    Site site,
+    dynamic sitemapData,
+    int startIndex,
+    int pagesCompleted,
+    int pagesToScanLength,
+    bool scanRangeCompleted,
+    Set<Uri> allInternalLinks,
+    Set<Uri> allExternalLinks,
+    List<BrokenLink> allBrokenLinks,
+    dynamic previousData,
+    bool continueFromLastScan,
+    DateTime startTime,
+    int? baseUrlStatusCode,
+    int? baseUrlResponseTime,
+    bool? baseUrlIsUp,
+  ) async {
     final pagesScannedCount = startIndex + pagesCompleted;
     final scanCompleted =
-        scanRange.scanCompleted && pagesCompleted == pagesToScan.length;
-
-    // Resume from the next page after the last completed one
-    // If scan completed fully, reset to 0 to start fresh next time
+        scanRangeCompleted && pagesCompleted == pagesToScanLength;
     final resumeFromIndex = scanCompleted ? 0 : pagesScannedCount;
 
-    // ========================================================================
-    // STEP 5: Merge broken links with previous results (if continuing)
-    // ========================================================================
     final mergedBrokenLinks = _resultBuilder.mergeBrokenLinks(
       newBrokenLinks: allBrokenLinks,
-      previousBrokenLinks: previousBrokenLinks,
+      previousBrokenLinks: previousData.brokenLinks,
       continueFromLastScan: continueFromLastScan,
     );
 
-    // ========================================================================
-    // STEP 6: Create and save result to Firestore
-    // ========================================================================
     return await _resultBuilder.createAndSaveResult(
       userId: _currentUserId!,
       site: site,
-      sitemapStatusCode: sitemapStatusCode,
+      sitemapStatusCode: sitemapData.statusCode,
       pagesScannedCount: pagesScannedCount,
       scanCompleted: scanCompleted,
       resumeFromIndex: resumeFromIndex,
-      totalPagesInSitemap: totalPagesInSitemap,
+      totalPagesInSitemap: sitemapData.totalPages,
       totalInternalLinksCount: allInternalLinks.length,
       totalExternalLinksCount: allExternalLinks.length,
       allBrokenLinks: mergedBrokenLinks,
-      previousResult: previousResult,
+      previousResult: previousData.result,
       continueFromLastScan: continueFromLastScan,
       startTime: startTime,
       startIndex: startIndex,
@@ -401,12 +494,7 @@ class LinkCheckerService implements LinkCheckerClient {
     );
   }
 
-  /// Load and count pages in a site's sitemap without performing full link checks.
-  /// This is a lightweight operation used to pre-calculate the target page count
-  /// for display in the UI before starting a scan.
-  ///
-  /// Returns the total number of pages in the sitemap after applying excluded paths,
-  /// or null if the sitemap cannot be loaded.
+  /// Load and count pages in a site's sitemap without performing full link checks
   @override
   Future<int?> loadSitemapPageCount(
     Site site, {
@@ -424,20 +512,16 @@ class LinkCheckerService implements LinkCheckerClient {
     }
   }
 
-  /// Load sitemap URLs for a site (Issue #291: Cache URLs to reduce scan startup delay)
-  /// Returns the list of URLs from the sitemap after applying excluded paths,
-  /// or null if the sitemap cannot be loaded.
+  /// Load sitemap URLs for a site
   @override
   Future<List<Uri>?> loadSitemapUrls(
     Site site, {
     void Function(int? statusCode)? onSitemapStatusUpdate,
   }) async {
     try {
-      // Parse the site URL
       final baseUrl = Uri.parse(site.url);
       final originalBaseUrl = baseUrl;
 
-      // Load sitemap URLs with exclusion rules applied
       final sitemapData = await _orchestrator.loadSitemapUrls(
         site: site,
         baseUrl: baseUrl,
@@ -483,7 +567,7 @@ class LinkCheckerService implements LinkCheckerClient {
     return _repo.getAllCheckResults(limit: limit);
   }
 
-  /// Delete all check results for a site (useful for cleanup)
+  /// Delete all check results for a site
   Future<void> deleteAllCheckResults(String siteId) async {
     if (_currentUserId == null) return;
     await _repo.deleteAllCheckResults(siteId);
@@ -497,7 +581,6 @@ class LinkCheckerService implements LinkCheckerClient {
   }
 
   /// Save interrupted scan result to Firestore
-  /// Called when user navigates away during an active scan
   @override
   Future<void> saveInterruptedResult(LinkCheckResult result) async {
     if (_currentUserId == null) {
@@ -505,30 +588,4 @@ class LinkCheckerService implements LinkCheckerClient {
     }
     await _repo.saveResult(result);
   }
-
-  /// Filter out URLs that match excluded paths
-  ///
-  /// This method filters URLs based on a list of excluded path prefixes.
-  /// Paths are matched against the URL's path component using prefix matching.
-  ///
-  /// **Path Normalization:**
-  /// - Excluded paths are automatically prefixed with '/' if not present
-  /// - Example: 'tags/' becomes '/tags/' for matching
-  ///
-  /// **Matching Behavior:**
-  /// - Uses prefix matching (startsWith) on the URL path
-  /// - Excludes all nested paths under the excluded prefix
-  /// - Example: Excluding '/tags/' will filter:
-  ///   - https://example.com/tags/tag-1
-  ///   - https://example.com/tags/tag-1/page-2
-  ///   - https://example.com/tags/anything/nested
-  ///
-  /// **Parameters:**
-  /// - [urls]: List of URLs to filter
-  /// - [excludedPaths]: List of path prefixes to exclude (e.g., ['tags/', 'categories/'])
-  ///
-  /// **Returns:**
-  /// A filtered list containing only URLs that don't match any excluded path prefix
-  ///
-  // ==========================================================================
 }
