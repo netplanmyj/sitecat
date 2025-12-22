@@ -40,7 +40,7 @@ class LinkCheckerProvider extends ChangeNotifier {
     LinkCheckerProgress? progress,
   }) : _linkCheckerService = linkCheckerService ?? LinkCheckerService(),
        _siteService = siteService ?? SiteService(),
-       _cooldownService = cooldownService ?? CooldownService(),
+       _cooldownService = cooldownService ?? DefaultCooldownService(),
        _cache = cache ?? LinkCheckerCache(),
        _progress = progress ?? LinkCheckerProgress();
 

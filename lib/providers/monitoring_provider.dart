@@ -294,16 +294,19 @@ class _InMemoryCooldownService implements CooldownService {
   @override
   Duration? getTimeUntilNextCheck(String siteId) {
     final now = DateTime.now();
+
+    // Cleanup: Remove ALL expired entries to prevent memory leaks
+    _cleanupExpiredEntries();
+
     final next = _nextAllowedAt[siteId];
-
-    // Cleanup: Remove expired entries to prevent memory leaks
-    if (next != null && now.isAfter(next)) {
-      _nextAllowedAt.remove(siteId);
-      return null;
-    }
-
     if (next == null || now.isAfter(next)) return null;
     return next.difference(now);
+  }
+
+  /// Remove all expired cooldown entries (lazy cleanup)
+  void _cleanupExpiredEntries() {
+    final now = DateTime.now();
+    _nextAllowedAt.removeWhere((_, expiry) => now.isAfter(expiry));
   }
 
   @override
