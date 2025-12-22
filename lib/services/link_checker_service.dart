@@ -13,6 +13,7 @@ import 'link_checker/link_validator.dart';
 import 'link_checker/scan_orchestrator.dart';
 import 'link_checker/link_extractor.dart';
 import 'link_checker/result_builder.dart';
+import 'link_checker/models.dart'; // + add types (SitemapLoadResult, PreviousScanData)
 
 abstract class LinkCheckerClient {
   void setHistoryLimit(bool isPremium);
@@ -177,20 +178,30 @@ class LinkCheckerService implements LinkCheckerClient {
     final startTime = DateTime.now();
 
     // STEP 0: Initialize and validate
-    final (originalBaseUrl, baseUrl, siteForScanning) =
-        await _initializeAndValidate(site, continueFromLastScan);
+    // final (originalBaseUrl, baseUrl, siteForScanning) =
+    //     await _initializeAndValidate(site, continueFromLastScan);
+    final init = await _initializeAndValidate(site, continueFromLastScan);
+    final originalBaseUrl = init.$1;
+    final baseUrl = init.$2;
+    final siteForScanning = init.$3;
 
     // STEP 1: Quick check base URL
-    final (baseUrlStatusCode, baseUrlResponseTime, baseUrlIsUp) =
-        await _performQuickCheck(baseUrl, site.url);
+    // final (baseUrlStatusCode, baseUrlResponseTime, baseUrlIsUp) =
+    //     await _performQuickCheck(baseUrl, site.url);
+    final qc = await _performQuickCheck(baseUrl, site.url);
+    final baseUrlStatusCode = qc.$1;
+    final baseUrlResponseTime = qc.$2;
+    final baseUrlIsUp = qc.$3;
 
     // STEP 1-1c: Load sitemap and prepare data
-    final (
-      sitemapData,
-      startIndex,
-      previousData,
-      pagesToScan,
-    ) = await _loadSitemapAndPrepareData(
+    // final (
+    //   SitemapLoadResult sitemapData,
+    //   int startIndex,
+    //   PreviousScanData previousData,
+    //   List<Uri> pagesToScan,
+    //   bool scanRangeCompleted,
+    // ) = await _loadSitemapAndPrepareData(...)
+    final prep = await _loadSitemapAndPrepareData(
       siteForScanning,
       baseUrl,
       originalBaseUrl,
@@ -199,16 +210,22 @@ class LinkCheckerService implements LinkCheckerClient {
       cachedSitemapUrls,
       onSitemapStatusUpdate,
     );
+    final SitemapLoadResult sitemapData = prep.$1;
+    final int startIndex = prep.$2;
+    final PreviousScanData previousData = prep.$3;
+    final List<Uri> pagesToScan = prep.$4;
+    final bool scanRangeCompleted = prep.$5;
 
     // STEP 2-4: Scan pages and validate links
-    final (
-      allInternalLinks,
-      allExternalLinks,
-      allLinkSourceMap,
-      allBrokenLinks,
-      pagesCompleted,
-      pagesScanned,
-    ) = await _scanPagesAndValidateLinks(
+    // final (
+    //   allInternalLinks,
+    //   allExternalLinks,
+    //   allLinkSourceMap,
+    //   allBrokenLinks,
+    //   pagesCompleted,
+    //   pagesScanned,
+    // ) = await _scanPagesAndValidateLinks(...)
+    final scanRes = await _scanPagesAndValidateLinks(
       pagesToScan,
       site.id,
       originalBaseUrl,
@@ -218,11 +235,17 @@ class LinkCheckerService implements LinkCheckerClient {
       onExternalLinksProgress,
       shouldCancel,
       startIndex,
-      (sitemapData as dynamic).totalPages,
+      sitemapData.totalPages,
     );
+    final Set<Uri> allInternalLinks = scanRes.$1;
+    final Set<Uri> allExternalLinks = scanRes.$2;
+    // allLinkSourceMap retained internally for potential future use
+    // final Map<String, List<String>> allLinkSourceMap = scanRes.$3;
+    final List<BrokenLink> allBrokenLinks = scanRes.$4;
+    final int pagesCompleted = scanRes.$5;
+    // final int pagesScanned = scanRes.$6;
 
     // STEP 5-6: Build and save result
-    final scanRangeCompleted = (sitemapData as dynamic).scanCompleted ?? true;
     return await _buildAndSaveResult(
       site,
       sitemapData,
@@ -260,7 +283,18 @@ class LinkCheckerService implements LinkCheckerClient {
       sitemapParser: _sitemapParser,
       pageLimit: _pageLimit,
     );
-
+    // Excluded paths (premium feature) summary
+    // - Free users: excludedPaths are ignored to keep the feature premium-only
+    // - Premium users: excludedPaths are applied downstream during sitemap URL filtering
+    //   in ScanOrchestrator._filterExcludedPaths().
+    //   Rules (brief):
+    //   * Paths are normalized to start with '/'
+    //   * Prefix match: '/admin' excludes '/admin', '/admin/', '/admin/users'
+    //   * Wildcard segment: '*/admin/' excludes any URL that contains a path
+    //     segment exactly equal to 'admin' (e.g., '/v1/admin/users')
+    //   * Matching is path-based, not regex; scheme/host are not considered here
+    //   See lib/services/link_checker/scan_orchestrator.dart::_filterExcludedPaths
+    //   for the authoritative logic and more details.
     final siteForScanning = _isPremiumUser
         ? site
         : site.copyWith(excludedPaths: []);
@@ -308,8 +342,9 @@ class LinkCheckerService implements LinkCheckerClient {
   }
 
   /// Load sitemap and prepare scan data (STEP 1-1c)
-  /// Returns: (sitemapData, startIndex, previousData, pagesToScan)
-  Future<(dynamic, int, dynamic, List<Uri>)> _loadSitemapAndPrepareData(
+  /// Returns: (sitemapData, startIndex, previousData, pagesToScan, scanCompleted)
+  Future<(SitemapLoadResult, int, PreviousScanData, List<Uri>, bool)>
+  _loadSitemapAndPrepareData(
     Site siteForScanning,
     Uri baseUrl,
     Uri originalBaseUrl,
@@ -330,6 +365,7 @@ class LinkCheckerService implements LinkCheckerClient {
     final startIndex = continueFromLastScan
         ? siteForScanning.lastScannedPageIndex
         : 0;
+
     final previousData = await _orchestrator.loadPreviousScanData(
       continueFromLastScan: continueFromLastScan,
       startIndex: startIndex,
@@ -343,7 +379,13 @@ class LinkCheckerService implements LinkCheckerClient {
       startIndex: startIndex,
     );
 
-    return (sitemapData, startIndex, previousData, scanRange.pagesToScan);
+    return (
+      sitemapData,
+      startIndex,
+      previousData,
+      scanRange.pagesToScan,
+      scanRange.scanCompleted, // return the correct completion flag
+    );
   }
 
   /// Scan pages and validate links (STEP 2-4)
@@ -447,15 +489,15 @@ class LinkCheckerService implements LinkCheckerClient {
   /// Build and save final result (STEP 5-6)
   Future<LinkCheckResult> _buildAndSaveResult(
     Site site,
-    dynamic sitemapData,
+    SitemapLoadResult sitemapData, // typed
     int startIndex,
     int pagesCompleted,
     int pagesToScanLength,
-    bool scanRangeCompleted,
+    bool scanRangeCompleted, // lowerCamelCase
     Set<Uri> allInternalLinks,
     Set<Uri> allExternalLinks,
     List<BrokenLink> allBrokenLinks,
-    dynamic previousData,
+    PreviousScanData previousData, // typed
     bool continueFromLastScan,
     DateTime startTime,
     int? baseUrlStatusCode,
@@ -473,7 +515,7 @@ class LinkCheckerService implements LinkCheckerClient {
       continueFromLastScan: continueFromLastScan,
     );
 
-    return await _resultBuilder.createAndSaveResult(
+    return _resultBuilder.createAndSaveResult(
       userId: _currentUserId!,
       site: site,
       sitemapStatusCode: sitemapData.statusCode,
@@ -494,7 +536,8 @@ class LinkCheckerService implements LinkCheckerClient {
     );
   }
 
-  /// Load and count pages in a site's sitemap without performing full link checks
+  // ---------- Concrete implementations for LinkCheckerClient ----------
+
   @override
   Future<int?> loadSitemapPageCount(
     Site site, {
@@ -512,7 +555,6 @@ class LinkCheckerService implements LinkCheckerClient {
     }
   }
 
-  /// Load sitemap URLs for a site
   @override
   Future<List<Uri>?> loadSitemapUrls(
     Site site, {
@@ -536,21 +578,18 @@ class LinkCheckerService implements LinkCheckerClient {
     }
   }
 
-  /// Get broken links for a specific result
   @override
   Future<List<BrokenLink>> getBrokenLinks(String resultId) async {
     if (_currentUserId == null) return [];
     return _repo.getBrokenLinks(resultId);
   }
 
-  /// Get latest check result for a site
   @override
   Future<LinkCheckResult?> getLatestCheckResult(String siteId) async {
     if (_currentUserId == null) return null;
     return _repo.getLatestCheckResult(siteId);
   }
 
-  /// Get check results history for a site
   @override
   Future<List<LinkCheckResult>> getCheckResults(
     String siteId, {
@@ -560,27 +599,23 @@ class LinkCheckerService implements LinkCheckerClient {
     return _repo.getCheckResults(siteId, limit: limit);
   }
 
-  /// Get all check results across all sites
   @override
   Future<List<LinkCheckResult>> getAllCheckResults({int limit = 50}) async {
     if (_currentUserId == null) return [];
     return _repo.getAllCheckResults(limit: limit);
   }
 
-  /// Delete all check results for a site
   Future<void> deleteAllCheckResults(String siteId) async {
     if (_currentUserId == null) return;
     await _repo.deleteAllCheckResults(siteId);
   }
 
-  /// Delete a specific link check result by document ID
   @override
   Future<void> deleteLinkCheckResult(String resultId) async {
     if (_currentUserId == null) return;
     await _repo.deleteLinkCheckResult(resultId);
   }
 
-  /// Save interrupted scan result to Firestore
   @override
   Future<void> saveInterruptedResult(LinkCheckResult result) async {
     if (_currentUserId == null) {
