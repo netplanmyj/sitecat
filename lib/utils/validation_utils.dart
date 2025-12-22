@@ -1,12 +1,14 @@
+import 'validation.dart';
+
 class ValidationUtils {
   ValidationUtils._();
 
-  /// Accepts only http/https with a non-empty host.
+  /// Returns `true` if [url] passes the existing [Validation.siteUrl] check.
+  ///
+  /// This is a thin wrapper around [Validation.siteUrl] to avoid duplicating
+  /// URL validation logic. It assumes [Validation.siteUrl] returns `null`
+  /// when the value is valid and a non-null error message otherwise.
   static bool isValidUrl(String url) {
-    final uri = Uri.tryParse(url.trim());
-    if (uri == null) return false;
-    final schemeOk = uri.scheme == 'http' || uri.scheme == 'https';
-    final hostOk = (uri.host).isNotEmpty;
-    return schemeOk && hostOk;
+    return Validation.siteUrl(url) == null;
   }
 }

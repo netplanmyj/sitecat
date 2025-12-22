@@ -157,7 +157,12 @@ class SiteService implements SiteUpdater {
     }
   }
 
-  // Validate URL format and accessibility
+  /// Validate URL format and accessibility.
+  ///
+  /// Currently checks URL format via [ValidationUtils.isValidUrl].
+  /// Kept as async `Future&lt;bool&gt;` to support future HTTP head requests
+  /// that check accessibility without blocking synchronous validation.
+  /// This allows both fast format validation and optional deeper checks.
   Future<bool> validateUrl(String url) async {
     return ValidationUtils.isValidUrl(url);
   }
