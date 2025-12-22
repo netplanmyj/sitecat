@@ -94,7 +94,7 @@ class _StubProvider extends LinkCheckerProvider {
     : super(
         linkCheckerService: _FakeLinkCheckerClient(),
         siteService: _FakeSiteUpdater(),
-        cooldownService: CooldownService(),
+        cooldownService: DefaultCooldownService(),
         cache: LinkCheckerCache(),
         progress: LinkCheckerProgress(),
       );

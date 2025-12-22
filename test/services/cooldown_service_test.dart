@@ -2,110 +2,307 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sitecat/services/cooldown_service.dart';
 
 void main() {
-  late CooldownService service;
+  late DefaultCooldownService cooldownService;
 
   setUp(() {
-    service = CooldownService();
+    cooldownService = DefaultCooldownService();
   });
 
   group('CooldownService', () {
-    test('allows action when no cooldown is active', () {
-      expect(service.canPerformAction('site-1'), isTrue);
-      expect(service.getTimeUntilNextCheck('site-1'), isNull);
+    group('canPerformAction', () {
+      test('returns true when no cooldown exists', () {
+        expect(cooldownService.canPerformAction('site-1'), isTrue);
+      });
+
+      test('returns false during active cooldown', () async {
+        cooldownService.startCooldown('site-1', const Duration(seconds: 5));
+        expect(cooldownService.canPerformAction('site-1'), isFalse);
+      });
+
+      test('returns true after cooldown expires', () async {
+        cooldownService.startCooldown(
+          'site-1',
+          const Duration(milliseconds: 100),
+        );
+        expect(cooldownService.canPerformAction('site-1'), isFalse);
+
+        await Future.delayed(const Duration(milliseconds: 150));
+
+        expect(cooldownService.canPerformAction('site-1'), isTrue);
+      });
+
+      test('removes expired entry when checking', () async {
+        cooldownService.startCooldown(
+          'site-1',
+          const Duration(milliseconds: 50),
+        );
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        // canPerformAction should trigger cleanup
+        cooldownService.canPerformAction('site-1');
+
+        expect(cooldownService.activeCooldowns, isEmpty);
+      });
     });
 
-    test('blocks action during cooldown period', () {
-      service.startCooldown('site-1', const Duration(seconds: 10));
+    group('getTimeUntilNextCheck', () {
+      test('returns null when no cooldown exists', () {
+        expect(cooldownService.getTimeUntilNextCheck('site-1'), isNull);
+      });
 
-      expect(service.canPerformAction('site-1'), isFalse);
-      expect(service.getTimeUntilNextCheck('site-1'), isNotNull);
+      test('returns positive duration during active cooldown', () {
+        cooldownService.startCooldown('site-1', const Duration(seconds: 10));
+        final remaining = cooldownService.getTimeUntilNextCheck('site-1');
+
+        expect(remaining, isNotNull);
+        expect(remaining!.inSeconds, lessThanOrEqualTo(10));
+        expect(remaining.inSeconds, greaterThan(0));
+      });
+
+      test('returns null after cooldown expires', () async {
+        cooldownService.startCooldown(
+          'site-1',
+          const Duration(milliseconds: 100),
+        );
+        await Future.delayed(const Duration(milliseconds: 150));
+
+        expect(cooldownService.getTimeUntilNextCheck('site-1'), isNull);
+      });
+
+      test('removes expired entry (lazy cleanup)', () async {
+        cooldownService.startCooldown(
+          'site-1',
+          const Duration(milliseconds: 50),
+        );
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        // getTimeUntilNextCheck triggers cleanup for expired entries
+        cooldownService.getTimeUntilNextCheck('site-1');
+
+        expect(cooldownService.activeCooldowns, isEmpty);
+      });
+
+      test('calculates remaining time accurately', () {
+        cooldownService.startCooldown('site-1', const Duration(seconds: 10));
+        final remaining = cooldownService.getTimeUntilNextCheck('site-1');
+
+        expect(remaining, isNotNull);
+        // Should be close to 10 seconds (allow 1s margin for execution time)
+        expect(remaining!.inSeconds, greaterThanOrEqualTo(8));
+      });
     });
 
-    test('allows action after cooldown expires', () async {
-      service.startCooldown('site-1', const Duration(milliseconds: 100));
+    group('startCooldown', () {
+      test('sets cooldown for a site', () {
+        cooldownService.startCooldown('site-1', const Duration(seconds: 10));
 
-      expect(service.canPerformAction('site-1'), isFalse);
+        expect(cooldownService.canPerformAction('site-1'), isFalse);
+      });
 
-      await Future.delayed(const Duration(milliseconds: 150));
+      test('overwrites existing cooldown', () async {
+        cooldownService.startCooldown('site-1', const Duration(seconds: 10));
+        final firstCheck = cooldownService.getTimeUntilNextCheck('site-1');
 
-      expect(service.canPerformAction('site-1'), isTrue);
-      expect(service.getTimeUntilNextCheck('site-1'), isNull);
+        // Wait a bit then overwrite with shorter cooldown
+        await Future.delayed(const Duration(milliseconds: 100));
+        cooldownService.startCooldown(
+          'site-1',
+          const Duration(milliseconds: 50),
+        );
+
+        final secondCheck = cooldownService.getTimeUntilNextCheck('site-1');
+        expect(
+          secondCheck!.inMilliseconds,
+          lessThan(firstCheck!.inMilliseconds),
+        );
+      });
+
+      test('allows independent cooldowns per site', () {
+        cooldownService.startCooldown('site-1', const Duration(seconds: 10));
+        cooldownService.startCooldown('site-2', const Duration(seconds: 5));
+
+        expect(cooldownService.canPerformAction('site-1'), isFalse);
+        expect(cooldownService.canPerformAction('site-2'), isFalse);
+      });
     });
 
-    test('returns correct remaining time', () {
-      service.startCooldown('site-1', const Duration(seconds: 10));
+    group('activeCooldowns', () {
+      test('returns empty map when no cooldowns', () {
+        expect(cooldownService.activeCooldowns, isEmpty);
+      });
 
-      final remaining = service.getTimeUntilNextCheck('site-1');
-      expect(remaining, isNotNull);
-      expect(remaining!.inSeconds, greaterThan(8));
-      expect(remaining.inSeconds, lessThanOrEqualTo(10));
+      test('returns unmodifiable map with active cooldowns', () {
+        cooldownService.startCooldown('site-1', const Duration(seconds: 10));
+        cooldownService.startCooldown('site-2', const Duration(seconds: 5));
+
+        final active = cooldownService.activeCooldowns;
+        expect(active.length, 2);
+        expect(active.containsKey('site-1'), isTrue);
+        expect(active.containsKey('site-2'), isTrue);
+      });
+
+      test('returns unmodifiable map (prevents external mutation)', () {
+        cooldownService.startCooldown('site-1', const Duration(seconds: 10));
+
+        final active = cooldownService.activeCooldowns;
+        expect(() => active.clear(), throwsUnsupportedError);
+      });
+
+      test('does not include expired cooldowns', () async {
+        cooldownService.startCooldown(
+          'site-1',
+          const Duration(milliseconds: 50),
+        );
+        cooldownService.startCooldown('site-2', const Duration(seconds: 10));
+
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        // Trigger cleanup for expired entry
+        cooldownService.getTimeUntilNextCheck('site-1');
+
+        final active = cooldownService.activeCooldowns;
+        expect(active.length, 1);
+        expect(active.containsKey('site-2'), isTrue);
+      });
     });
 
-    test('tracks multiple sites independently', () {
-      service.startCooldown('site-1', const Duration(seconds: 10));
-      service.startCooldown('site-2', const Duration(seconds: 20));
+    group('clearCooldown', () {
+      test('removes cooldown for specified site', () {
+        cooldownService.startCooldown('site-1', const Duration(seconds: 10));
+        expect(cooldownService.canPerformAction('site-1'), isFalse);
 
-      expect(service.canPerformAction('site-1'), isFalse);
-      expect(service.canPerformAction('site-2'), isFalse);
-      expect(service.canPerformAction('site-3'), isTrue);
+        cooldownService.clearCooldown('site-1');
 
-      final remaining1 = service.getTimeUntilNextCheck('site-1');
-      final remaining2 = service.getTimeUntilNextCheck('site-2');
+        expect(cooldownService.canPerformAction('site-1'), isTrue);
+      });
 
-      expect(remaining1, isNotNull);
-      expect(remaining2, isNotNull);
-      expect(remaining2!.inSeconds, greaterThan(remaining1!.inSeconds));
+      test('does not affect other sites', () {
+        cooldownService.startCooldown('site-1', const Duration(seconds: 10));
+        cooldownService.startCooldown('site-2', const Duration(seconds: 10));
+
+        cooldownService.clearCooldown('site-1');
+
+        expect(cooldownService.canPerformAction('site-1'), isTrue);
+        expect(cooldownService.canPerformAction('site-2'), isFalse);
+      });
+
+      test('is safe to call on non-existent site', () {
+        expect(() => cooldownService.clearCooldown('site-1'), returnsNormally);
+      });
     });
 
-    test('clearCooldown removes cooldown for specific site', () {
-      service.startCooldown('site-1', const Duration(seconds: 10));
-      service.startCooldown('site-2', const Duration(seconds: 10));
+    group('clearAll', () {
+      test('removes all cooldowns', () {
+        cooldownService.startCooldown('site-1', const Duration(seconds: 10));
+        cooldownService.startCooldown('site-2', const Duration(seconds: 10));
+        cooldownService.startCooldown('site-3', const Duration(seconds: 10));
 
-      service.clearCooldown('site-1');
+        cooldownService.clearAll();
 
-      expect(service.canPerformAction('site-1'), isTrue);
-      expect(service.canPerformAction('site-2'), isFalse);
+        expect(cooldownService.activeCooldowns, isEmpty);
+        expect(cooldownService.canPerformAction('site-1'), isTrue);
+        expect(cooldownService.canPerformAction('site-2'), isTrue);
+        expect(cooldownService.canPerformAction('site-3'), isTrue);
+      });
+
+      test('is safe to call on empty service', () {
+        expect(() => cooldownService.clearAll(), returnsNormally);
+      });
     });
 
-    test('clearAll removes all cooldowns', () {
-      service.startCooldown('site-1', const Duration(seconds: 10));
-      service.startCooldown('site-2', const Duration(seconds: 10));
-      service.startCooldown('site-3', const Duration(seconds: 10));
+    group('concurrent operations', () {
+      test('handles multiple sites independently', () async {
+        cooldownService.startCooldown('site-1', const Duration(seconds: 10));
+        cooldownService.startCooldown(
+          'site-2',
+          const Duration(milliseconds: 50),
+        );
+        cooldownService.startCooldown('site-3', const Duration(seconds: 10));
 
-      service.clearAll();
+        expect(cooldownService.canPerformAction('site-1'), isFalse);
+        expect(cooldownService.canPerformAction('site-2'), isFalse);
+        expect(cooldownService.canPerformAction('site-3'), isFalse);
 
-      expect(service.canPerformAction('site-1'), isTrue);
-      expect(service.canPerformAction('site-2'), isTrue);
-      expect(service.canPerformAction('site-3'), isTrue);
-      expect(service.activeCooldowns, isEmpty);
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        // site-2 should expire, others active
+        expect(cooldownService.canPerformAction('site-1'), isFalse);
+        expect(cooldownService.canPerformAction('site-2'), isTrue);
+        expect(cooldownService.canPerformAction('site-3'), isFalse);
+      });
+
+      test('supports rapid start/clear cycles', () {
+        for (int i = 0; i < 10; i++) {
+          cooldownService.startCooldown('site-1', const Duration(seconds: 1));
+          expect(cooldownService.canPerformAction('site-1'), isFalse);
+
+          cooldownService.clearCooldown('site-1');
+          expect(cooldownService.canPerformAction('site-1'), isTrue);
+        }
+      });
     });
 
-    test('activeCooldowns returns current state', () {
-      expect(service.activeCooldowns, isEmpty);
+    group('memory management (lazy cleanup)', () {
+      test('cleans up expired entries on getTimeUntilNextCheck', () async {
+        for (int i = 0; i < 5; i++) {
+          cooldownService.startCooldown(
+            'site-$i',
+            const Duration(milliseconds: 50),
+          );
+        }
 
-      service.startCooldown('site-1', const Duration(seconds: 10));
-      expect(service.activeCooldowns, hasLength(1));
-      expect(service.activeCooldowns.containsKey('site-1'), isTrue);
+        await Future.delayed(const Duration(milliseconds: 100));
 
-      service.startCooldown('site-2', const Duration(seconds: 10));
-      expect(service.activeCooldowns, hasLength(2));
+        // Before cleanup
+        expect(cooldownService.activeCooldowns.length, 5);
+
+        // Trigger cleanup by checking one
+        cooldownService.getTimeUntilNextCheck('site-0');
+
+        // After lazy cleanup, all expired entries should be removed
+        expect(cooldownService.activeCooldowns, isEmpty);
+      });
+
+      test('does not prevent valid check during cleanup', () async {
+        cooldownService.startCooldown(
+          'site-1',
+          const Duration(milliseconds: 50),
+        );
+        cooldownService.startCooldown('site-2', const Duration(seconds: 10));
+
+        await Future.delayed(const Duration(milliseconds: 100));
+
+        // Check expired site - triggers cleanup
+        cooldownService.getTimeUntilNextCheck('site-1');
+
+        // site-2 should still be in cooldown (not cleared by cleanup)
+        expect(cooldownService.canPerformAction('site-2'), isFalse);
+      });
     });
 
-    test('overwrites existing cooldown when restarted', () {
-      service.startCooldown('site-1', const Duration(seconds: 5));
-      final first = service.getTimeUntilNextCheck('site-1');
+    group('edge cases', () {
+      test('handles zero duration cooldown', () {
+        cooldownService.startCooldown('site-1', Duration.zero);
 
-      service.startCooldown('site-1', const Duration(seconds: 20));
-      final second = service.getTimeUntilNextCheck('site-1');
+        // Should immediately be expired
+        expect(cooldownService.canPerformAction('site-1'), isTrue);
+      });
 
-      expect(second!.inSeconds, greaterThan(first!.inSeconds));
-    });
+      test('handles very long cooldown duration', () {
+        cooldownService.startCooldown('site-1', const Duration(days: 1));
+        final remaining = cooldownService.getTimeUntilNextCheck('site-1');
 
-    test('handles zero duration cooldown', () {
-      service.startCooldown('site-1', Duration.zero);
+        expect(remaining, isNotNull);
+        expect(remaining!.inHours, greaterThan(20));
+      });
 
-      // Should allow immediately since duration is zero
-      expect(service.canPerformAction('site-1'), isTrue);
+      test('handles multiple rapid calls to same methods', () {
+        for (int i = 0; i < 100; i++) {
+          cooldownService.canPerformAction('site-1');
+        }
+
+        expect(cooldownService.canPerformAction('site-1'), isTrue);
+      });
     });
   });
 }
