@@ -159,8 +159,21 @@ class ScanOrchestrator {
     return '$baseStr$pathStr';
   }
 
-  /// Filter out URLs that match excluded paths
-  /// Supports both prefix matching and wildcard patterns (e.g., '*/admin/')
+  /// Filter out URLs that match excluded paths.
+  ///
+  /// Behavior summary (authoritative rules):
+  /// - Normalization: Each excluded path is normalized to start with '/'.
+  /// - Prefix match: If a URL's path starts with an excluded path, it is removed.
+  ///   Example: excluded '/admin' removes '/admin', '/admin/', '/admin/users', '/admin?x=1'.
+  /// - Wildcard segment: A pattern starting with '*/' excludes URLs that contain
+  ///   a path segment exactly matching the pattern that follows.
+  ///   Example: '*/admin/' removes '/v1/admin/users', '/foo/admin', but not '/administrator'.
+  /// - Matching is path-based only (scheme/host are outside of this check).
+  /// - Case sensitivity: Follows Uri.path comparison (no additional lowercasing here).
+  ///
+  /// Notes:
+  /// - This filtering is applied only for premium users. For free users, the
+  ///   service clears excludedPaths before reaching this point.
   List<Uri> _filterExcludedPaths(List<Uri> urls, List<String> excludedPaths) {
     final normalizedExcludedPaths = excludedPaths.map((path) {
       return path.startsWith('/') ? path : '/$path';
