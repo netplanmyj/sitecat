@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/site.dart';
+import '../utils/validation_utils.dart';
 
 abstract class SiteUpdater {
   Future<void> updateSite(Site site);
@@ -158,19 +159,7 @@ class SiteService implements SiteUpdater {
 
   // Validate URL format and accessibility
   Future<bool> validateUrl(String url) async {
-    try {
-      // Basic URL validation
-      final uri = Uri.parse(url);
-      if (!uri.hasScheme || (uri.scheme != 'http' && uri.scheme != 'https')) {
-        return false;
-      }
-
-      // You could add HTTP head request here to check if URL is accessible
-      // For now, just return basic validation result
-      return true;
-    } catch (e) {
-      return false;
-    }
+    return ValidationUtils.isValidUrl(url);
   }
 
   // Get site count for current user
