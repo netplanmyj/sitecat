@@ -1,19 +1,20 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:http/http.dart' as http;
 import 'package:logger/logger.dart';
+import '../constants/app_constants.dart';
 import '../models/broken_link.dart';
 import '../models/site.dart';
-import '../constants/app_constants.dart';
 import '../utils/url_helper.dart';
 import 'link_checker/http_client.dart';
-import 'link_checker/sitemap_parser.dart';
-import 'link_checker/result_repository.dart';
-import 'link_checker/link_validator.dart';
-import 'link_checker/scan_orchestrator.dart';
 import 'link_checker/link_extractor.dart';
-import 'link_checker/result_builder.dart';
+import 'link_checker/link_validator.dart';
 import 'link_checker/models.dart'; // + add types (SitemapLoadResult, PreviousScanData)
+import 'link_checker/result_builder.dart';
+import 'link_checker/result_repository.dart';
+import 'link_checker/scan_orchestrator.dart';
+import 'link_checker/sitemap_parser.dart';
 
 abstract class LinkCheckerClient {
   void setHistoryLimit(bool isPremium);
@@ -47,10 +48,12 @@ abstract class LinkCheckerClient {
 
 /// Service for checking broken links on websites
 class LinkCheckerService implements LinkCheckerClient {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final http.Client _httpClient = http.Client();
-  final Logger _logger = Logger();
+  static const String _firebaseAppName = 'sitecat-current';
+
+  late final FirebaseFirestore _firestore;
+  late final FirebaseAuth _auth;
+  late final http.Client _httpClient;
+  late final Logger _logger;
 
   // Helper classes
   late final LinkCheckerHttpClient _httpHelper;
@@ -67,7 +70,33 @@ class LinkCheckerService implements LinkCheckerClient {
   // Page limit for scanning (can be set based on premium status)
   int _pageLimit = AppConstants.freePlanPageLimit;
 
-  LinkCheckerService() {
+  LinkCheckerService({
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
+    http.Client? httpClient,
+    Logger? logger,
+  }) {
+    FirebaseApp app;
+    try {
+      app = Firebase.app(_firebaseAppName);
+    } on FirebaseException {
+      if (Firebase.apps.isNotEmpty) {
+        // Fallback to default app if named app not initialized yet
+        app = Firebase.app();
+      } else {
+        // No Firebase app initialized; surface a clear error
+        throw FirebaseException(
+          plugin: 'firebase_core',
+          message:
+              'Firebase has not been initialized. Initialize Firebase before creating LinkCheckerService.',
+        );
+      }
+    }
+    _firestore = firestore ?? FirebaseFirestore.instanceFor(app: app);
+    _auth = auth ?? FirebaseAuth.instanceFor(app: app);
+    _httpClient = httpClient ?? http.Client();
+    _logger = logger ?? Logger();
+
     _httpHelper = LinkCheckerHttpClient(_httpClient);
     _sitemapParser = SitemapParser(_httpClient, maxPageLimit: _pageLimit);
     _orchestrator = ScanOrchestrator(
