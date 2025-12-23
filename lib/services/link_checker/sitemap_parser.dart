@@ -5,8 +5,9 @@ import '../../utils/url_helper.dart';
 /// Sitemap parser for extracting URLs from sitemap.xml
 class SitemapParser {
   final http.Client _httpClient;
+  final int maxPageLimit;
 
-  SitemapParser(this._httpClient);
+  SitemapParser(this._httpClient, {required this.maxPageLimit});
 
   /// Fetch URLs from sitemap.xml (supports up to 2 levels of sitemap index)
   Future<List<Uri>> fetchSitemapUrls(
@@ -62,8 +63,8 @@ class SitemapParser {
                 final childUrls = await parseSitemapXml(childSitemapUrl);
                 allUrls.addAll(childUrls);
 
-                // Limit total URLs to avoid excessive processing (aligned with premium plan limit)
-                if (allUrls.length >= 1000) {
+                // Limit total URLs based on user's subscription tier
+                if (allUrls.length >= maxPageLimit) {
                   break;
                 }
               } catch (e) {
@@ -90,8 +91,8 @@ class SitemapParser {
       // Convert localhost for Android emulator
       final convertedUrl = UrlHelper.convertLocalhostForPlatform(sitemapUrl);
 
-      // Add short delay to avoid overwhelming the server
-      await Future.delayed(const Duration(milliseconds: 500));
+      // Add delay to avoid overwhelming the server (prioritize server load over speed)
+      await Future.delayed(const Duration(milliseconds: 1000));
 
       // Use shared client instead of creating new one
       final response = await _httpClient

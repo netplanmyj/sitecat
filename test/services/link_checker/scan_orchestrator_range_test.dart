@@ -18,7 +18,7 @@ void main() {
       final raw = http.Client();
       final orchestrator = ScanOrchestrator(
         httpClient: LinkCheckerHttpClient(raw),
-        sitemapParser: SitemapParser(raw),
+        sitemapParser: SitemapParser(raw, maxPageLimit: 1000),
         pageLimit: 1000, // high enough to not limit the test
       );
 
