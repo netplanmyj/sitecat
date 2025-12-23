@@ -76,7 +76,22 @@ class LinkCheckerService implements LinkCheckerClient {
     http.Client? httpClient,
     Logger? logger,
   }) {
-    final app = Firebase.app(_firebaseAppName);
+    FirebaseApp app;
+    try {
+      app = Firebase.app(_firebaseAppName);
+    } on FirebaseException {
+      if (Firebase.apps.isNotEmpty) {
+        // Fallback to default app if named app not initialized yet
+        app = Firebase.app();
+      } else {
+        // No Firebase app initialized; surface a clear error
+        throw FirebaseException(
+          plugin: 'firebase_core',
+          message:
+              'Firebase has not been initialized. Initialize Firebase before creating LinkCheckerService.',
+        );
+      }
+    }
     _firestore = firestore ?? FirebaseFirestore.instanceFor(app: app);
     _auth = auth ?? FirebaseAuth.instanceFor(app: app);
     _httpClient = httpClient ?? http.Client();

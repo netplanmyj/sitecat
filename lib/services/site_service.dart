@@ -14,7 +14,20 @@ class SiteService implements SiteUpdater {
   late final FirebaseAuth _auth;
 
   SiteService({FirebaseFirestore? firestore, FirebaseAuth? auth}) {
-    final app = Firebase.app(_firebaseAppName);
+    FirebaseApp app;
+    try {
+      app = Firebase.app(_firebaseAppName);
+    } on FirebaseException {
+      if (Firebase.apps.isNotEmpty) {
+        app = Firebase.app();
+      } else {
+        throw FirebaseException(
+          plugin: 'firebase_core',
+          message:
+              'Firebase has not been initialized. Initialize Firebase before creating SiteService.',
+        );
+      }
+    }
     _firestore = firestore ?? FirebaseFirestore.instanceFor(app: app);
     _auth = auth ?? FirebaseAuth.instanceFor(app: app);
   }
@@ -82,13 +95,19 @@ class SiteService implements SiteUpdater {
       throw Exception('User must be authenticated to update a site');
     }
 
-    // Some legacy documents may miss userId; align them to the current user
     final currentUserId = _currentUserId!;
-    final siteToUpdate = site.userId.isEmpty
+    final docRef = _sitesCollection(currentUserId).doc(site.id);
+    final snapshot = await docRef.get();
+    if (!snapshot.exists) {
+      throw Exception('Site not found');
+    }
+
+    // Ensure ownership based on stored userId; align legacy empty userId safely
+    final existing = Site.fromFirestore(snapshot);
+    final siteToUpdate = existing.userId.isEmpty
         ? site.copyWith(userId: currentUserId)
         : site;
 
-    // Verify ownership
     if (siteToUpdate.userId != currentUserId) {
       throw Exception(
         'Unauthorized: Cannot update site belonging to another user',
@@ -96,9 +115,7 @@ class SiteService implements SiteUpdater {
     }
 
     try {
-      await _sitesCollection(
-        currentUserId,
-      ).doc(siteToUpdate.id).update(siteToUpdate.toFirestore());
+      await docRef.update(siteToUpdate.toFirestore());
     } catch (e) {
       throw Exception('Failed to update site: $e');
     }
