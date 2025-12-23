@@ -13,9 +13,9 @@ import 'package:logger/logger.dart';
 class SubscriptionService {
   final InAppPurchase _inAppPurchase = InAppPurchase.instance;
   static const String _firebaseAppName = 'sitecat-current';
-  FirebaseFirestore? _firestore;
-  FirebaseAuth? _auth;
-  FirebaseFunctions? _functions;
+  late final FirebaseFirestore _firestore;
+  late final FirebaseAuth _auth;
+  late final FirebaseFunctions _functions;
   bool _initialized = false;
   final Logger _logger = Logger();
 
@@ -25,6 +25,19 @@ class SubscriptionService {
   /// 購入状態のストリーム
   StreamSubscription<List<PurchaseDetails>>? _subscription;
 
+  SubscriptionService({
+    FirebaseFirestore? firestore,
+    FirebaseAuth? auth,
+    FirebaseFunctions? functions,
+  }) {
+    final app = Firebase.app(_firebaseAppName);
+    _firestore = firestore ?? FirebaseFirestore.instanceFor(app: app);
+    _auth = auth ?? FirebaseAuth.instanceFor(app: app);
+    _functions =
+        functions ??
+        FirebaseFunctions.instanceFor(app: app, region: 'us-central1');
+  }
+
   Future<void> _ensureInitialized() async {
     if (_initialized) return;
     await initialize();
@@ -33,15 +46,6 @@ class SubscriptionService {
   /// 初期化
   Future<void> initialize() async {
     if (_initialized) return; // Prevent double init (late field reassign)
-
-    // Bind Firebase services to the named app to respect dev/prod environment
-    final app = Firebase.app(_firebaseAppName);
-    _firestore ??= FirebaseFirestore.instanceFor(app: app);
-    _auth ??= FirebaseAuth.instanceFor(app: app);
-    _functions ??= FirebaseFunctions.instanceFor(
-      app: app,
-      region: 'us-central1',
-    );
 
     // In-App Purchaseが利用可能かチェック
     final available = await _inAppPurchase.isAvailable();
@@ -73,12 +77,12 @@ class SubscriptionService {
   /// 3. 結果をFirestoreに保存
   Future<bool> hasLifetimeAccess() async {
     await _ensureInitialized();
-    final user = _auth!.currentUser;
+    final user = _auth.currentUser;
     if (user == null) return false;
 
     try {
       // Firestoreのキャッシュを確認
-      final doc = await _firestore!
+      final doc = await _firestore
           .collection('users')
           .doc(user.uid)
           .collection('subscription')
@@ -96,7 +100,7 @@ class SubscriptionService {
       await _inAppPurchase.restorePurchases();
 
       // 再度Firestoreを確認（リストア処理で更新される可能性がある）
-      final updatedDoc = await _firestore!
+      final updatedDoc = await _firestore
           .collection('users')
           .doc(user.uid)
           .collection('subscription')
@@ -118,7 +122,7 @@ class SubscriptionService {
   /// 買い切り版を購入
   Future<bool> purchaseLifetimeAccess() async {
     await _ensureInitialized();
-    final user = _auth!.currentUser;
+    final user = _auth.currentUser;
     if (user == null) {
       _logger.e('User not authenticated');
       return false;
@@ -161,7 +165,7 @@ class SubscriptionService {
   /// 購入履歴をリストア
   Future<bool> restorePurchases() async {
     await _ensureInitialized();
-    final user = _auth!.currentUser;
+    final user = _auth.currentUser;
     if (user == null) {
       _logger.e('User not authenticated');
       return false;
@@ -235,7 +239,7 @@ class SubscriptionService {
     PurchaseDetails purchaseDetails,
   ) async {
     await _ensureInitialized();
-    final user = _auth!.currentUser;
+    final user = _auth.currentUser;
     if (user == null) {
       _logger.e('User not authenticated during purchase');
       return;
@@ -248,7 +252,7 @@ class SubscriptionService {
     PurchaseDetails purchaseDetails,
   ) async {
     try {
-      final callable = _functions!.httpsCallable('saveLifetimePurchase');
+      final callable = _functions.httpsCallable('saveLifetimePurchase');
       await callable.call({
         'productId': purchaseDetails.productID,
         'platform': Platform.isIOS ? 'ios' : 'android',
