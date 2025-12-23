@@ -1,3 +1,5 @@
+import 'error_messages.dart';
+
 /// アプリケーション全体で使用する定数定義
 class AppConstants {
   // プライベートコンストラクタでインスタンス化を防ぐ
@@ -18,14 +20,13 @@ class AppConstants {
   static const int freePlanHistoryLimit = 10;
   static const int premiumHistoryLimit = 50;
 
-  /// プラン関連のユーザー向けメッセージ（日本語）
+  /// プラン関連のユーザー向けメッセージ
   /// 無料プランのサイト上限に関する案内文
-  static const String siteLimitMessage =
-      '無料プランでは最大$freePlanSiteLimit個のサイトを登録できます。';
+  static const String siteLimitMessage = ErrorMessages.siteLimitMessage;
 
-  /// サイト上限到達時のエラーメッセージ（削除誘導を含む）
+  /// サイト上限到達時のエラーメッセージ
   static const String siteLimitReachedMessage =
-      'サイト数の上限に達しました。既存のサイトを削除してから追加してください。';
+      ErrorMessages.siteLimitReachedMessage;
   static const String premiumSiteLimitReachedMessage =
       'Site limit reached ($premiumSiteLimit).';
   static const String pageLimitMessage =

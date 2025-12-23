@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import '../services/subscription_service.dart';
+import '../constants/error_messages.dart';
 
 /// サブスクリプション状態管理Provider
 class SubscriptionProvider with ChangeNotifier {
@@ -39,7 +40,7 @@ class SubscriptionProvider with ChangeNotifier {
       await _checkLifetimeAccess();
       await _loadProductDetails();
     } catch (e) {
-      _error = 'サブスクリプション情報の取得に失敗しました: $e';
+      _error = '${ErrorMessages.failedToLoadSubscriptionInfo} $e';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -52,7 +53,7 @@ class SubscriptionProvider with ChangeNotifier {
       _hasLifetimeAccess = await _subscriptionService.hasLifetimeAccess();
       notifyListeners();
     } catch (e) {
-      _error = 'アクセス権の確認に失敗しました: $e';
+      _error = '${ErrorMessages.failedToCheckAccessRights} $e';
       notifyListeners();
     }
   }
@@ -63,7 +64,7 @@ class SubscriptionProvider with ChangeNotifier {
       _productDetails = await _subscriptionService.getProductDetails();
       notifyListeners();
     } catch (e) {
-      _error = '商品情報の取得に失敗しました: $e';
+      _error = '${ErrorMessages.failedToLoadProductDetails} $e';
       notifyListeners();
     }
   }
@@ -82,12 +83,12 @@ class SubscriptionProvider with ChangeNotifier {
         // _onPurchaseUpdate() → saveLifetimePurchase → Firestore 保存が完了するまでポーリング
         await _waitForPurchaseCompletion();
       } else {
-        _error = '購入に失敗しました';
+        _error = ErrorMessages.purchaseFailed;
       }
 
       return success;
     } catch (e) {
-      _error = '購入処理中にエラーが発生しました: $e';
+      _error = '${ErrorMessages.purchaseErrorOccurred} $e';
       return false;
     } finally {
       _isLoading = false;
@@ -126,12 +127,12 @@ class SubscriptionProvider with ChangeNotifier {
       if (success) {
         _hasLifetimeAccess = true;
       } else {
-        _error = 'リストアする購入履歴が見つかりませんでした';
+        _error = ErrorMessages.noRestorablePurchases;
       }
 
       return success;
     } catch (e) {
-      _error = 'リストア処理中にエラーが発生しました: $e';
+      _error = '${ErrorMessages.restoreErrorOccurred} $e';
       return false;
     } finally {
       _isLoading = false;

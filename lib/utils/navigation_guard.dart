@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/link_checker_provider.dart';
+import '../constants/error_messages.dart';
 import 'dialogs.dart';
 
 /// 前向き遷移や戻る操作の前に、スキャン中なら
@@ -17,10 +18,10 @@ Future<bool> confirmAndSaveIfScanning(
 
   final shouldLeave = await Dialogs.confirm(
     context,
-    title: 'スキャンを終了しますか？',
-    message: '現在の進行状況をResultsに保存して終了します。よろしいですか？',
-    okText: '保存して終了',
-    cancelText: 'キャンセル',
+    title: ErrorMessages.confirmEndScanTitle,
+    message: ErrorMessages.confirmEndScanMessage,
+    okText: ErrorMessages.confirmEndScanOkText,
+    cancelText: ErrorMessages.confirmEndScanCancelText,
   );
 
   if (shouldLeave == true && context.mounted) {

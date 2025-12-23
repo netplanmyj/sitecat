@@ -6,6 +6,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:logger/logger.dart';
 import 'dart:io' show Platform;
+import '../constants/error_messages.dart';
 
 /// Firebase Authentication サービス
 /// Google Sign-In を使用したユーザー認証を管理する
@@ -556,27 +557,27 @@ class AuthService {
   String _handleAuthException(FirebaseAuthException e) {
     switch (e.code) {
       case 'account-exists-with-different-credential':
-        return 'このメールアドレスは既に別の認証方法で登録されています。';
+        return ErrorMessages.accountExistsWithDifferentCredential;
       case 'invalid-credential':
-        return '認証情報が無効です。';
+        return ErrorMessages.invalidCredential;
       case 'operation-not-allowed':
-        return 'この認証方法は有効化されていません。';
+        return ErrorMessages.operationNotAllowed;
       case 'user-disabled':
-        return 'このアカウントは無効化されています。';
+        return ErrorMessages.userDisabled;
       case 'user-not-found':
-        return 'ユーザーが見つかりません。';
+        return ErrorMessages.userNotFound;
       case 'wrong-password':
-        return 'パスワードが間違っています。';
+        return ErrorMessages.wrongPassword;
       case 'invalid-verification-code':
-        return '認証コードが無効です。';
+        return ErrorMessages.invalidVerificationCode;
       case 'invalid-verification-id':
-        return '認証IDが無効です。';
+        return ErrorMessages.invalidVerificationId;
       case 'network-request-failed':
-        return 'ネットワークエラーが発生しました。';
+        return ErrorMessages.networkRequestFailed;
       case 'too-many-requests':
-        return 'リクエストが多すぎます。しばらく待ってから再試行してください。';
+        return ErrorMessages.tooManyRequests;
       default:
-        return '認証エラーが発生しました: ${e.message}';
+        return '${ErrorMessages.authenticationError} ${e.message}';
     }
   }
 

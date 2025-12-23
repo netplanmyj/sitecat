@@ -56,7 +56,10 @@ void main() {
       await provider.initialize();
 
       // Assert
-      expect(provider.error, contains('サブスクリプション情報の取得に失敗しました'));
+      expect(
+        provider.error,
+        contains('Failed to load subscription information:'),
+      );
       expect(provider.isLoading, false);
     });
 
@@ -90,7 +93,7 @@ void main() {
 
       // Assert
       expect(result, false);
-      expect(provider.error, '購入に失敗しました');
+      expect(provider.error, 'Purchase failed.');
       expect(provider.isLoading, false);
     });
 
@@ -105,7 +108,7 @@ void main() {
 
       // Assert
       expect(result, false);
-      expect(provider.error, contains('購入処理中にエラーが発生しました'));
+      expect(provider.error, contains('An error occurred during purchase:'));
       expect(provider.isLoading, false);
     });
 
@@ -136,7 +139,7 @@ void main() {
 
       // Assert
       expect(result, false);
-      expect(provider.error, 'リストアする購入履歴が見つかりませんでした');
+      expect(provider.error, 'No restorable purchases found.');
       expect(provider.isLoading, false);
     });
 
@@ -151,7 +154,7 @@ void main() {
 
       // Assert
       expect(result, false);
-      expect(provider.error, contains('リストア処理中にエラーが発生しました'));
+      expect(provider.error, contains('An error occurred during restoration:'));
       expect(provider.isLoading, false);
     });
 
