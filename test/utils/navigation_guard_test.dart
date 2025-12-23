@@ -139,10 +139,10 @@ void main() {
     await tester.pumpAndSettle();
 
     // Confirm dialog should be visible
-    expect(find.text('スキャンを終了しますか？'), findsOneWidget);
+    expect(find.text('End scan?'), findsOneWidget);
 
-    // Tap OK (保存して終了)
-    await tester.tap(find.widgetWithText(ElevatedButton, '保存して終了'));
+    // Tap OK (Save and End)
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Save and End'));
     await tester.pumpAndSettle();
 
     final ok = await future;
@@ -158,10 +158,10 @@ void main() {
 
     final future = confirmAndSaveIfScanning(context, 'site_1');
     await tester.pumpAndSettle();
-    expect(find.text('スキャンを終了しますか？'), findsOneWidget);
+    expect(find.text('End scan?'), findsOneWidget);
 
     // Tap Cancel
-    await tester.tap(find.widgetWithText(TextButton, 'キャンセル'));
+    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
     await tester.pumpAndSettle();
 
     final ok = await future;

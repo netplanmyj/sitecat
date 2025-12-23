@@ -376,7 +376,7 @@ void main() {
       );
       expect(result, false);
       // Premium users see limit number in error message (English)
-      expect(provider.error, contains('Site limit reached (30)'));
+      expect(provider.error, contains('Site limit reached (30 sites maximum)'));
     });
   });
 }

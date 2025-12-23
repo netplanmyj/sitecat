@@ -12,13 +12,13 @@ void main() {
     test('site limit message contains the limit number', () {
       final message = AppConstants.siteLimitMessage;
       expect(message, contains('3'));
-      expect(message, contains('個'));
+      expect(message, contains('sites'));
     });
 
     test('site limit reached message has proper content', () {
       final errorMessage = AppConstants.siteLimitReachedMessage;
-      expect(errorMessage, contains('上限'));
-      expect(errorMessage, contains('削除'));
+      expect(errorMessage, contains('limit'));
+      expect(errorMessage, contains('Delete'));
     });
 
     test('check interval constants are defined correctly', () {
