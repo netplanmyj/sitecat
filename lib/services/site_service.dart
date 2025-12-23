@@ -82,8 +82,14 @@ class SiteService implements SiteUpdater {
       throw Exception('User must be authenticated to update a site');
     }
 
+    // Some legacy documents may miss userId; align them to the current user
+    final currentUserId = _currentUserId!;
+    final siteToUpdate = site.userId.isEmpty
+        ? site.copyWith(userId: currentUserId)
+        : site;
+
     // Verify ownership
-    if (site.userId != _currentUserId) {
+    if (siteToUpdate.userId != currentUserId) {
       throw Exception(
         'Unauthorized: Cannot update site belonging to another user',
       );
@@ -91,8 +97,8 @@ class SiteService implements SiteUpdater {
 
     try {
       await _sitesCollection(
-        _currentUserId!,
-      ).doc(site.id).update(site.toFirestore());
+        currentUserId,
+      ).doc(siteToUpdate.id).update(siteToUpdate.toFirestore());
     } catch (e) {
       throw Exception('Failed to update site: $e');
     }
