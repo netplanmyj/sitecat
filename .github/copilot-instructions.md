@@ -1,3 +1,45 @@
+# AI Coding Agent Quickstart (TL;DR)
+
+This repo uses a strict layered architecture and CI gates. Follow these essentials to be productive:
+
+## Big Picture
+- Data flow: Screen → Consumer<Provider> → Provider → Service → Firestore. Screens contain no I/O; Providers orchestrate state; Services perform all Firebase/HTTP I/O; Models provide `fromFirestore`/`toFirestore`/`copyWith`.
+- Realtime first: Services return Streams for Firestore-backed data; Providers subscribe in `initialize()` and call `notifyListeners()`; avoid Futures for realtime.
+- Modularity: Link checker lives under lib/services/link_checker split into 8 files (HTTP, parser, extractor, validator, result builder/repo, orchestrator, models). Orchestrator uses isolates; scans can pause/resume via `Site.lastScannedPageIndex`.
+
+## Must-Do Workflow
+- Before any PR: `flutter analyze && dart format --set-exit-if-changed . && flutter test`. CI blocks merges if any step fails.
+- Branching: `feature/*` and `hotfix/*` from `main`; never push directly to `main`; open PRs with all checks passing.
+
+## Firebase & Data
+- Env selection: lib/firebase_options.dart auto-picks dev/prod via `kReleaseMode` (debug/profile → sitecat-dev, release → sitecat-prod). CI uses lib/firebase_options.dart.example.
+- Firestore layout: All user data scoped under `/users/{uid}/**` with subcollections [sites, monitoringResults, linkCheckResults]. Services enforce auth checks before access.
+
+## Architecture Essentials
+- Providers: Bridge UI and services; manage `_isLoading`, `_error`, and notify listeners. Inject dependencies via constructors for testability.
+- Services: Stateless, I/O-only; return `Stream<T>` for realtime, `Future<T>` for one-offs. Use lazy repository init to bind to the current user at first access.
+- Constants: Business limits live in lib/constants/app_constants.dart (site/history/page limits, cooldowns). Never hardcode magic numbers.
+- Cooldown: Respect 10s intervals via `CooldownService`; Providers expose `canCheckSite()`/`getTimeUntilNextCheck()`.
+- Premium gates: Check `SubscriptionProvider` for limits; services set history/page limits accordingly.
+
+## Link Checker Module
+- Files: `scan_orchestrator.dart`, `sitemap_parser.dart`, `link_extractor.dart`, `link_validator.dart`, `http_client.dart`, `result_builder.dart`, `result_repository.dart`, `models.dart`.
+- Behavior: ~10 concurrent HTTP requests; progress tracked via dedicated cache/progress helpers; resume scans using `continueFromLastScan`.
+
+## Testing & Mocks
+- Tests mirror `lib/` under test. Use `fake_cloud_firestore`, `firebase_auth_mocks`, and Mockito; run `dart run build_runner build` after adding `@GenerateMocks`.
+- Run all: `flutter test`. Targeted: `flutter test test/services/site_service_test.dart`. Coverage: `flutter test --coverage`.
+
+## Patterns & Examples
+- Create Site: Screen calls `SiteProvider.createSite(url)`; Provider validates via `SiteService.validateUrl()` then `SiteService.createSite()`; Firestore Stream updates UI automatically.
+- Realtime Stream: `SiteService.getUserSites()` returns ordered snapshots mapped to models; Provider subscribes in `initialize()` and updates `_sites`.
+- Refactoring: Split providers >400 lines and services >500 lines into focused modules; extract caches/progress into helpers; keep screens UI-only.
+
+## Guardrails
+- Do not put Firestore/HTTP calls in screens or providers; use services.
+- Do not change the Firestore hierarchy or bypass auth guards.
+- Keep changes minimal and consistent with existing style; update docs/tests where relevant.
+
 # GitHub Copilot Instructions for SiteCat
 
 ## Project Overview

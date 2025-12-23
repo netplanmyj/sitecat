@@ -8,6 +8,7 @@ import {
   onDocumentDeleted,
 } from "firebase-functions/v2/firestore";
 import * as logger from "firebase-functions/logger";
+import * as admin from "firebase-admin";
 
 // Start writing functions
 // https://firebase.google.com/docs/functions/typescript
@@ -26,6 +27,16 @@ setGlobalOptions({maxInstances: 10});
 
 initializeApp();
 const db = getFirestore();
+
+// Helper refs (no hierarchy change for existing collections)
+const userDocRef = (userId: string) => db.collection("users").doc(userId);
+const sitesCollection = (userId: string) =>
+  userDocRef(userId).collection("sites");
+// Store counter under /users/{uid}/meta/sitesCounter
+const sitesCounterRef = (userId: string) =>
+  userDocRef(userId)
+    .collection("meta")
+    .doc("sitesCounter");
 
 const LIFETIME_PRODUCT_ID = "sitecat.lifetime.basic";
 const SUBSCRIPTION_DOC_ID = "lifetime";
@@ -310,9 +321,30 @@ export const createSiteTransaction = onCall(
     const sitesCol = userRef.collection("sites");
 
     try {
-      const result = await db.runTransaction(async (tx) => {
-        const snapshot = await tx.get(sitesCol.limit(limit + 1));
-        const currentCount = snapshot.size;
+      const result = await db.runTransaction(async (txn) => {
+        // 1) Read/initialize counter
+        const counterRef = sitesCounterRef(userId);
+        const counterSnap = await txn.get(counterRef);
+
+        let currentCount = 0;
+        if (counterSnap.exists) {
+          currentCount = (counterSnap.get("count") as number) ?? 0;
+        } else {
+          // Initialize by counting existing sites once
+          // (IDs only, low payload)
+          const idsQuery = sitesCollection(userId).select(
+            admin.firestore.FieldPath.documentId()
+          );
+          const idsSnap = await txn.get(idsQuery);
+          currentCount = idsSnap.size;
+
+          txn.set(counterRef, {
+            count: currentCount,
+            updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+          }, {merge: true});
+        }
+
+        // 2) Enforce limit
         if (currentCount >= limit) {
           throw new HttpsError("failed-precondition", "site-limit-reached", {
             limit,
@@ -320,10 +352,16 @@ export const createSiteTransaction = onCall(
           });
         }
 
+        // 3) Increment counter + create site atomically
+        txn.update(counterRef, {
+          count: admin.firestore.FieldValue.increment(1),
+          updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+        });
+
         const newSiteRef = sitesCol.doc();
         const now = FieldValue.serverTimestamp();
-        tx.set(userRef, {siteCount: currentCount + 1}, {merge: true});
-        tx.set(newSiteRef, {
+        txn.set(userRef, {siteCount: currentCount + 1}, {merge: true});
+        txn.set(newSiteRef, {
           url,
           name,
           sitemapUrl,
@@ -364,3 +402,19 @@ export const createSiteTransaction = onCall(
     }
   }
 );
+
+// Optional: reconciliation helper (only if needed; keep disabled by default)
+/*
+export async function reconcileSitesCounter(userId: string) {
+  await db.runTransaction(async (txn) => {
+    const idsQuery = sitesCollection(userId).select(
+      admin.firestore.FieldPath.documentId()
+    );
+    const idsSnap = await txn.get(idsQuery);
+    txn.set(sitesCounterRef(userId), {
+      count: idsSnap.size,
+      updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    }, {merge: true});
+  });
+}
+*/

@@ -18,15 +18,18 @@ class AppConstants {
   static const int freePlanHistoryLimit = 10;
   static const int premiumHistoryLimit = 50;
 
-  /// プランに関する説明メッセージ
+  /// プラン関連のユーザー向けメッセージ（日本語）
+  /// 無料プランのサイト上限に関する案内文
   static const String siteLimitMessage =
-      '無料版では$freePlanSiteLimit個までサイトを登録できます。';
+      '無料プランでは最大$freePlanSiteLimit個のサイトを登録できます。';
+
+  /// サイト上限到達時のエラーメッセージ（削除誘導を含む）
   static const String siteLimitReachedMessage =
-      'サイト登録数が上限に達しています。追加するには既存のサイトを削除してください。';
+      'サイト数の上限に達しました。既存のサイトを削除してから追加してください。';
   static const String premiumSiteLimitReachedMessage =
-      'サイト登録数が上限（$premiumSiteLimit個）に達しています。';
+      'Site limit reached ($premiumSiteLimit).';
   static const String pageLimitMessage =
-      '無料版では$freePlanPageLimitページまでクロール可能です。';
+      'Free plan can crawl up to $freePlanPageLimit pages.';
 
   /// 監視間隔の制限（分）
   static const int minCheckInterval = 5;

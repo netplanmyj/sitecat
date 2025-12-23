@@ -2,20 +2,22 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:logger/logger.dart';
 import 'package:sitecat/models/site.dart';
-import 'package:cloud_functions/cloud_functions.dart';
-import 'package:firebase_core/firebase_core.dart'; // + for Firebase.app()
-import 'package:firebase_auth/firebase_auth.dart';
 import '../services/site_service.dart';
 import '../services/demo_service.dart';
+import '../services/site_transaction_service.dart';
 import '../constants/app_constants.dart';
 import '../utils/validation.dart';
 import 'subscription_provider.dart';
 
 class SiteProvider extends ChangeNotifier {
-  SiteProvider({SiteService? siteService})
-    : _siteService = siteService ?? SiteService();
+  SiteProvider({
+    SiteService? siteService,
+    SiteTransactionService? siteTransactionService,
+  }) : _siteService = siteService ?? SiteService(),
+       _transactionService = siteTransactionService ?? SiteTransactionService();
 
   final SiteService _siteService;
+  final SiteTransactionService _transactionService;
   final Logger _logger = Logger();
 
   // State variables
@@ -109,7 +111,7 @@ class SiteProvider extends ChangeNotifier {
 
       if (sites.length >= currentLimit) {
         _error = _hasLifetimeAccess
-            ? 'サイト登録数が上限（30個）に達しています。'
+            ? AppConstants.premiumSiteLimitReachedMessage
             : AppConstants.siteLimitReachedMessage;
         return false;
       }
@@ -127,67 +129,47 @@ class SiteProvider extends ChangeNotifier {
       }
 
       try {
-        final app = Firebase.app('sitecat-current');
-        final auth = FirebaseAuth.instanceFor(app: app);
-        final user = auth.currentUser;
-        if (user == null) {
-          _error = '認証が必要です';
-          _isLoading = false;
-          notifyListeners();
-          return false;
-        }
-
-        final functions = FirebaseFunctions.instanceFor(
-          app: app,
-          region: 'us-central1',
+        final result = await _transactionService.createSiteTransaction(
+          url: url,
+          name: name,
+          sitemapUrl: sitemapUrl,
+          excludedPaths: excludedPaths,
+          checkInterval: checkInterval,
         );
-        final callable = functions.httpsCallable('createSiteTransaction');
-        final result = await callable.call<Map<String, dynamic>>({
-          'url': url,
-          'name': name,
-          'sitemapUrl': sitemapUrl,
-          'excludedPaths': excludedPaths,
-          'checkInterval': checkInterval,
-        });
 
-        if (result.data['ok'] == true) {
-          _logger.d(
-            'Site created via callable on project: ${app.options.projectId}',
-          );
+        if (result['ok'] == true) {
+          _logger.d('Site created via callable');
           return true;
         }
-        _error = 'サイトの作成に失敗しました';
+        _error = 'Failed to create site';
         return false;
-      } on FirebaseFunctionsException catch (e) {
+      } on SiteTransactionException catch (e) {
         _logger.e('Callable error: ${e.code} - ${e.message}', error: e);
 
         if (e.code == 'failed-precondition' &&
             e.message == 'site-limit-reached') {
-          final details = e.details as Map<String, dynamic>?;
+          final details = e.details;
           final limit = details?['limit'] as int?;
           _error = (limit == AppConstants.premiumSiteLimit)
-              ? 'サイト登録数が上限（30個）に達しています。'
+              ? AppConstants.premiumSiteLimitReachedMessage
               : AppConstants.siteLimitReachedMessage;
           return false;
         }
 
         if (e.code == 'unauthenticated') {
-          _error = '認証が必要です';
+          _error = 'Authentication required';
           return false;
         }
 
-        _error = 'サイトの作成に失敗しました: ${e.message}';
+        _error = 'Failed to create site: ${e.message}';
         return false;
       } catch (e) {
-        _error = 'サイトの作成に失敗しました';
+        _error = 'Failed to create site';
         _logger.e('Failed to create site via callable', error: e);
         return false;
-      } finally {
-        _isLoading = false;
-        notifyListeners();
       }
     } catch (e) {
-      _error = 'サイトの作成に失敗しました';
+      _error = 'Failed to create site';
       return false;
     } finally {
       _isLoading = false;
