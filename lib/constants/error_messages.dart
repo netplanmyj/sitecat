@@ -53,23 +53,23 @@ class ErrorMessages {
 
   // ===== Subscription/IAP =====
   static const String failedToLoadSubscriptionInfo =
-      'Failed to load subscription information: ';
+      'Failed to load subscription information:';
 
   static const String failedToCheckAccessRights =
-      'Failed to check access rights: ';
+      'Failed to check access rights:';
 
   static const String failedToLoadProductDetails =
-      'Failed to load product details: ';
+      'Failed to load product details:';
 
   static const String purchaseFailed = 'Purchase failed.';
 
   static const String purchaseErrorOccurred =
-      'An error occurred during purchase: ';
+      'An error occurred during purchase:';
 
   static const String noRestorablePurchases = 'No restorable purchases found.';
 
   static const String restoreErrorOccurred =
-      'An error occurred during restoration: ';
+      'An error occurred during restoration:';
 
   // ===== Navigation =====
   static const String confirmEndScanTitle = 'End scan?';

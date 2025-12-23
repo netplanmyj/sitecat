@@ -28,7 +28,7 @@ class AppConstants {
   static const String siteLimitReachedMessage =
       ErrorMessages.siteLimitReachedMessage;
   static const String premiumSiteLimitReachedMessage =
-      'Site limit reached ($premiumSiteLimit).';
+      ErrorMessages.premiumSiteLimitReachedMessage;
   static const String pageLimitMessage =
       'Free plan can crawl up to $freePlanPageLimit pages.';
 

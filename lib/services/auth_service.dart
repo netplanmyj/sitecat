@@ -577,7 +577,7 @@ class AuthService {
       case 'too-many-requests':
         return ErrorMessages.tooManyRequests;
       default:
-        return '${ErrorMessages.authenticationError} ${e.message}';
+        return '${ErrorMessages.authenticationError}: ${e.message}';
     }
   }
 
