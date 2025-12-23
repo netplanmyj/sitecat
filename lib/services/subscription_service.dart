@@ -17,6 +17,7 @@ class SubscriptionService {
   late final FirebaseAuth _auth;
   late final FirebaseFunctions _functions;
   bool _initialized = false;
+  Completer<void>? _initializationCompleter;
   final Logger _logger = Logger();
 
   /// 買い切り版の商品ID
@@ -40,29 +41,52 @@ class SubscriptionService {
 
   Future<void> _ensureInitialized() async {
     if (_initialized) return;
+
+    // 初期化中の場合は既存のCompleterを待つ
+    if (_initializationCompleter != null) {
+      return _initializationCompleter!.future;
+    }
+
     await initialize();
   }
 
   /// 初期化
   Future<void> initialize() async {
-    if (_initialized) return; // Prevent double init (late field reassign)
-
-    // In-App Purchaseが利用可能かチェック
-    final available = await _inAppPurchase.isAvailable();
-    if (!available) {
-      _logger.e('In-App Purchase is not available on this device');
-      return;
+    if (_initialized) {
+      return; // Prevent double initialization of purchase stream
     }
 
-    // 購入ストリームをリッスン
-    final purchaseUpdated = _inAppPurchase.purchaseStream;
-    _subscription ??= purchaseUpdated.listen(
-      _onPurchaseUpdate,
-      onDone: _onPurchaseDone,
-      onError: _onPurchaseError,
-    );
+    // 並行呼び出しを防ぐためCompleterを作成
+    if (_initializationCompleter != null) {
+      return _initializationCompleter!.future;
+    }
+    _initializationCompleter = Completer<void>();
 
-    _initialized = true;
+    try {
+      // In-App Purchaseが利用可能かチェック
+      final available = await _inAppPurchase.isAvailable();
+      if (!available) {
+        _logger.e('In-App Purchase is not available on this device');
+        _initializationCompleter!.complete();
+        return;
+      }
+
+      // 購入ストリームをリッスン
+      final purchaseUpdated = _inAppPurchase.purchaseStream;
+      _subscription ??= purchaseUpdated.listen(
+        _onPurchaseUpdate,
+        onDone: _onPurchaseDone,
+        onError: _onPurchaseError,
+      );
+
+      _initialized = true;
+      _initializationCompleter!.complete();
+    } catch (e) {
+      _logger.e('Error initializing subscription service: $e');
+      _initializationCompleter!.completeError(e);
+      _initializationCompleter = null;
+      rethrow;
+    }
   }
 
   /// 破棄
@@ -238,7 +262,6 @@ class SubscriptionService {
   Future<void> _handleSuccessfulPurchase(
     PurchaseDetails purchaseDetails,
   ) async {
-    await _ensureInitialized();
     final user = _auth.currentUser;
     if (user == null) {
       _logger.e('User not authenticated during purchase');
