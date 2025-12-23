@@ -29,8 +29,7 @@ class AppConstants {
       ErrorMessages.siteLimitReachedMessage;
   static const String premiumSiteLimitReachedMessage =
       ErrorMessages.premiumSiteLimitReachedMessage;
-  static const String pageLimitMessage =
-      'Free plan can crawl up to $freePlanPageLimit pages.';
+  static const String pageLimitMessage = ErrorMessages.pageLimitMessage;
 
   /// 監視間隔の制限（分）
   static const int minCheckInterval = 5;

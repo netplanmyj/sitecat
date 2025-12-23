@@ -39,7 +39,7 @@ class ErrorMessages {
       'Too many requests. Please wait a moment and try again.';
 
   /// Generic authentication error
-  static const String authenticationError = 'Authentication failed.';
+  static const String authenticationError = 'Authentication failed:';
 
   // ===== Site Management =====
   static const String siteLimitMessage =
@@ -51,6 +51,8 @@ class ErrorMessages {
   static const String premiumSiteLimitReachedMessage =
       'Site limit reached (30 sites maximum).';
 
+  static const String pageLimitMessage = 'Free plan can crawl up to 200 pages.';
+
   // ===== Subscription/IAP =====
   static const String failedToLoadSubscriptionInfo =
       'Failed to load subscription information:';
@@ -61,7 +63,7 @@ class ErrorMessages {
   static const String failedToLoadProductDetails =
       'Failed to load product details:';
 
-  static const String purchaseFailed = 'Purchase failed.';
+  static const String purchaseFailed = 'Purchase failed:';
 
   static const String purchaseErrorOccurred =
       'An error occurred during purchase:';

@@ -93,7 +93,7 @@ void main() {
 
       // Assert
       expect(result, false);
-      expect(provider.error, 'Purchase failed.');
+      expect(provider.error, contains('Purchase failed:'));
       expect(provider.isLoading, false);
     });
 

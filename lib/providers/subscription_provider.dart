@@ -83,7 +83,7 @@ class SubscriptionProvider with ChangeNotifier {
         // _onPurchaseUpdate() → saveLifetimePurchase → Firestore 保存が完了するまでポーリング
         await _waitForPurchaseCompletion();
       } else {
-        _error = ErrorMessages.purchaseFailed;
+        _error = '${ErrorMessages.purchaseFailed} Payment was not completed.';
       }
 
       return success;
