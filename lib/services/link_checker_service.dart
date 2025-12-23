@@ -54,9 +54,9 @@ class LinkCheckerService implements LinkCheckerClient {
 
   // Helper classes
   late final LinkCheckerHttpClient _httpHelper;
-  late final SitemapParser _sitemapParser;
+  late SitemapParser _sitemapParser;
   late ScanOrchestrator _orchestrator;
-  late final LinkExtractor _extractor;
+  late LinkExtractor _extractor;
   late ResultBuilder _resultBuilder;
   LinkCheckResultRepository? _repository;
   String? _repositoryUserId;
@@ -69,7 +69,7 @@ class LinkCheckerService implements LinkCheckerClient {
 
   LinkCheckerService() {
     _httpHelper = LinkCheckerHttpClient(_httpClient);
-    _sitemapParser = SitemapParser(_httpClient);
+    _sitemapParser = SitemapParser(_httpClient, maxPageLimit: _pageLimit);
     _orchestrator = ScanOrchestrator(
       httpClient: _httpHelper,
       sitemapParser: _sitemapParser,
@@ -127,11 +127,18 @@ class LinkCheckerService implements LinkCheckerClient {
     _pageLimit = isPremium
         ? AppConstants.premiumPlanPageLimit
         : AppConstants.freePlanPageLimit;
+    // Recreate SitemapParser with new page limit
+    _sitemapParser = SitemapParser(_httpClient, maxPageLimit: _pageLimit);
     // Recreate orchestrator so new page limit is applied to subsequent scans
     _orchestrator = ScanOrchestrator(
       httpClient: _httpHelper,
       sitemapParser: _sitemapParser,
       pageLimit: _pageLimit,
+    );
+    // Recreate extractor with new sitemap parser
+    _extractor = LinkExtractor(
+      httpClient: _httpHelper,
+      sitemapParser: _sitemapParser,
     );
   }
 
