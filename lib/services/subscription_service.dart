@@ -39,15 +39,17 @@ class SubscriptionService {
         FirebaseFunctions.instanceFor(app: app, region: 'us-central1');
   }
 
-  Future<void> _ensureInitialized() async {
-    if (_initialized) return;
+  Future<void> _ensureInitialized() {
+    if (_initialized) {
+      return Future.value();
+    }
 
     // 初期化中の場合は既存のCompleterを待つ
     if (_initializationCompleter != null) {
       return _initializationCompleter!.future;
     }
 
-    await initialize();
+    return initialize();
   }
 
   /// 初期化
@@ -67,6 +69,7 @@ class SubscriptionService {
       final available = await _inAppPurchase.isAvailable();
       if (!available) {
         _logger.e('In-App Purchase is not available on this device');
+        _initialized = true; // Mark as initialized to prevent retry
         _initializationCompleter!.complete();
         return;
       }
@@ -84,6 +87,7 @@ class SubscriptionService {
     } catch (e) {
       _logger.e('Error initializing subscription service: $e');
       _initializationCompleter!.completeError(e);
+      // Reset completer to allow retry, but keep _initialized = false
       _initializationCompleter = null;
       rethrow;
     }
