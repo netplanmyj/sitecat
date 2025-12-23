@@ -62,8 +62,8 @@ class SitemapParser {
                 final childUrls = await parseSitemapXml(childSitemapUrl);
                 allUrls.addAll(childUrls);
 
-                // Limit total URLs to avoid excessive processing
-                if (allUrls.length >= 200) {
+                // Limit total URLs to avoid excessive processing (aligned with premium plan limit)
+                if (allUrls.length >= 1000) {
                   break;
                 }
               } catch (e) {
@@ -90,8 +90,8 @@ class SitemapParser {
       // Convert localhost for Android emulator
       final convertedUrl = UrlHelper.convertLocalhostForPlatform(sitemapUrl);
 
-      // Add longer delay to avoid overwhelming the server
-      await Future.delayed(const Duration(milliseconds: 2000));
+      // Add short delay to avoid overwhelming the server
+      await Future.delayed(const Duration(milliseconds: 500));
 
       // Use shared client instead of creating new one
       final response = await _httpClient
