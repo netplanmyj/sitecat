@@ -7,8 +7,23 @@ import 'package:sitecat/constants/app_constants.dart';
 import 'package:sitecat/models/site.dart';
 import 'package:sitecat/providers/site_provider.dart';
 import 'package:sitecat/services/site_service.dart';
+import 'package:sitecat/services/site_transaction_service.dart';
 
 import 'site_provider_test.mocks.dart';
+
+// Simple fake transaction service that simulates success
+class _FakeSiteTransactionService extends SiteTransactionService {
+  @override
+  Future<Map<String, dynamic>> createSiteTransaction({
+    required String url,
+    required String name,
+    String? sitemapUrl,
+    List<String> excludedPaths = const [],
+    int? checkInterval,
+  }) async {
+    return {'ok': true};
+  }
+}
 
 @GenerateMocks([SiteService])
 void main() {
@@ -54,7 +69,10 @@ void main() {
 
   setUp(() {
     mockSiteService = MockSiteService();
-    provider = SiteProvider(siteService: mockSiteService);
+    provider = SiteProvider(
+      siteService: mockSiteService,
+      siteTransactionService: _FakeSiteTransactionService(),
+    );
     sitesController = StreamController<List<Site>>.broadcast();
 
     when(
@@ -110,7 +128,6 @@ void main() {
 
       expect(result, isFalse);
       expect(provider.error, AppConstants.siteLimitReachedMessage);
-      verifyNever(mockSiteService.createSite(any));
     });
 
     test('rejects invalid url', () async {
@@ -120,7 +137,6 @@ void main() {
 
       expect(result, isFalse);
       expect(provider.error, 'Invalid URL format');
-      verifyNever(mockSiteService.createSite(any));
     });
 
     test('rejects duplicate url', () async {
@@ -134,13 +150,11 @@ void main() {
 
       expect(result, isFalse);
       expect(provider.error, 'A site with this URL already exists');
-      verifyNever(mockSiteService.createSite(any));
     });
 
     test('creates site successfully', () async {
       when(mockSiteService.validateUrl(any)).thenAnswer((_) async => true);
       when(mockSiteService.urlExists(any)).thenAnswer((_) async => false);
-      when(mockSiteService.createSite(any)).thenAnswer((_) async => 'new-id');
 
       final result = await provider.createSite(
         url: 'https://good.com',
@@ -152,7 +166,6 @@ void main() {
 
       expect(result, isTrue);
       expect(provider.error, isNull);
-      verify(mockSiteService.createSite(any)).called(1);
     });
   });
 
@@ -325,7 +338,7 @@ void main() {
   group('site limits', () {
     test('createSite() enforces site limit for free users', () async {
       await provider.initialize();
-      provider.setHasLifetimeAccess(false); // Free user
+      provider.setHasLifetimeAccess(false);
       await seedSitesFromStream(AppConstants.freePlanSiteLimit);
 
       final result = await provider.createSite(
@@ -334,6 +347,36 @@ void main() {
       );
       expect(result, false);
       expect(provider.error, AppConstants.siteLimitReachedMessage);
+    });
+
+    test('createSite() allows creation below limit', () async {
+      await provider.initialize();
+      provider.setHasLifetimeAccess(false);
+      await seedSitesFromStream(AppConstants.freePlanSiteLimit - 1);
+
+      when(mockSiteService.validateUrl(any)).thenAnswer((_) async => true);
+      when(mockSiteService.urlExists(any)).thenAnswer((_) async => false);
+
+      final result = await provider.createSite(
+        url: 'https://within-limit.com',
+        name: 'Within Limit',
+      );
+      expect(result, true);
+      expect(provider.error, isNull);
+    });
+
+    test('createSite() respects premium limit', () async {
+      await provider.initialize();
+      provider.setHasLifetimeAccess(true);
+      await seedSitesFromStream(AppConstants.premiumSiteLimit);
+
+      final result = await provider.createSite(
+        url: 'https://premium-exceed.com',
+        name: 'Premium Exceed',
+      );
+      expect(result, false);
+      // Premium users see limit number in error message (English)
+      expect(provider.error, contains('Site limit reached (30)'));
     });
   });
 }

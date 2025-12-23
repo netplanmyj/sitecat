@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import '../models/site.dart';
 import '../utils/validation_utils.dart';
 
@@ -8,8 +9,15 @@ abstract class SiteUpdater {
 }
 
 class SiteService implements SiteUpdater {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
+  static const String _firebaseAppName = 'sitecat-current';
+  late final FirebaseFirestore _firestore;
+  late final FirebaseAuth _auth;
+
+  SiteService({FirebaseFirestore? firestore, FirebaseAuth? auth}) {
+    final app = Firebase.app(_firebaseAppName);
+    _firestore = firestore ?? FirebaseFirestore.instanceFor(app: app);
+    _auth = auth ?? FirebaseAuth.instanceFor(app: app);
+  }
 
   // Get current user ID
   String? get _currentUserId => _auth.currentUser?.uid;

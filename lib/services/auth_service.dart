@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -9,14 +10,32 @@ import 'dart:io' show Platform;
 /// Firebase Authentication サービス
 /// Google Sign-In を使用したユーザー認証を管理する
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final GoogleSignIn _googleSignIn = GoogleSignIn(
-    // iOSのクライアントIDを明示的に指定（sitecat-prod）
-    clientId:
-        '775763766826-st83dsn9npb5i4r74g4i930ceii7flq5.apps.googleusercontent.com',
-  );
+  static const String _firebaseAppName = 'sitecat-current';
+
+  late final FirebaseAuth _auth;
+  late final GoogleSignIn _googleSignIn;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final Logger _logger = Logger();
+
+  AuthService({FirebaseAuth? auth}) {
+    final app = Firebase.app(_firebaseAppName);
+    _auth = auth ?? FirebaseAuth.instanceFor(app: app);
+
+    // 開発/本番で適切な iOS Client ID を選択
+    // FirebaseApp の projectId を用いて環境を判定
+    final projectId = app.options.projectId;
+    final isProd = projectId == 'sitecat-prod';
+    final iosClientId = isProd
+        // 本番（sitecat-prod）の iOS クライアントID
+        ? '775763766826-st83dsn9npb5i4r74g4i930ceii7flq5.apps.googleusercontent.com'
+        // 開発（sitecat-dev）の iOS クライアントID（Info.plist の URL scheme と一致）
+        : '974974534435-acs3q36ciqdm67u3ba5ea2ruk2ov9mo3.apps.googleusercontent.com';
+
+    _googleSignIn = GoogleSignIn(clientId: iosClientId);
+    _logger.i(
+      'GoogleSignIn configured for ${isProd ? 'PROD' : 'DEV'} with clientId: $iosClientId',
+    );
+  }
 
   /// 現在のユーザー取得
   User? get currentUser => _auth.currentUser;

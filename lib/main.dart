@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'firebase_options_dev.dart' as dev;
+import 'firebase_options_prod.dart' as prod;
 import 'package:provider/provider.dart';
 import 'providers/auth_provider.dart';
 import 'providers/site_provider.dart';
@@ -17,6 +19,10 @@ import 'screens/login_screen.dart';
 // Global SubscriptionService instance
 late final SubscriptionService subscriptionService;
 
+// 名前付きアプリで強制的に環境を固定
+const String kFirebaseAppName = 'sitecat-current';
+late final FirebaseApp currentFirebaseApp;
+
 void main() async {
   // Flutter binding の初期化
   WidgetsFlutterBinding.ensureInitialized();
@@ -24,8 +30,35 @@ void main() async {
   // Firebase の初期化（必ず runApp より前に完了させる）
   // 環境に応じたオプションを使用（Debug/Profile→dev, Release→prod）
   try {
-    await Firebase.initializeApp(
-      options: DefaultFirebaseOptions.currentPlatform,
+    const firebaseEnv = String.fromEnvironment(
+      'FIREBASE_ENV',
+      defaultValue: '',
+    );
+    final FirebaseOptions selectedOptions = switch (firebaseEnv) {
+      'prod' => prod.DefaultFirebaseOptions.currentPlatform,
+      'dev' => dev.DefaultFirebaseOptions.currentPlatform,
+      _ => DefaultFirebaseOptions.currentPlatform,
+    };
+
+    debugPrint(
+      'Firebase init → project: ${selectedOptions.projectId} (env: ${firebaseEnv.isEmpty ? 'auto' : firebaseEnv})',
+    );
+
+    try {
+      currentFirebaseApp = await Firebase.initializeApp(
+        name: kFirebaseAppName,
+        options: selectedOptions,
+      );
+    } on FirebaseException catch (e) {
+      if (e.code == 'duplicate-app') {
+        currentFirebaseApp = Firebase.app(kFirebaseAppName);
+      } else {
+        rethrow;
+      }
+    }
+
+    debugPrint(
+      'Firebase active app: ${currentFirebaseApp.name} → ${currentFirebaseApp.options.projectId}',
     );
   } on FirebaseException catch (e) {
     // If duplicate-app error occurs, it means Firebase is already initialized at native layer

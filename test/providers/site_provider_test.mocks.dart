@@ -3,12 +3,16 @@
 // Do not manually edit this file.
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
-import 'dart:async' as _i3;
+import 'dart:async' as _i6;
 
+import 'package:cloud_functions/cloud_functions.dart' as _i4;
+import 'package:cloud_functions_platform_interface/cloud_functions_platform_interface.dart'
+    as _i2;
+import 'package:firebase_core/firebase_core.dart' as _i3;
 import 'package:mockito/mockito.dart' as _i1;
-import 'package:mockito/src/dummies.dart' as _i5;
-import 'package:sitecat/models/site.dart' as _i4;
-import 'package:sitecat/services/site_service.dart' as _i2;
+import 'package:mockito/src/dummies.dart' as _i8;
+import 'package:sitecat/models/site.dart' as _i7;
+import 'package:sitecat/services/site_service.dart' as _i5;
 
 // ignore_for_file: type=lint
 // ignore_for_file: avoid_redundant_argument_values
@@ -25,120 +29,297 @@ import 'package:sitecat/services/site_service.dart' as _i2;
 // ignore_for_file: subtype_of_sealed_class
 // ignore_for_file: invalid_use_of_internal_member
 
+class _FakeFirebaseFunctionsPlatform_0 extends _i1.SmartFake
+    implements _i2.FirebaseFunctionsPlatform {
+  _FakeFirebaseFunctionsPlatform_0(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakeFirebaseApp_1 extends _i1.SmartFake implements _i3.FirebaseApp {
+  _FakeFirebaseApp_1(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakeHttpsCallable_2 extends _i1.SmartFake implements _i4.HttpsCallable {
+  _FakeHttpsCallable_2(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakeHttpsCallablePlatform_3 extends _i1.SmartFake
+    implements _i2.HttpsCallablePlatform {
+  _FakeHttpsCallablePlatform_3(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
+class _FakeHttpsCallableResult_4<T1> extends _i1.SmartFake
+    implements _i4.HttpsCallableResult<T1> {
+  _FakeHttpsCallableResult_4(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
 /// A class which mocks [SiteService].
 ///
 /// See the documentation for Mockito's code generation for more information.
-class MockSiteService extends _i1.Mock implements _i2.SiteService {
+class MockSiteService extends _i1.Mock implements _i5.SiteService {
   MockSiteService() {
     _i1.throwOnMissingStub(this);
   }
 
   @override
-  _i3.Future<String> createSite(_i4.Site? site) =>
+  _i6.Future<String> createSite(_i7.Site? site) =>
       (super.noSuchMethod(
             Invocation.method(#createSite, [site]),
-            returnValue: _i3.Future<String>.value(
-              _i5.dummyValue<String>(
+            returnValue: _i6.Future<String>.value(
+              _i8.dummyValue<String>(
                 this,
                 Invocation.method(#createSite, [site]),
               ),
             ),
           )
-          as _i3.Future<String>);
+          as _i6.Future<String>);
 
   @override
-  _i3.Stream<List<_i4.Site>> getUserSites() =>
+  _i6.Stream<List<_i7.Site>> getUserSites() =>
       (super.noSuchMethod(
             Invocation.method(#getUserSites, []),
-            returnValue: _i3.Stream<List<_i4.Site>>.empty(),
+            returnValue: _i6.Stream<List<_i7.Site>>.empty(),
           )
-          as _i3.Stream<List<_i4.Site>>);
+          as _i6.Stream<List<_i7.Site>>);
 
   @override
-  _i3.Future<_i4.Site?> getSite(String? siteId) =>
+  _i6.Future<_i7.Site?> getSite(String? siteId) =>
       (super.noSuchMethod(
             Invocation.method(#getSite, [siteId]),
-            returnValue: _i3.Future<_i4.Site?>.value(),
+            returnValue: _i6.Future<_i7.Site?>.value(),
           )
-          as _i3.Future<_i4.Site?>);
+          as _i6.Future<_i7.Site?>);
 
   @override
-  _i3.Future<void> updateSite(_i4.Site? site) =>
+  _i6.Future<void> updateSite(_i7.Site? site) =>
       (super.noSuchMethod(
             Invocation.method(#updateSite, [site]),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i3.Future<void>);
+          as _i6.Future<void>);
 
   @override
-  _i3.Future<void> deleteSite(String? siteId) =>
+  _i6.Future<void> deleteSite(String? siteId) =>
       (super.noSuchMethod(
             Invocation.method(#deleteSite, [siteId]),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i3.Future<void>);
+          as _i6.Future<void>);
 
   @override
-  _i3.Future<void> toggleMonitoring(String? siteId, bool? enabled) =>
+  _i6.Future<void> toggleMonitoring(String? siteId, bool? enabled) =>
       (super.noSuchMethod(
             Invocation.method(#toggleMonitoring, [siteId, enabled]),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i3.Future<void>);
+          as _i6.Future<void>);
 
   @override
-  _i3.Future<void> updateLastChecked(String? siteId, DateTime? timestamp) =>
+  _i6.Future<void> updateLastChecked(String? siteId, DateTime? timestamp) =>
       (super.noSuchMethod(
             Invocation.method(#updateLastChecked, [siteId, timestamp]),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
+            returnValue: _i6.Future<void>.value(),
+            returnValueForMissingStub: _i6.Future<void>.value(),
           )
-          as _i3.Future<void>);
+          as _i6.Future<void>);
 
   @override
-  _i3.Stream<List<_i4.Site>> getMonitoringSites() =>
+  _i6.Stream<List<_i7.Site>> getMonitoringSites() =>
       (super.noSuchMethod(
             Invocation.method(#getMonitoringSites, []),
-            returnValue: _i3.Stream<List<_i4.Site>>.empty(),
+            returnValue: _i6.Stream<List<_i7.Site>>.empty(),
           )
-          as _i3.Stream<List<_i4.Site>>);
+          as _i6.Stream<List<_i7.Site>>);
 
   @override
-  _i3.Future<bool> urlExists(String? url, {String? excludeSiteId}) =>
+  _i6.Future<bool> urlExists(String? url, {String? excludeSiteId}) =>
       (super.noSuchMethod(
             Invocation.method(
               #urlExists,
               [url],
               {#excludeSiteId: excludeSiteId},
             ),
-            returnValue: _i3.Future<bool>.value(false),
+            returnValue: _i6.Future<bool>.value(false),
           )
-          as _i3.Future<bool>);
+          as _i6.Future<bool>);
 
   @override
-  _i3.Future<bool> validateUrl(String? url) =>
+  _i6.Future<bool> validateUrl(String? url) =>
       (super.noSuchMethod(
             Invocation.method(#validateUrl, [url]),
-            returnValue: _i3.Future<bool>.value(false),
+            returnValue: _i6.Future<bool>.value(false),
           )
-          as _i3.Future<bool>);
+          as _i6.Future<bool>);
 
   @override
-  _i3.Future<int> getSiteCount() =>
+  _i6.Future<int> getSiteCount() =>
       (super.noSuchMethod(
             Invocation.method(#getSiteCount, []),
-            returnValue: _i3.Future<int>.value(0),
+            returnValue: _i6.Future<int>.value(0),
           )
-          as _i3.Future<int>);
+          as _i6.Future<int>);
 
   @override
-  _i3.Stream<List<_i4.Site>> searchSites(String? searchTerm) =>
+  _i6.Stream<List<_i7.Site>> searchSites(String? searchTerm) =>
       (super.noSuchMethod(
             Invocation.method(#searchSites, [searchTerm]),
-            returnValue: _i3.Stream<List<_i4.Site>>.empty(),
+            returnValue: _i6.Stream<List<_i7.Site>>.empty(),
           )
-          as _i3.Stream<List<_i4.Site>>);
+          as _i6.Stream<List<_i7.Site>>);
+}
+
+/// A class which mocks [FirebaseFunctions].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockFirebaseFunctions extends _i1.Mock implements _i4.FirebaseFunctions {
+  MockFirebaseFunctions() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i2.FirebaseFunctionsPlatform get delegate =>
+      (super.noSuchMethod(
+            Invocation.getter(#delegate),
+            returnValue: _FakeFirebaseFunctionsPlatform_0(
+              this,
+              Invocation.getter(#delegate),
+            ),
+          )
+          as _i2.FirebaseFunctionsPlatform);
+
+  @override
+  _i3.FirebaseApp get app =>
+      (super.noSuchMethod(
+            Invocation.getter(#app),
+            returnValue: _FakeFirebaseApp_1(this, Invocation.getter(#app)),
+          )
+          as _i3.FirebaseApp);
+
+  @override
+  Map<dynamic, dynamic> get pluginConstants =>
+      (super.noSuchMethod(
+            Invocation.getter(#pluginConstants),
+            returnValue: <dynamic, dynamic>{},
+          )
+          as Map<dynamic, dynamic>);
+
+  @override
+  _i4.HttpsCallable httpsCallable(
+    String? name, {
+    _i2.HttpsCallableOptions? options,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#httpsCallable, [name], {#options: options}),
+            returnValue: _FakeHttpsCallable_2(
+              this,
+              Invocation.method(#httpsCallable, [name], {#options: options}),
+            ),
+          )
+          as _i4.HttpsCallable);
+
+  @override
+  _i4.HttpsCallable httpsCallableFromUrl(
+    String? url, {
+    _i2.HttpsCallableOptions? options,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #httpsCallableFromUrl,
+              [url],
+              {#options: options},
+            ),
+            returnValue: _FakeHttpsCallable_2(
+              this,
+              Invocation.method(
+                #httpsCallableFromUrl,
+                [url],
+                {#options: options},
+              ),
+            ),
+          )
+          as _i4.HttpsCallable);
+
+  @override
+  _i4.HttpsCallable httpsCallableFromUri(
+    Uri? uri, {
+    _i2.HttpsCallableOptions? options,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(
+              #httpsCallableFromUri,
+              [uri],
+              {#options: options},
+            ),
+            returnValue: _FakeHttpsCallable_2(
+              this,
+              Invocation.method(
+                #httpsCallableFromUri,
+                [uri],
+                {#options: options},
+              ),
+            ),
+          )
+          as _i4.HttpsCallable);
+
+  @override
+  void useFunctionsEmulator(
+    String? host,
+    int? port, {
+    bool? automaticHostMapping = true,
+  }) => super.noSuchMethod(
+    Invocation.method(
+      #useFunctionsEmulator,
+      [host, port],
+      {#automaticHostMapping: automaticHostMapping},
+    ),
+    returnValueForMissingStub: null,
+  );
+}
+
+/// A class which mocks [HttpsCallable].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockHttpsCallable extends _i1.Mock implements _i4.HttpsCallable {
+  MockHttpsCallable() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i2.HttpsCallablePlatform get delegate =>
+      (super.noSuchMethod(
+            Invocation.getter(#delegate),
+            returnValue: _FakeHttpsCallablePlatform_3(
+              this,
+              Invocation.getter(#delegate),
+            ),
+          )
+          as _i2.HttpsCallablePlatform);
+
+  @override
+  _i6.Future<_i4.HttpsCallableResult<T>> call<T>([dynamic parameters]) =>
+      (super.noSuchMethod(
+            Invocation.method(#call, [parameters]),
+            returnValue: _i6.Future<_i4.HttpsCallableResult<T>>.value(
+              _FakeHttpsCallableResult_4<T>(
+                this,
+                Invocation.method(#call, [parameters]),
+              ),
+            ),
+          )
+          as _i6.Future<_i4.HttpsCallableResult<T>>);
+
+  @override
+  _i6.Stream<_i4.StreamResponse> stream<T, R>([Object? input]) =>
+      (super.noSuchMethod(
+            Invocation.method(#stream, [input]),
+            returnValue: _i6.Stream<_i4.StreamResponse>.empty(),
+          )
+          as _i6.Stream<_i4.StreamResponse>);
 }

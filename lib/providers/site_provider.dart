@@ -1,17 +1,24 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../models/site.dart';
+import 'package:logger/logger.dart';
+import 'package:sitecat/models/site.dart';
 import '../services/site_service.dart';
 import '../services/demo_service.dart';
+import '../services/site_transaction_service.dart';
 import '../constants/app_constants.dart';
 import '../utils/validation.dart';
 import 'subscription_provider.dart';
 
 class SiteProvider extends ChangeNotifier {
-  SiteProvider({SiteService? siteService})
-    : _siteService = siteService ?? SiteService();
+  SiteProvider({
+    SiteService? siteService,
+    SiteTransactionService? siteTransactionService,
+  }) : _siteService = siteService ?? SiteService(),
+       _transactionService = siteTransactionService ?? SiteTransactionService();
 
   final SiteService _siteService;
+  final SiteTransactionService _transactionService;
+  final Logger _logger = Logger();
 
   // State variables
   List<Site> _sites = [];
@@ -84,59 +91,89 @@ class SiteProvider extends ChangeNotifier {
     );
   }
 
-  // Create a new site
+  /// Create a new site with transactional limit enforcement (Issue #299)
   Future<bool> createSite({
     required String url,
     required String name,
     String? sitemapUrl,
-    bool monitoringEnabled = true,
-    int checkInterval = 60,
-    List<String>? excludedPaths,
+    List<String> excludedPaths = const [],
+    int? checkInterval,
   }) async {
-    try {
-      _clearError();
+    _isLoading = true;
+    _error = null;
+    notifyListeners();
 
-      // Check site limit
-      if (!canAddSite) {
-        final message = _hasLifetimeAccess
+    try {
+      // Client-side pre-check for UI responsiveness
+      final currentLimit = _hasLifetimeAccess
+          ? AppConstants.premiumSiteLimit
+          : AppConstants.freePlanSiteLimit;
+
+      if (sites.length >= currentLimit) {
+        _error = _hasLifetimeAccess
             ? AppConstants.premiumSiteLimitReachedMessage
             : AppConstants.siteLimitReachedMessage;
-        _setError(message);
         return false;
       }
 
       // Validate URL format
       if (!await _siteService.validateUrl(url)) {
-        _setError('Invalid URL format');
+        _error = 'Invalid URL format';
         return false;
       }
 
-      // Check if URL already exists
+      // Check duplicate URL
       if (await _siteService.urlExists(url)) {
-        _setError('A site with this URL already exists');
+        _error = 'A site with this URL already exists';
         return false;
       }
 
-      // Create new site
-      final now = DateTime.now();
-      final site = Site(
-        id: '', // Will be set by Firestore
-        userId: '', // Will be set by SiteService
-        url: url,
-        name: name,
-        sitemapUrl: sitemapUrl,
-        monitoringEnabled: monitoringEnabled,
-        checkInterval: checkInterval,
-        createdAt: now,
-        updatedAt: now,
-        excludedPaths: excludedPaths ?? [],
-      );
+      try {
+        final result = await _transactionService.createSiteTransaction(
+          url: url,
+          name: name,
+          sitemapUrl: sitemapUrl,
+          excludedPaths: excludedPaths,
+          checkInterval: checkInterval,
+        );
 
-      await _siteService.createSite(site);
-      return true;
+        if (result['ok'] == true) {
+          _logger.d('Site created via callable');
+          return true;
+        }
+        _error = 'Failed to create site';
+        return false;
+      } on SiteTransactionException catch (e) {
+        _logger.e('Callable error: ${e.code} - ${e.message}', error: e);
+
+        if (e.code == 'failed-precondition' &&
+            e.message == 'site-limit-reached') {
+          final details = e.details;
+          final limit = details?['limit'] as int?;
+          _error = (limit == AppConstants.premiumSiteLimit)
+              ? AppConstants.premiumSiteLimitReachedMessage
+              : AppConstants.siteLimitReachedMessage;
+          return false;
+        }
+
+        if (e.code == 'unauthenticated') {
+          _error = 'Authentication required';
+          return false;
+        }
+
+        _error = 'Failed to create site: ${e.message}';
+        return false;
+      } catch (e) {
+        _error = 'Failed to create site';
+        _logger.e('Failed to create site via callable', error: e);
+        return false;
+      }
     } catch (e) {
-      _setError('Failed to create site: $e');
+      _error = 'Failed to create site';
       return false;
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
